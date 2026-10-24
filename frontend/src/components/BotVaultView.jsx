@@ -218,15 +218,15 @@ export default function BotVaultView() {
   };
 
   return (
-    <div className="space-y-8 animate-fadeIn max-w-7xl mx-auto">
+    <div className="view-shell animate-fadeIn max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="page-header">
         <div>
           <h1 className="text-2xl font-black text-white tracking-wide flex items-center gap-2">
-            <span>Hồ Sơ & Kho Bot Thuật Toán Sinh Viên (Bot Vault)</span>
+            <span>Kho bot của bạn</span>
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            Nộp nhiều bot Python, tùy chỉnh chiến thuật (Cướp Cờ A*, Thủ Căn Cứ, Săn Diệt) và chọn bot chính thức xuất trận
+            Tạo, quản lý và chọn bot chính thức để tham gia thi đấu.
           </p>
         </div>
 

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
-export default function AuthModal({ isOpen, onClose }) {
+export default function AuthModal({ isOpen, initialMode = 'login', onClose }) {
   const { login, register } = useAuth();
   const [mode, setMode] = useState('REGISTER'); // 'REGISTER' | 'LOGIN'
   const [username, setUsername] = useState('');
@@ -9,6 +9,13 @@ export default function AuthModal({ isOpen, onClose }) {
   const [role, setRole] = useState('STUDENT');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode.toLowerCase() === 'register' ? 'REGISTER' : 'LOGIN');
+      setError('');
+    }
+  }, [isOpen, initialMode]);
 
   if (!isOpen) return null;
 
@@ -32,8 +39,8 @@ export default function AuthModal({ isOpen, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-md bg-dark-800 border border-white/10 rounded-2xl p-6 shadow-2xl">
+    <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
+      <div className="modal-card relative w-full max-w-md p-6">
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -48,7 +55,7 @@ export default function AuthModal({ isOpen, onClose }) {
             {mode === 'REGISTER' ? 'Tạo Tài Khoản Học Sinh' : 'Đăng Nhập Hệ Thống'}
           </h3>
           <p className="text-xs text-slate-400">
-            Nền tảng thi đấu Bot AI cờ chiến thuật Kéo - Búa - Bao
+            Đăng nhập để quản lý bot và tham gia thi đấu.
           </p>
         </div>
 
@@ -61,7 +68,7 @@ export default function AuthModal({ isOpen, onClose }) {
             }}
             className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
               mode === 'REGISTER'
-                ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/20'
+                ? 'bg-indigo-600 text-white'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -75,7 +82,7 @@ export default function AuthModal({ isOpen, onClose }) {
             }}
             className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
               mode === 'LOGIN'
-                ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/20'
+                ? 'bg-indigo-600 text-white'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -140,7 +147,7 @@ export default function AuthModal({ isOpen, onClose }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black shadow-lg shadow-cyan-500/25 transition-all transform hover:-translate-y-0.5 disabled:opacity-50"
+            className="primary-action w-full py-2.5 font-bold text-sm disabled:opacity-50"
           >
             {loading ? 'Đang Xử Lý...' : mode === 'REGISTER' ? 'Xác Nhận Đăng Ký' : 'Đăng Nhập'}
           </button>

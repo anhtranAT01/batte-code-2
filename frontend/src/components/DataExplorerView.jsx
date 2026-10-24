@@ -37,15 +37,15 @@ export default function DataExplorerView({ onSelectReplay }) {
   });
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="view-shell animate-fadeIn">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="page-header">
         <div>
           <h1 className="text-2xl font-black text-white tracking-wide flex items-center gap-2">
-            <span>Cơ Sở Dữ Liệu Trận Đấu (Data Explorer)</span>
+            <span>Lịch sử trận đấu</span>
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            Tra cứu toàn bộ lịch sử đấu trận, xem lại nước đi và phân tích dữ liệu replay của các thuật toán
+            Tìm kiếm, xem lại và phân tích dữ liệu của từng trận đấu.
           </p>
         </div>
 

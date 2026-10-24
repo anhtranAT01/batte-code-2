@@ -64,14 +64,14 @@ export default function WorldChatModal({ isOpen, onClose, socket, onlineCount = 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
-      <div className="w-full max-w-lg rounded-2xl bg-[#0c101d] border border-white/10 shadow-2xl flex flex-col h-[520px] overflow-hidden">
+    <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 animate-fadeIn">
+      <div className="modal-card w-full max-w-lg flex flex-col h-[520px] overflow-hidden">
         {/* Header */}
         <div className="p-4 bg-[#090d18] border-b border-white/5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <span className="feature-code">CHAT</span>
             <div>
-              <h3 className="font-bold text-white text-sm">Kênh Thế Giới (World Chat)</h3>
+              <h3 className="font-bold text-white text-sm">Kênh trò chuyện</h3>
               <div className="flex items-center gap-1.5 text-[11px] text-emerald-400">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                 <span>{onlineCount} người đang trực tuyến</span>
@@ -117,7 +117,7 @@ export default function WorldChatModal({ isOpen, onClose, socket, onlineCount = 
                 <div
                   className={`p-3 rounded-2xl max-w-[85%] text-xs leading-relaxed ${
                     isMe
-                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-tr-none shadow-md'
+                      ? 'bg-indigo-600 text-white rounded-tr-none'
                       : 'bg-[#141a2e] text-slate-200 border border-white/5 rounded-tl-none'
                   }`}
                 >
@@ -145,7 +145,6 @@ export default function WorldChatModal({ isOpen, onClose, socket, onlineCount = 
             disabled={!user || !inputVal.trim()}
             className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold text-xs transition-colors flex items-center gap-1"
           >
-            <span>Gửi</span>
             <span>Gửi</span>
           </button>
         </form>

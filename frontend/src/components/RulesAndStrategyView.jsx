@@ -2,14 +2,14 @@ import React from 'react';
 
 export default function RulesAndStrategyView({ onGoToTemplates }) {
   return (
-    <div className="space-y-8 animate-fadeIn max-w-5xl mx-auto">
+    <div className="view-shell animate-fadeIn max-w-5xl mx-auto">
       {/* Title Header */}
-      <div>
+      <div className="page-header">
         <h1 className="text-2xl font-black text-white tracking-wide flex items-center gap-2">
-          <span>Luật Thi Đấu & Cẩm Nang Thuật Toán (Rules & Strategy)</span>
+          <span>Luật thi đấu và chiến thuật</span>
         </h1>
         <p className="text-sm text-slate-400 mt-1">
-          Quy chuẩn thi đấu chính thức của Đấu Trường Cờ Chiến Thuật Kéo - Búa - Bao 9x9 và gợi ý thiết kế Bot AI
+          Nắm luật chơi, điều kiện thắng và cách xây dựng chiến thuật hiệu quả.
         </p>
       </div>
 

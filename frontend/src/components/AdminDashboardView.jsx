@@ -244,13 +244,13 @@ export default function AdminDashboardView({ onSelectReplay }) {
   };
 
   return (
-    <div className="space-y-8 animate-fadeIn max-w-7xl mx-auto">
+    <div className="view-shell animate-fadeIn max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="page-header">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-black text-white tracking-wide">
-              Bảng Điều Khiển Quản Trị Hệ Thống (Master Admin)
+              Quản trị hệ thống
             </h1>
             <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/30">
               Quyền Giáo Viên / Admin

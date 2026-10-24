@@ -143,13 +143,13 @@ export default function BossArenaView({ onSelectReplay }) {
     [];
 
   return (
-    <div className="space-y-8 animate-fadeIn max-w-7xl mx-auto">
+    <div className="view-shell animate-fadeIn max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="page-header">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-black text-white tracking-wide">
-              Đấu Boss AI Tự Động (Auto Bot Arena)
+              Thử thách chiến thuật
             </h1>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gradient-to-r from-orange-500 to-red-500 text-white uppercase">
               HOT

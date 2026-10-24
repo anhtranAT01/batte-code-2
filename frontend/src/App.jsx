@@ -103,10 +103,10 @@ export default function App() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* Top Header Bar */}
-        <HeaderBar onOpenAuthModal={handleOpenAuthModal} theme={theme} onToggleTheme={toggleTheme} />
+        <HeaderBar activeTab={activeTab} onOpenAuthModal={handleOpenAuthModal} theme={theme} onToggleTheme={toggleTheme} />
 
         {/* Dynamic Page Views Container */}
-        <main className="app-main flex-1 overflow-y-auto px-4 sm:px-6 py-6 scrollbar-thin">
+        <main className="app-main flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 scrollbar-thin">
           <div className="max-w-7xl mx-auto pb-12">
             {activeTab === 'leaderboard' && (
               <LeaderboardView

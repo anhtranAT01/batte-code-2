@@ -116,15 +116,15 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
   };
 
   return (
-    <div className="space-y-8 animate-fadeIn">
+    <div className="view-shell animate-fadeIn">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="page-header">
         <div>
           <h1 className="text-2xl font-black text-white tracking-wide">
-            Bảng xếp hạng & Đấu trường FFA (Leaderboard)
+            Bảng xếp hạng và đấu trường FFA
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            Xếp hạng thuật toán 9x9 Rock · Paper · Scissors Chess theo Elo
+            Theo dõi thứ hạng Elo và hoạt động thi đấu gần nhất.
           </p>
         </div>
 

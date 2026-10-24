@@ -158,13 +158,13 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
     [];
 
   return (
-    <div className="space-y-6">
+    <div className="view-shell animate-fadeIn">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/5">
+      <div className="page-header">
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl font-black text-white tracking-wide flex items-center gap-2">
-              <span>Đấu Bot 2 Người (PvP Student Bot Duel)</span>
+              <span>Đấu bot PvP</span>
             </h1>
             <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white uppercase tracking-wider">
               100% NGƯỜI THẬT
