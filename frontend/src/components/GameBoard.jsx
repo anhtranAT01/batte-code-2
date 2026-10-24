@@ -1,29 +1,19 @@
 import React from 'react';
 
-const PIECE_ICONS = {
-  ROCK: 'R', PAPER: 'P', SCISSORS: 'S', R: 'R', P: 'P', S: 'S',
+const PIECE_LABELS = {
+  ROCK: { short: 'B', name: 'Búa' }, PAPER: { short: 'G', name: 'Giấy' }, SCISSORS: { short: 'K', name: 'Kéo' },
+  R: { short: 'B', name: 'Búa' }, P: { short: 'G', name: 'Giấy' }, S: { short: 'K', name: 'Kéo' },
 };
 
-const ITEM_ICONS = {
-  OBSTACLE: 'BLOCK', POTION_INFECTION: 'SYNC', POTION_SPEED: '2X', POTION_CLONE: '+1',
+const ITEM_LABELS = {
+  OBSTACLE: { short: 'CHẶN', name: 'Vật cản' }, POTION_INFECTION: { short: 'ĐỔI', name: 'Đồng hóa' },
+  POTION_SPEED: { short: '2X', name: 'Đi hai bước' }, POTION_CLONE: { short: '+1', name: 'Thêm quân' },
 };
 
-export default function GameBoard({
-  grid: propGrid,
-  board,
-  selectedPiece = null,
-  validMoves = [],
-  onTileClick = () => {},
-  readOnly = false,
-  isInteractive = true,
-}) {
+export default function GameBoard({ grid: propGrid, board, selectedPiece = null, validMoves = [], onTileClick = () => {}, readOnly = false, isInteractive = true }) {
   let grid = propGrid || board || [];
   if (typeof grid === 'string') {
-    try {
-      grid = JSON.parse(grid);
-    } catch {
-      grid = [];
-    }
+    try { grid = JSON.parse(grid); } catch { grid = []; }
   }
 
   const rows = Array.isArray(grid) ? grid.length : 0;
@@ -32,160 +22,69 @@ export default function GameBoard({
 
   if (rows === 0 || cols === 0) {
     return (
-      <div className="flex items-center justify-center h-80 bg-dark-900/50 rounded-2xl border border-white/5 text-slate-500 text-sm">
-        Đang khởi tạo bản đồ...
+      <div className="board-empty-state">
+        <span className="board-empty-mark">9×9</span>
+        <div><strong>Đang khởi tạo bàn đấu</strong><span>Dữ liệu trận đấu sẽ xuất hiện tại đây.</span></div>
       </div>
     );
   }
 
-  // Check if a cell is a valid move target for the selected piece
-  const isMoveTarget = (r, c) => {
-    if (!selectedPiece || !Array.isArray(validMoves)) return false;
-    return validMoves.some(
-      (m) => m.fromRow === selectedPiece.row && m.fromCol === selectedPiece.col && m.toRow === r && m.toCol === c
-    );
-  };
+  const isMoveTarget = (r, c) => selectedPiece && Array.isArray(validMoves) && validMoves.some(
+    (move) => move.fromRow === selectedPiece.row && move.fromCol === selectedPiece.col && move.toRow === r && move.toCol === c
+  );
 
   return (
-    <div className="flex flex-col items-center justify-center p-3 lg:p-6 bg-dark-900/80 rounded-2xl border border-white/10 shadow-2xl">
-      <div
-        className="grid gap-1.5 p-2 bg-dark-800/90 rounded-xl border border-white/5"
-        style={{
-          gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-        }}
-      >
-        {grid.map((rowArr, r) =>
-          rowArr.map((cell, c) => {
+    <section className="game-board-shell" aria-label={`Bàn đấu ${rows} hàng ${cols} cột`}>
+      <div className="board-heading">
+        <div><span className="board-eyebrow">Bàn đấu chiến thuật</span><strong>{rows} × {cols} ô</strong></div>
+        <div className="board-player-key" aria-label="Chú thích hai phe">
+          <span><i className="player-dot player-dot-one" />Phe 1</span>
+          <span><i className="player-dot player-dot-two" />Phe 2</span>
+        </div>
+      </div>
+
+      <div className="board-frame">
+        <div className="tactical-board" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+          {grid.map((rowArr, r) => rowArr.map((cell, c) => {
             const piece = cell?.piece || null;
             const item = cell?.item || null;
+            const pieceMeta = piece ? (PIECE_LABELS[piece.type] || { short: piece.type, name: piece.type }) : null;
+            const itemMeta = item ? (ITEM_LABELS[item] || { short: 'VẬT', name: item }) : null;
             const isSelected = selectedPiece && selectedPiece.row === r && selectedPiece.col === c;
             const isTarget = isMoveTarget(r, c);
-            const isP1Flag = r === 0 && c === 0;
-            const isP2Flag = r === rows - 1 && c === cols - 1;
+            const isP1Base = r === 0 && c === 0;
+            const isP2Base = r === rows - 1 && c === cols - 1;
+            const cellClasses = ['board-cell-pro', (r + c) % 2 === 0 ? 'is-light' : 'is-shade', isP1Base ? 'is-base-one' : '', isP2Base ? 'is-base-two' : '', item === 'OBSTACLE' ? 'is-obstacle' : '', isSelected ? 'is-selected' : '', isTarget ? 'is-target' : '', isReadOnly ? 'is-readonly' : 'is-clickable'].filter(Boolean).join(' ');
 
             return (
-              <div
-                key={`${r}-${c}`}
-                onClick={() => {
-                  if (!isReadOnly) onTileClick(r, c);
-                }}
-                className={`relative w-11 h-11 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-xl flex items-center justify-center transition-all select-none ${
-                  isReadOnly ? 'cursor-default' : 'cursor-pointer hover:scale-[1.04]'
-                } ${
-                  isSelected
-                    ? 'ring-2 ring-amber-400 bg-amber-400/20 shadow-lg shadow-amber-400/30'
-                    : isTarget
-                    ? 'ring-2 ring-emerald-400 bg-emerald-400/15 animate-pulse'
-                    : isP1Flag
-                    ? 'ring-2 ring-sky-500/80 bg-sky-950/50 shadow-inner'
-                    : isP2Flag
-                    ? 'ring-2 ring-rose-500/80 bg-rose-950/50 shadow-inner'
-                    : 'bg-dark-700/80 hover:bg-dark-600/90'
-                } ${item === 'OBSTACLE' ? 'bg-slate-900/95 border border-white/5' : ''}`}
-                title={isP1Flag ? 'Căn cứ Phe 1 (0,0)' : isP2Flag ? 'Căn cứ Phe 2' : `Ô (${r}, ${c})`}
-              >
-                {/* Board grid coordinate watermark */}
-                <span className="absolute bottom-1 right-1 text-[9px] font-mono text-slate-500 pointer-events-none opacity-60">
-                  {r},{c}
-                </span>
-
-                {/* Flag Base Watermark Indicator */}
-                {(isP1Flag || isP2Flag) && (
-                  <span
-                    className={`absolute top-1 left-1 text-[9px] font-black px-1 rounded ${
-                      isP1Flag ? 'bg-sky-500/30 text-sky-300' : 'bg-rose-500/30 text-rose-300'
-                    }`}
-                  >
-                    BASE {isP1Flag ? 'P1' : 'P2'}
+              <button type="button" key={`${r}-${c}`} className={cellClasses} onClick={() => !isReadOnly && onTileClick(r, c)} disabled={isReadOnly} title={isP1Base ? 'Căn cứ Phe 1' : isP2Base ? 'Căn cứ Phe 2' : `Ô ${r}, ${c}`} aria-label={piece ? `${pieceMeta.name}, phe ${piece.player}, ô ${r} ${c}` : `Ô ${r} ${c}`}>
+                <span className="board-coordinate">{r},{c}</span>
+                {(isP1Base || isP2Base) && !piece && (
+                  <span className={`base-marker ${isP1Base ? 'base-one' : 'base-two'}`}><b>{isP1Base ? 'P1' : 'P2'}</b><small>Căn cứ</small></span>
+                )}
+                {isTarget && !piece && <span className="target-marker" />}
+                {item && !piece && !isP1Base && !isP2Base && (
+                  <span className="board-item"><b>{itemMeta.short}</b><small>{itemMeta.name}</small></span>
+                )}
+                {piece && (
+                  <span className={`piece-token player-${piece.player}`}>
+                    <span className="piece-buffs">
+                      {piece.hasInfectionBuff && <i title="Đồng hóa">Đ</i>}
+                      {piece.hasSpeedBuff && <i title="Tăng tốc">2X</i>}
+                    </span>
+                    <b>{pieceMeta.short}</b><small>{pieceMeta.name}</small><em>P{piece.player}</em>
                   </span>
                 )}
-
-                {/* Flag Stand Icon (When cell has no piece) */}
-                {(isP1Flag || isP2Flag) && !piece && (
-                  <div className="flex flex-col items-center justify-center animate-pulse">
-                    <span className="base-glyph">{isP1Flag ? '01' : '02'}</span>
-                    <span className={`text-[8px] font-extrabold uppercase tracking-tighter ${isP1Flag ? 'text-sky-300' : 'text-rose-300'}`}>
-                      Căn Cứ
-                    </span>
-                  </div>
-                )}
-
-                {/* Target move indicator dot */}
-                {isTarget && !piece && (
-                  <span className="w-3.5 h-3.5 rounded-full bg-emerald-400 shadow-md shadow-emerald-400/50"></span>
-                )}
-
-                {/* Item / Power-up Potion (if no piece occupies cell and not a flag) */}
-                {item && !piece && !isP1Flag && !isP2Flag && (
-                  <div className="flex flex-col items-center justify-center">
-                    <span className="item-glyph">
-                      {ITEM_ICONS[item] || 'ITEM'}
-                    </span>
-                    <span className="text-[8px] font-bold tracking-tighter text-slate-400 mt-0.5">
-                      {item === 'OBSTACLE' ? 'Cản' : item === 'POTION_CLONE' ? '+1 Quân' : item === 'POTION_SPEED' ? 'Đi 2' : 'Đồng Hóa'}
-                    </span>
-                  </div>
-                )}
-
-                {/* Piece Rendering */}
-                {piece && (
-                  <div
-                    className={`w-full h-full p-1 flex flex-col items-center justify-center rounded-lg ${
-                      piece.player === 1
-                        ? 'text-sky-300 drop-shadow-[0_0_8px_rgba(56,189,248,0.7)]'
-                        : 'text-rose-300 drop-shadow-[0_0_8px_rgba(244,63,94,0.7)]'
-                    }`}
-                  >
-                    <span className="piece-glyph">
-                      {PIECE_ICONS[piece.type] || piece.type}
-                    </span>
-
-                    {/* Active Buff Badges */}
-                    <div className="absolute top-1 left-1 flex gap-0.5">
-                      {piece.hasInfectionBuff && (
-                        <span className="text-[10px] bg-purple-500/80 rounded px-0.5 shadow" title="Buff Đồng Hóa">
-                          S
-                        </span>
-                      )}
-                      {piece.hasSpeedBuff && (
-                        <span className="text-[10px] bg-amber-500/80 rounded px-0.5 shadow" title="Buff Tăng Tốc 2 Bước">
-                          2X
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Player Badge */}
-                    <span
-                      className={`text-[8px] font-mono font-bold px-1 rounded-sm mt-0.5 ${
-                        piece.player === 1 ? 'bg-sky-500/20 text-sky-300' : 'bg-rose-500/20 text-rose-300'
-                      }`}
-                    >
-                      P{piece.player}
-                    </span>
-                  </div>
-                )}
-              </div>
+              </button>
             );
-          })
-        )}
+          }))}
+        </div>
       </div>
 
-      {/* Legend Footer */}
-      <div className="flex flex-wrap items-center justify-center gap-4 mt-4 pt-3 border-t border-white/5 text-xs text-slate-400">
-        <span className="flex items-center gap-1.5 text-sky-400 font-semibold">
-          <span className="w-2.5 h-2.5 rounded-full bg-sky-400"></span> Phe 1 (Xanh)
-        </span>
-        <span className="flex items-center gap-1.5 text-rose-400 font-semibold">
-          <span className="w-2.5 h-2.5 rounded-full bg-rose-400"></span> Phe 2 (Đỏ)
-        </span>
-        <span className="flex items-center gap-1.5 text-amber-300 font-bold">
-          Căn cứ (0,0 & {rows - 1},{cols - 1})
-        </span>
-        <span className="flex items-center gap-1">BLOCK Vật cản</span>
-        <span className="flex items-center gap-1">SYNC Đồng hóa</span>
-        <span className="flex items-center gap-1">2X Đi hai bước</span>
-        <span className="flex items-center gap-1">+1 Thêm quân</span>
+      <div className="board-legend" aria-label="Quy tắc và vật phẩm">
+        <span><b>B</b>Búa</span><span><b>G</b>Giấy</span><span><b>K</b>Kéo</span><span className="legend-separator" />
+        <span>CHẶN <small>Vật cản</small></span><span>ĐỔI <small>Đồng hóa</small></span><span>2X <small>Tăng tốc</small></span><span>+1 <small>Thêm quân</small></span>
       </div>
-    </div>
+    </section>
   );
 }
