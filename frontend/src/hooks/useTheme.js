@@ -1,0 +1,17 @@
+import { useEffect, useState } from 'react';
+
+function initialTheme() {
+  const saved = localStorage.getItem('battlecode-theme');
+  if (saved === 'light' || saved === 'dark') return saved;
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+}
+
+export default function useTheme() {
+  const [theme, setTheme] = useState(initialTheme);
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
+    localStorage.setItem('battlecode-theme', theme);
+  }, [theme]);
+  return { theme, toggleTheme: () => setTheme((value) => value === 'dark' ? 'light' : 'dark') };
+}

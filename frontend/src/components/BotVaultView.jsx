@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 const TACTIC_OPTIONS = [
-  { id: 'FLAG_RUSHER', label: '🚩 Cướp Cờ Thần Tốc (A* Flag Rusher)', desc: 'Tính đường đi ngắn nhất đâm thẳng vào Căn cứ Cờ đối phương để thắng chớp nhoáng' },
-  { id: 'FLAG_DEFENDER', label: '🛡️ Thủ Căn Cứ & Bẫy Quân (Flag Defender)', desc: 'Bố trí chốt chặn cửa ngõ căn cứ nhà, bọc lót theo bộ 3 Kéo-Búa-Bao' },
-  { id: 'COMBAT_HUNTER', label: '⚔️ Săn Lùng & Diệt Địch (Minimax Combat)', desc: 'Dự đoán nước đi 3-4 bước, săn lùng ăn quân đối phương để giành ưu thế áp đảo' },
-  { id: 'POTION_COLLECTOR', label: '🧪 Thu Thập Bình Bảo Vật (Potion Hunter)', desc: 'Ưu tiên nhặt bình Tăng Tốc (⚡) và Đồng Hóa (🧪) trước khi giao tranh' },
+  { id: 'FLAG_RUSHER', label: 'Cướp Cờ Thần Tốc (A* Flag Rusher)', desc: 'Tính đường đi ngắn nhất đâm thẳng vào Căn cứ Cờ đối phương để thắng chớp nhoáng' },
+  { id: 'FLAG_DEFENDER', label: 'Thủ Căn Cứ & Bẫy Quân (Flag Defender)', desc: 'Bố trí chốt chặn cửa ngõ căn cứ nhà, bọc lót theo bộ 3 Kéo-Búa-Bao' },
+  { id: 'COMBAT_HUNTER', label: 'Săn Lùng & Diệt Địch (Minimax Combat)', desc: 'Dự đoán nước đi 3-4 bước, săn lùng ăn quân đối phương để giành ưu thế áp đảo' },
+  { id: 'POTION_COLLECTOR', label: 'Thu Thập Vật Phẩm (Potion Hunter)', desc: 'Ưu tiên nhặt vật phẩm tăng tốc và đồng hóa trước khi giao tranh' },
 ];
 
 export default function BotVaultView() {
@@ -223,7 +223,6 @@ export default function BotVaultView() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-white tracking-wide flex items-center gap-2">
-            <span>👤</span>
             <span>Hồ Sơ & Kho Bot Thuật Toán Sinh Viên (Bot Vault)</span>
           </h1>
           <p className="text-sm text-slate-400 mt-1">
@@ -251,7 +250,7 @@ export default function BotVaultView() {
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            Mẫu Thuật Toán 💡
+            Mẫu thuật toán
           </button>
           <button
             onClick={() => setActiveSubTab('upload')}
@@ -261,7 +260,7 @@ export default function BotVaultView() {
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            + Nộp / Viết Bot Mới 🚀
+            + Nộp / viết bot mới
           </button>
           <button
             onClick={() => setActiveSubTab('guide')}
@@ -271,7 +270,7 @@ export default function BotVaultView() {
                 : 'text-slate-400 hover:text-amber-300'
             }`}
           >
-            📖 Hướng Dẫn Cướp Cờ
+            Hướng dẫn cướp cờ
           </button>
         </div>
       </div>
@@ -297,7 +296,7 @@ export default function BotVaultView() {
         <div className="space-y-6">
           {myBots.length === 0 ? (
             <div className="p-12 rounded-2xl bg-[#0e1322]/80 border border-white/5 backdrop-blur-md text-center space-y-4">
-              <div className="text-5xl">🤖</div>
+              <div className="empty-state-mark">BOT</div>
               <h3 className="font-bold text-white text-base">Bạn chưa nộp Bot Python nào</h3>
               <p className="text-xs text-slate-400 max-w-md mx-auto">
                 Hãy tham khảo các bản mẫu thuật toán A* Cướp Cờ hoặc Minimax để tạo bot của bạn và giao tranh giành cúp Đại học!
@@ -307,13 +306,13 @@ export default function BotVaultView() {
                   onClick={() => setActiveSubTab('templates')}
                   className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors"
                 >
-                  Xem Bản Mẫu Thuật Toán 💡
+                  Xem bản mẫu thuật toán
                 </button>
                 <button
                   onClick={() => setActiveSubTab('upload')}
                   className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-colors"
                 >
-                  Tạo Bot Mới Ngay 🚀
+                  Tạo bot mới
                 </button>
               </div>
             </div>
@@ -330,7 +329,7 @@ export default function BotVaultView() {
                 >
                   <div>
                     <div className="flex items-center justify-between">
-                      <span className="text-2xl">🤖</span>
+                      <span className="bot-code-mark">BOT</span>
                       {bot.is_active ? (
                         <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -399,7 +398,7 @@ export default function BotVaultView() {
                         className="p-2 rounded-xl bg-white/5 hover:bg-red-500/20 text-slate-400 hover:text-red-400 text-xs transition-colors"
                         title="Xóa Bot"
                       >
-                        🗑️
+                        Xóa
                       </button>
                     </div>
 
@@ -418,7 +417,7 @@ export default function BotVaultView() {
                           const m = data.data;
                           setAlertMsg({
                             type: 'success',
-                            text: `Đấu thử xong! ${m.winner === 1 ? '🎉 Bot THẮNG' : '🤖 Bot THUA'} Boss AI (${m.winReason}) sau ${m.totalTurns} lượt cờ.`,
+                            text: `Đấu thử xong! ${m.winner === 1 ? 'Bot THẮNG' : 'Bot THUA'} Boss (${m.winReason}) sau ${m.totalTurns} lượt cờ.`,
                           });
                         } catch (err) {
                           setAlertMsg({ type: 'error', text: `Lỗi chạy thử: ${err.message}` });
@@ -428,7 +427,6 @@ export default function BotVaultView() {
                       }}
                       className="w-full py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 font-bold text-xs transition-colors flex items-center justify-center gap-1.5"
                     >
-                      <span>⚡</span>
                       <span>Chạy Đấu Thử Máy Ngay</span>
                     </button>
                   </div>
@@ -458,7 +456,7 @@ export default function BotVaultView() {
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-2xl">
-                      {tpl.id.includes('flag') ? '🚩' : tpl.id.includes('minimax') ? '⚔️' : '💡'}
+                      {tpl.id.includes('flag') ? 'A*' : tpl.id.includes('minimax') ? 'MM' : 'HX'}
                     </span>
                     <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 text-slate-300">
                       Python 3
@@ -505,21 +503,18 @@ export default function BotVaultView() {
                     onClick={() => handleUseTemplate(selectedTemplate)}
                     className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-xs shadow transition-all flex items-center gap-1.5"
                   >
-                    <span>🚀</span>
                     <span>Tạo Bot Từ Mẫu Này</span>
                   </button>
                   <button
                     onClick={() => copyToClipboard(selectedTemplate.code)}
                     className="px-3.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white font-medium text-xs border border-white/10 transition-colors flex items-center gap-1.5"
                   >
-                    <span>📋</span>
                     <span>Sao Chép</span>
                   </button>
                   <button
                     onClick={() => downloadCode(selectedTemplate.filename, selectedTemplate.code)}
                     className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md transition-colors flex items-center gap-1.5"
                   >
-                    <span>📥</span>
                     <span>Tải File .py</span>
                   </button>
                 </div>
@@ -554,7 +549,7 @@ export default function BotVaultView() {
                   : 'bg-white/5 text-slate-400 hover:bg-white/10'
               }`}
             >
-              💻 Dán / Soạn Thảo Code Python
+              Dán / soạn thảo code Python
             </button>
             <button
               type="button"
@@ -565,7 +560,7 @@ export default function BotVaultView() {
                   : 'bg-white/5 text-slate-400 hover:bg-white/10'
               }`}
             >
-              📁 Tải Lên File .py
+              Tải lên file .py
             </button>
             <button
               type="button"
@@ -576,7 +571,7 @@ export default function BotVaultView() {
                   : 'bg-white/5 text-slate-400 hover:bg-white/10'
               }`}
             >
-              🐙 Git Repository URL
+              Git repository URL
             </button>
           </div>
 
@@ -681,7 +676,6 @@ export default function BotVaultView() {
                 disabled={uploading}
                 className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 disabled:opacity-50 text-white font-bold text-xs shadow-xl shadow-indigo-950/40 transition-all flex items-center justify-center gap-2"
               >
-                <span>🚀</span>
                 <span>{uploading ? 'Đang Kiểm Tra Cú Pháp & Kích Hoạt...' : 'Xác Nhận Nạp Bot Lên Sàn Đấu'}</span>
               </button>
             </div>
@@ -694,7 +688,6 @@ export default function BotVaultView() {
         <div className="p-8 rounded-2xl bg-[#0e1322]/80 border border-white/5 backdrop-blur-md space-y-6 text-slate-300 text-sm leading-relaxed">
           <div className="border-b border-white/10 pb-4">
             <h2 className="text-xl font-black text-white flex items-center gap-2">
-              <span>🚩</span>
               <span>CẨM NANG THUẬT TOÁN BOT CƯỚP CỜ (CAPTURE THE FLAG)</span>
             </h2>
             <p className="text-xs text-slate-400 mt-1">
@@ -705,7 +698,6 @@ export default function BotVaultView() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="p-5 rounded-xl bg-[#090d18] border border-white/5 space-y-3">
               <h3 className="font-bold text-amber-300 text-sm flex items-center gap-2">
-                <span>🎯</span>
                 <span>Luật Cướp Cờ Thắng Tuyệt Đối</span>
               </h3>
               <ul className="list-disc list-inside space-y-1.5 text-xs text-slate-300">
@@ -723,21 +715,20 @@ export default function BotVaultView() {
 
             <div className="p-5 rounded-xl bg-[#090d18] border border-white/5 space-y-3">
               <h3 className="font-bold text-sky-300 text-sm flex items-center gap-2">
-                <span>⚡</span>
                 <span>Bình Bảo Vật & Chướng Ngại Vật</span>
               </h3>
               <ul className="list-disc list-inside space-y-1.5 text-xs text-slate-300">
                 <li>
-                  <strong>⚡ Bình Đi 2 Bước (POTION_SPEED)</strong>: Cho phép bứt tốc 2 ô thẳng hoặc 1 ô chéo ở lượt sau, cực kỳ lợi hại để lao vào cướp cờ đối phương!
+                  <strong>Bình Đi 2 Bước (POTION_SPEED)</strong>: Cho phép bứt tốc 2 ô thẳng hoặc 1 ô chéo ở lượt sau, cực kỳ lợi hại để lao vào cướp cờ đối phương!
                 </li>
                 <li>
-                  <strong>🧪 Bình Đồng Hóa (POTION_INFECTION)</strong>: Khi ăn quân địch, biến quân đó thành đồng minh phe mình thay vì tiêu diệt.
+                  <strong>Bình Đồng Hóa (POTION_INFECTION)</strong>: Khi ăn quân địch, biến quân đó thành đồng minh phe mình thay vì tiêu diệt.
                 </li>
                 <li>
-                  <strong>➕ Bình Nhân Bản (POTION_CLONE)</strong>: Tự động phân thân thêm 1 quân cùng hệ ở ô liền kề.
+                  <strong>Bình Nhân Bản (POTION_CLONE)</strong>: Tự động phân thân thêm 1 quân cùng hệ ở ô liền kề.
                 </li>
                 <li>
-                  <strong>🧱 Vật Cản (OBSTACLE)</strong>: Không thể đi vào hoặc đi xuyên qua.
+                  <strong>Vật Cản (OBSTACLE)</strong>: Không thể đi vào hoặc đi xuyên qua.
                 </li>
               </ul>
             </div>

@@ -6,7 +6,6 @@ export default function RulesAndStrategyView({ onGoToTemplates }) {
       {/* Title Header */}
       <div>
         <h1 className="text-2xl font-black text-white tracking-wide flex items-center gap-2">
-          <span>📖</span>
           <span>Luật Thi Đấu & Cẩm Nang Thuật Toán (Rules & Strategy)</span>
         </h1>
         <p className="text-sm text-slate-400 mt-1">
@@ -17,7 +16,6 @@ export default function RulesAndStrategyView({ onGoToTemplates }) {
       {/* Section 1: Combat Matrix */}
       <div className="p-6 rounded-2xl bg-[#0e1322]/80 border border-white/5 backdrop-blur-md space-y-4">
         <h2 className="text-base font-bold text-white flex items-center gap-2">
-          <span>⚔️</span>
           <span>1. Ma Trận Tương Khắc Kéo - Búa - Bao</span>
         </h2>
         <p className="text-xs text-slate-300 leading-relaxed">
@@ -26,7 +24,7 @@ export default function RulesAndStrategyView({ onGoToTemplates }) {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
           <div className="p-4 rounded-xl bg-gradient-to-br from-indigo-950/40 to-slate-900 border border-indigo-500/20 text-center space-y-2">
-            <div className="text-3xl">✂️ ➔ 📄</div>
+            <div className="rule-matchup"><b>S</b><span>thắng</span><b>P</b></div>
             <h4 className="font-bold text-sm text-white">Kéo Ăn Bao</h4>
             <p className="text-[11px] text-slate-400">
               Quân Kéo tấn công hoặc bị tấn công bởi Bao đều giành chiến thắng và loại bỏ quân Bao.
@@ -34,7 +32,7 @@ export default function RulesAndStrategyView({ onGoToTemplates }) {
           </div>
 
           <div className="p-4 rounded-xl bg-gradient-to-br from-purple-950/40 to-slate-900 border border-purple-500/20 text-center space-y-2">
-            <div className="text-3xl">🪨 ➔ ✂️</div>
+            <div className="rule-matchup"><b>R</b><span>thắng</span><b>S</b></div>
             <h4 className="font-bold text-sm text-white">Búa Ăn Kéo</h4>
             <p className="text-[11px] text-slate-400">
               Quân Búa đập nát quân Kéo. Búa là khắc tinh tuyệt đối của các đợt càn quét bằng Kéo.
@@ -42,7 +40,7 @@ export default function RulesAndStrategyView({ onGoToTemplates }) {
           </div>
 
           <div className="p-4 rounded-xl bg-gradient-to-br from-pink-950/40 to-slate-900 border border-pink-500/20 text-center space-y-2">
-            <div className="text-3xl">📄 ➔ 🪨</div>
+            <div className="rule-matchup"><b>P</b><span>thắng</span><b>R</b></div>
             <h4 className="font-bold text-sm text-white">Bao Ăn Búa</h4>
             <p className="text-[11px] text-slate-400">
               Quân Bao bao trùm lấy Búa. Hoàn tất vòng lặp tương khắc chiến thuật cân bằng.
@@ -51,20 +49,19 @@ export default function RulesAndStrategyView({ onGoToTemplates }) {
         </div>
 
         <div className="p-3 rounded-xl bg-white/5 border border-white/5 text-xs text-amber-300 font-medium">
-          ⚠️ Lưu ý: Khi 2 quân cùng hệ giao chiến (Búa vs Búa, Kéo vs Kéo, Bao vs Bao), kết quả là <strong>Hòa (Mutual Destruction)</strong> - cả 2 quân cờ đều bị tiêu diệt khỏi bàn cờ!
+          Lưu ý: Khi 2 quân cùng hệ giao chiến (Búa vs Búa, Kéo vs Kéo, Bao vs Bao), kết quả là <strong>Hòa (Mutual Destruction)</strong> - cả 2 quân cờ đều bị tiêu diệt khỏi bàn cờ!
         </div>
       </div>
 
       {/* Section 2: Win Conditions */}
       <div className="p-6 rounded-2xl bg-[#0e1322]/80 border border-white/5 backdrop-blur-md space-y-4">
         <h2 className="text-base font-bold text-white flex items-center gap-2">
-          <span>🏆</span>
           <span>2. Điều Kiện Giành Chiến Thắng</span>
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="p-4 rounded-xl bg-gradient-to-br from-rose-950/40 to-[#090d18] border border-rose-500/30 space-y-2">
             <div className="flex items-center gap-2">
-              <span className="text-2xl">🚩</span>
+              <span className="feature-code">BASE</span>
               <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 font-bold text-[10px]">
                 MỤC TIÊU SỐ 1 - THẮNG NGAY
               </span>
@@ -80,7 +77,7 @@ export default function RulesAndStrategyView({ onGoToTemplates }) {
           </div>
 
           <div className="p-4 rounded-xl bg-[#090d18] border border-white/5 space-y-2">
-            <span className="text-2xl">💀</span>
+            <span className="feature-code">KO</span>
             <h4 className="font-bold text-sm text-white">Quét Sạch Toàn Bộ Quân</h4>
             <p className="text-xs text-slate-400 leading-relaxed">
               Tiêu diệt 100% quân cờ của đối thủ trên bàn cờ. Đối phương không còn quân nào để di chuyển sẽ lập tức xử thua.
@@ -100,13 +97,12 @@ export default function RulesAndStrategyView({ onGoToTemplates }) {
       {/* Section 3: The 3 Power-Up Potions */}
       <div className="p-6 rounded-2xl bg-[#0e1322]/80 border border-white/5 backdrop-blur-md space-y-4">
         <h2 className="text-base font-bold text-white flex items-center gap-2">
-          <span>🧪</span>
           <span>3. Ba Bình Vật Phẩm Chiến Lược (Power-Ups)</span>
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="p-4 rounded-xl bg-gradient-to-b from-purple-950/30 to-transparent border border-purple-500/20 space-y-2">
             <div className="flex items-center gap-2">
-              <span className="text-2xl">🧪</span>
+              <span className="feature-code">SYNC</span>
               <h4 className="font-bold text-sm text-purple-300">Bình Đồng Hóa (Infection)</h4>
             </div>
             <p className="text-xs text-slate-300 leading-relaxed">
@@ -116,7 +112,7 @@ export default function RulesAndStrategyView({ onGoToTemplates }) {
 
           <div className="p-4 rounded-xl bg-gradient-to-b from-cyan-950/30 to-transparent border border-cyan-500/20 space-y-2">
             <div className="flex items-center gap-2">
-              <span className="text-2xl">⚡</span>
+              <span className="feature-code">2X</span>
               <h4 className="font-bold text-sm text-cyan-300">Bình Tăng Tốc (Speed)</h4>
             </div>
             <p className="text-xs text-slate-300 leading-relaxed">
@@ -126,7 +122,7 @@ export default function RulesAndStrategyView({ onGoToTemplates }) {
 
           <div className="p-4 rounded-xl bg-gradient-to-b from-emerald-950/30 to-transparent border border-emerald-500/20 space-y-2">
             <div className="flex items-center gap-2">
-              <span className="text-2xl">➕</span>
+              <span className="feature-code">+1</span>
               <h4 className="font-bold text-sm text-emerald-300">Bình Sinh Sản (Clone)</h4>
             </div>
             <p className="text-xs text-slate-300 leading-relaxed">
@@ -140,7 +136,6 @@ export default function RulesAndStrategyView({ onGoToTemplates }) {
       <div className="p-6 rounded-2xl bg-gradient-to-br from-indigo-950/40 via-purple-950/20 to-[#0e1322] border border-indigo-500/30 backdrop-blur-md space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-bold text-white flex items-center gap-2">
-            <span>🧠</span>
             <span>4. Gợi Ý Chiến Thuật & Thuật Toán AI Cho Học Sinh</span>
           </h2>
           <button
@@ -148,7 +143,7 @@ export default function RulesAndStrategyView({ onGoToTemplates }) {
             className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-colors flex items-center gap-1.5 shadow-md"
           >
             <span>Lấy Bản Mẫu Code</span>
-            <span>➔</span>
+            <span>→</span>
           </button>
         </div>
 

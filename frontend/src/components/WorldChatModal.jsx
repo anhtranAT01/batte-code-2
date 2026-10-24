@@ -69,7 +69,7 @@ export default function WorldChatModal({ isOpen, onClose, socket, onlineCount = 
         {/* Header */}
         <div className="p-4 bg-[#090d18] border-b border-white/5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <span className="text-xl">💬</span>
+            <span className="feature-code">CHAT</span>
             <div>
               <h3 className="font-bold text-white text-sm">Kênh Thế Giới (World Chat)</h3>
               <div className="flex items-center gap-1.5 text-[11px] text-emerald-400">
@@ -146,7 +146,7 @@ export default function WorldChatModal({ isOpen, onClose, socket, onlineCount = 
             className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold text-xs transition-colors flex items-center gap-1"
           >
             <span>Gửi</span>
-            <span>➤</span>
+            <span>Gửi</span>
           </button>
         </form>
       </div>

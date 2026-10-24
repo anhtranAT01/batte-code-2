@@ -1,19 +1,11 @@
 import React from 'react';
 
 const PIECE_ICONS = {
-  ROCK: '🪨',
-  PAPER: '📄',
-  SCISSORS: '✂️',
-  R: '🪨',
-  P: '📄',
-  S: '✂️',
+  ROCK: 'R', PAPER: 'P', SCISSORS: 'S', R: 'R', P: 'P', S: 'S',
 };
 
 const ITEM_ICONS = {
-  OBSTACLE: '🧱',
-  POTION_INFECTION: '🧪',
-  POTION_SPEED: '⚡',
-  POTION_CLONE: '➕',
+  OBSTACLE: 'BLOCK', POTION_INFECTION: 'SYNC', POTION_SPEED: '2X', POTION_CLONE: '+1',
 };
 
 export default function GameBoard({
@@ -90,7 +82,7 @@ export default function GameBoard({
                     ? 'ring-2 ring-rose-500/80 bg-rose-950/50 shadow-inner'
                     : 'bg-dark-700/80 hover:bg-dark-600/90'
                 } ${item === 'OBSTACLE' ? 'bg-slate-900/95 border border-white/5' : ''}`}
-                title={isP1Flag ? '🚩 Căn Cứ Cờ Phe 1 (0,0) - Chiếm để thắng!' : isP2Flag ? '🚩 Căn Cứ Cờ Phe 2 (8,8) - Chiếm để thắng!' : `Ô (${r}, ${c})`}
+                title={isP1Flag ? 'Căn cứ Phe 1 (0,0)' : isP2Flag ? 'Căn cứ Phe 2' : `Ô (${r}, ${c})`}
               >
                 {/* Board grid coordinate watermark */}
                 <span className="absolute bottom-1 right-1 text-[9px] font-mono text-slate-500 pointer-events-none opacity-60">
@@ -104,14 +96,14 @@ export default function GameBoard({
                       isP1Flag ? 'bg-sky-500/30 text-sky-300' : 'bg-rose-500/30 text-rose-300'
                     }`}
                   >
-                    🚩 {isP1Flag ? 'P1' : 'P2'}
+                    BASE {isP1Flag ? 'P1' : 'P2'}
                   </span>
                 )}
 
                 {/* Flag Stand Icon (When cell has no piece) */}
                 {(isP1Flag || isP2Flag) && !piece && (
                   <div className="flex flex-col items-center justify-center animate-pulse">
-                    <span className="text-xl sm:text-2xl filter drop-shadow">🚩</span>
+                    <span className="base-glyph">{isP1Flag ? '01' : '02'}</span>
                     <span className={`text-[8px] font-extrabold uppercase tracking-tighter ${isP1Flag ? 'text-sky-300' : 'text-rose-300'}`}>
                       Căn Cứ
                     </span>
@@ -126,8 +118,8 @@ export default function GameBoard({
                 {/* Item / Power-up Potion (if no piece occupies cell and not a flag) */}
                 {item && !piece && !isP1Flag && !isP2Flag && (
                   <div className="flex flex-col items-center justify-center">
-                    <span className="text-xl sm:text-2xl filter drop-shadow">
-                      {ITEM_ICONS[item] || '✨'}
+                    <span className="item-glyph">
+                      {ITEM_ICONS[item] || 'ITEM'}
                     </span>
                     <span className="text-[8px] font-bold tracking-tighter text-slate-400 mt-0.5">
                       {item === 'OBSTACLE' ? 'Cản' : item === 'POTION_CLONE' ? '+1 Quân' : item === 'POTION_SPEED' ? 'Đi 2' : 'Đồng Hóa'}
@@ -144,7 +136,7 @@ export default function GameBoard({
                         : 'text-rose-300 drop-shadow-[0_0_8px_rgba(244,63,94,0.7)]'
                     }`}
                   >
-                    <span className="text-2xl sm:text-3xl">
+                    <span className="piece-glyph">
                       {PIECE_ICONS[piece.type] || piece.type}
                     </span>
 
@@ -152,12 +144,12 @@ export default function GameBoard({
                     <div className="absolute top-1 left-1 flex gap-0.5">
                       {piece.hasInfectionBuff && (
                         <span className="text-[10px] bg-purple-500/80 rounded px-0.5 shadow" title="Buff Đồng Hóa">
-                          🧪
+                          S
                         </span>
                       )}
                       {piece.hasSpeedBuff && (
                         <span className="text-[10px] bg-amber-500/80 rounded px-0.5 shadow" title="Buff Tăng Tốc 2 Bước">
-                          ⚡
+                          2X
                         </span>
                       )}
                     </div>
@@ -187,12 +179,12 @@ export default function GameBoard({
           <span className="w-2.5 h-2.5 rounded-full bg-rose-400"></span> Phe 2 (Đỏ)
         </span>
         <span className="flex items-center gap-1.5 text-amber-300 font-bold">
-          🚩 Căn Cứ Cờ (0,0 & {rows - 1},{cols - 1}) - Đến để Thắng!
+          Căn cứ (0,0 & {rows - 1},{cols - 1})
         </span>
-        <span className="flex items-center gap-1">🧱 Vật cản</span>
-        <span className="flex items-center gap-1">🧪 Đồng hóa</span>
-        <span className="flex items-center gap-1">⚡ Đi 2 bước</span>
-        <span className="flex items-center gap-1">➕ Thêm 1 quân</span>
+        <span className="flex items-center gap-1">BLOCK Vật cản</span>
+        <span className="flex items-center gap-1">SYNC Đồng hóa</span>
+        <span className="flex items-center gap-1">2X Đi hai bước</span>
+        <span className="flex items-center gap-1">+1 Thêm quân</span>
       </div>
     </div>
   );

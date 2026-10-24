@@ -123,14 +123,14 @@ export default function ReplayViewer({ initialReplay = null, onBack = null }) {
             )}
             <div>
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <span>📹</span> Trình Xem Lại Trận Đấu (Replay Viewer)
+                Trình Xem Lại Trận Đấu (Replay Viewer)
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
                 {replay?.matchId ? (
                   <span>
                     Trận <strong className="text-cyan-400 font-mono">#{String(replay.matchId).substring(0, 8)}</strong>: <strong className="text-blue-400">{replay.p1Name || 'Phe Xanh'}</strong> vs <strong className="text-red-400">{replay.p2Name || 'Phe Đỏ'}</strong> {replay.winnerName ? (
                       <span>
-                        {' '}— 🏆 <strong className="text-emerald-400">{replay.winnerName}</strong> Thắng ({replay.winReason === 'FLAG_CAPTURE' ? '🚩 Cướp Cờ Thành Công' : replay.winReason === 'ELIMINATION' ? '💀 Quét Sạch Quân' : replay.winReason || ''})
+                        {' '}— <strong className="text-emerald-400">{replay.winnerName}</strong> Thắng ({replay.winReason === 'FLAG_CAPTURE' ? 'Cướp Cờ Thành Công' : replay.winReason === 'ELIMINATION' ? 'Quét Sạch Quân' : replay.winReason || ''})
                       </span>
                     ) : ''}
                   </span>
@@ -169,7 +169,7 @@ export default function ReplayViewer({ initialReplay = null, onBack = null }) {
 
       {totalSteps === 0 ? (
         <div className="glass-panel p-12 text-center rounded-2xl border border-white/10 text-slate-400 space-y-3">
-          <span className="text-4xl block">🎬</span>
+          <span className="feature-code">REPLAY</span>
           <p className="text-sm font-medium">Chưa có dữ liệu Replay nào được chọn.</p>
           <p className="text-xs text-slate-500">
             Bạn có thể vừa chơi xong một trận ở tab "Luyện Tập" hoặc dán mã Match ID vào ô tìm kiếm ở trên.
@@ -182,7 +182,6 @@ export default function ReplayViewer({ initialReplay = null, onBack = null }) {
             {/* Global Warning Banner for Infinite Loop / Timeout */}
             {(replay.winReason === 'INFINITE_LOOP' || replay.winReason === 'TIMEOUT' || currentStep?.hasInfiniteLoop) && (
               <div className="p-3.5 rounded-2xl bg-red-500/15 border-2 border-red-500/50 text-red-300 text-xs flex items-center gap-3 animate-pulse shadow-lg shadow-red-500/20">
-                <span className="text-2xl">⚠️</span>
                 <div>
                   <h4 className="font-bold text-red-200">
                     CẢNH BÁO: PHÁT HIỆN LỖI VÒNG LẶP VÔ HẠN HOẶC QUÁ GIỜ (TIMEOUT)!
@@ -300,7 +299,7 @@ export default function ReplayViewer({ initialReplay = null, onBack = null }) {
             <div className="glass-panel p-4 rounded-2xl border border-white/10 flex flex-col h-[600px]">
               <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-3">
                 <h3 className="font-bold text-sm text-white flex items-center gap-1.5">
-                  <span>📜</span> Nhật Ký Trận Đấu (Match Log)
+                  Nhật Ký Trận Đấu (Match Log)
                 </h3>
                 <span className="text-[11px] font-mono text-cyan-400 font-bold">
                   {totalSteps} bước
@@ -349,36 +348,36 @@ export default function ReplayViewer({ initialReplay = null, onBack = null }) {
                       {/* Combat Details */}
                       {st.combat && (
                         <p className="text-amber-300 font-semibold mt-1">
-                          ⚔️ Chiến đấu: {st.combat.outcome}
-                          {st.combat.converted && ' (Đã đồng hóa quân đối phương! 🧪)'}
+                          Chiến đấu: {st.combat.outcome}
+                          {st.combat.converted && ' (Đã đồng hóa quân đối phương)'}
                         </p>
                       )}
 
                       {/* Potion Pickup */}
                       {st.itemCollected && (
                         <p className="text-emerald-400 font-medium mt-0.5">
-                          ✨ Nhặt bình: {st.itemCollected.type}
+                          Nhặt vật phẩm: {st.itemCollected.type}
                         </p>
                       )}
 
                       {/* Clone spawned */}
                       {st.cloneSpawned && (
                         <p className="text-purple-400 font-medium mt-0.5">
-                          🧬 Tạo thêm 1 phân thân tại ({st.cloneSpawned.row}, {st.cloneSpawned.col})
+                          Tạo thêm 1 phân thân tại ({st.cloneSpawned.row}, {st.cloneSpawned.col})
                         </p>
                       )}
 
                       {/* Error Highlight */}
                       {st.error && (
                         <div className="mt-1 p-1.5 rounded bg-red-500/20 border border-red-500/30 text-red-300 text-[10px]">
-                          ⚠️ {st.error}
+                          {st.error}
                         </div>
                       )}
 
                       {/* Warning / Fallback Notice */}
                       {st.warning && (
                         <div className="mt-1 p-1.5 rounded bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[10px]">
-                          💡 {st.warning}
+                          {st.warning}
                         </div>
                       )}
                     </div>

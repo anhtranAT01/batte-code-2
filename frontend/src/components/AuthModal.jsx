@@ -86,7 +86,6 @@ export default function AuthModal({ isOpen, onClose }) {
         {/* Error Alert */}
         {error && (
           <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2">
-            <span>⚠️</span>
             <span>{error}</span>
           </div>
         )}

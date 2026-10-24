@@ -232,7 +232,7 @@ export default function TournamentHub() {
       <div className="glass-panel p-4 lg:p-6 rounded-2xl border border-white/10 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <span>🏆</span> Đấu Trường Giải Đấu 1.000 Học Sinh & Nộp Bot
+            Đấu Trường Giải Đấu 1.000 Học Sinh & Nộp Bot
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
             Hạ tầng máy chấm phân tán (Distributed Judge Workers), chống vòng lặp vô hạn và hệ Thụy Sĩ tự động
@@ -249,7 +249,7 @@ export default function TournamentHub() {
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            📤 Nộp Mã Nguồn Bot AI
+            Nộp Mã Nguồn Bot
           </button>
           <button
             onClick={() => setActiveSubTab('LEADERBOARD')}
@@ -259,7 +259,7 @@ export default function TournamentHub() {
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            📊 Bảng Xếp Hạng & Xuất Excel
+            Bảng Xếp Hạng & Xuất Excel
           </button>
         </div>
       </div>
@@ -270,7 +270,7 @@ export default function TournamentHub() {
           {/* Form */}
           <div className="lg:col-span-7 glass-panel p-6 rounded-2xl border border-white/10 space-y-5">
             <h3 className="text-base font-bold text-white flex items-center gap-2 border-b border-white/10 pb-3">
-              <span>🚀</span> Nộp Thuật Toán Bot AI
+              Nộp Thuật Toán Bot
             </h3>
 
             {/* Type selector */}
@@ -284,7 +284,7 @@ export default function TournamentHub() {
                     : 'bg-dark-900/60 border-white/5 text-slate-400 hover:text-white'
                 }`}
               >
-                📁 Tải File Python (.py)
+                Tải File Python (.py)
               </button>
               <button
                 type="button"
@@ -295,7 +295,7 @@ export default function TournamentHub() {
                     : 'bg-dark-900/60 border-white/5 text-slate-400 hover:text-white'
                 }`}
               >
-                🐙 Nhập Link Git Repo
+                Nhập Link Git Repo
               </button>
             </div>
 
@@ -308,7 +308,7 @@ export default function TournamentHub() {
                     : 'bg-red-500/15 border border-red-500/30 text-red-300'
                 }`}
               >
-                <span>{uploadStatus.type === 'success' ? '✅' : '⚠️'}</span>
+                <span className="status-dot"></span>
                 <span>{uploadStatus.message}</span>
               </div>
             )}
@@ -340,7 +340,7 @@ export default function TournamentHub() {
                       onChange={(e) => setBotFile(e.target.files[0] || null)}
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />
-                    <span className="text-3xl block mb-2">🐍</span>
+                    <span className="feature-code mb-2">PY</span>
                     <p className="text-xs font-semibold text-slate-200">
                       {botFile ? botFile.name : 'Kéo thả file .py hoặc bấm để chọn file'}
                     </p>
@@ -385,7 +385,6 @@ export default function TournamentHub() {
                       className="flex items-center justify-between p-2.5 rounded-xl bg-dark-900/80 border border-white/5 text-xs"
                     >
                       <div className="flex items-center gap-2">
-                        <span>🤖</span>
                         <div>
                           <p className="font-bold text-white">{b.name}</p>
                           <p className="text-[10px] text-slate-400">
@@ -414,7 +413,7 @@ export default function TournamentHub() {
           <div className="lg:col-span-5 space-y-4">
             <div className="glass-panel p-5 rounded-2xl border border-white/10 space-y-3 text-xs">
               <h3 className="font-bold text-amber-400 flex items-center gap-1.5 text-sm">
-                <span>📖</span> Quy Chuẩn I/O Cho Học Sinh
+                Quy Chuẩn I/O Cho Học Sinh
               </h3>
 
               <div className="space-y-2 text-slate-300">
@@ -440,7 +439,7 @@ export default function TournamentHub() {
                 </pre>
 
                 <p className="text-red-300 font-semibold text-[11px]">
-                  ⚠️ Giới hạn thời gian: Tối đa 1.0 giây/nước đi. Nếu code bị vòng lặp vô hạn (<code>while True</code>), máy chấm sẽ tự động kill process và xử thua ngay lập tức!
+                  Giới hạn thời gian: Tối đa 1.0 giây/nước đi. Nếu code bị vòng lặp vô hạn (<code>while True</code>), máy chấm sẽ tự động dừng tiến trình và xử thua.
                 </p>
               </div>
             </div>
@@ -466,13 +465,13 @@ export default function TournamentHub() {
                 onClick={handleExportExcel}
                 className="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white shadow-lg shadow-emerald-500/20 flex items-center gap-1.5 transition-all"
               >
-                <span>📊</span> Xuất Kết Quả Excel (.xlsx)
+                Xuất Kết Quả Excel (.xlsx)
               </button>
               <button
                 onClick={handleExportCSV}
                 className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-dark-800 hover:bg-dark-700 text-slate-300 hover:text-white border border-white/10 transition-all flex items-center gap-1"
               >
-                <span>📄</span> Xuất CSV
+                Xuất CSV
               </button>
             </div>
           </div>
@@ -510,11 +509,11 @@ export default function TournamentHub() {
                       >
                         <td className="py-3 px-3.5 text-center font-bold">
                           {isTop1 ? (
-                            <span className="text-amber-400 text-sm">🥇 1</span>
+                            <span className="text-amber-400 text-sm">1</span>
                           ) : isTop2 ? (
-                            <span className="text-slate-300 text-sm">🥈 2</span>
+                            <span className="text-slate-300 text-sm">2</span>
                           ) : isTop3 ? (
-                            <span className="text-amber-600 text-sm">🥉 3</span>
+                            <span className="text-amber-600 text-sm">3</span>
                           ) : (
                             <span className="text-slate-500">{idx + 1}</span>
                           )}
@@ -552,7 +551,7 @@ export default function TournamentHub() {
                         <td className="py-3 px-3.5 text-center">
                           {st.infiniteLoopErrors > 0 ? (
                             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-400 border border-red-500/30">
-                              ⚠️ {st.infiniteLoopErrors} lỗi
+                              {st.infiniteLoopErrors} lỗi
                             </span>
                           ) : (
                             <span className="text-slate-500">0</span>

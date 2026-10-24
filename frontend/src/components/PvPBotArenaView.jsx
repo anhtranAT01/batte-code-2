@@ -137,15 +137,15 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
   const getTacticBadge = (tactic) => {
     switch (tactic) {
       case 'FLAG_RUSHER':
-        return { label: '🚩 Cướp Cờ Thần Tốc', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' };
+        return { label: 'Cướp cờ thần tốc', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' };
       case 'FLAG_DEFENDER':
-        return { label: '🛡️ Thủ Căn Cứ & Bẫy Quân', color: 'bg-blue-500/20 text-blue-300 border-blue-500/30' };
+        return { label: 'Thủ căn cứ & bẫy quân', color: 'bg-blue-500/20 text-blue-300 border-blue-500/30' };
       case 'COMBAT_HUNTER':
-        return { label: '⚔️ Săn Lùng & Diệt Địch', color: 'bg-purple-500/20 text-purple-300 border-purple-500/30' };
+        return { label: 'Săn lùng & diệt địch', color: 'bg-purple-500/20 text-purple-300 border-purple-500/30' };
       case 'POTION_COLLECTOR':
-        return { label: '🧪 Thu Thập Bình Bảo Vật', color: 'bg-amber-500/20 text-amber-300 border-amber-500/30' };
+        return { label: 'Thu thập vật phẩm', color: 'bg-amber-500/20 text-amber-300 border-amber-500/30' };
       default:
-        return { label: '🚩 A* Cướp Cờ', color: 'bg-slate-700/50 text-slate-300 border-slate-600/30' };
+        return { label: 'A* Cướp cờ', color: 'bg-slate-700/50 text-slate-300 border-slate-600/30' };
     }
   };
 
@@ -164,7 +164,6 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl font-black text-white tracking-wide flex items-center gap-2">
-              <span>⚔️</span>
               <span>Đấu Bot 2 Người (PvP Student Bot Duel)</span>
             </h1>
             <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white uppercase tracking-wider">
@@ -229,11 +228,11 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
                 >
                   {myBots.map((bot) => (
                     <option key={bot.id} value={bot.id}>
-                      🤖 {bot.name} {bot.is_active ? '⭐ (Chính thức)' : ''}
+                      {bot.name} {bot.is_active ? '(Chính thức)' : ''}
                     </option>
                   ))}
-                  <option value="template_flag_rusher">🚩 Bot Bản Mẫu: A* Flag Rusher</option>
-                  <option value="template_alphabeta">🧠 Bot Bản Mẫu: Minimax Alpha-Beta</option>
+                  <option value="template_flag_rusher">Bot mẫu: A* Flag Rusher</option>
+                  <option value="template_alphabeta">Bot mẫu: Minimax Alpha-Beta</option>
                 </select>
 
                 {selectedMyBot && (
@@ -285,7 +284,6 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
                   onClick={handlePickRandomOpponent}
                   className="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-[11px] font-semibold border border-white/5 transition-all flex items-center gap-1"
                 >
-                  <span>🎲</span>
                   <span>Đổi ngẫu nhiên</span>
                 </button>
               </div>
@@ -304,7 +302,7 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
                     .filter((b) => b.user_id !== user?.id)
                     .map((bot) => (
                       <option key={bot.id} value={bot.id}>
-                        👤 {bot.owner_name} ({bot.owner_elo} Elo) - 🤖 {bot.name}
+                        {bot.owner_name} ({bot.owner_elo} Elo) — {bot.name}
                       </option>
                     ))}
                 </select>
@@ -349,11 +347,9 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
 
             <div className="text-xs text-slate-400 space-y-1">
               <div className="flex items-center gap-1.5 text-slate-300 font-semibold">
-                <span>🛡️</span>
                 <span>Luật Cướp Cờ:</span> Bên nào chạm ô (0,0) hoặc ({boardSize-1},{boardSize-1}) trước thắng ngay.
               </div>
               <div className="flex items-center gap-1.5 text-slate-300 font-semibold">
-                <span>⚡</span>
                 <span>Luật Oẳn Tù Tì:</span> Kéo ăn Bao, Búa ăn Kéo, Bao ăn Búa.
               </div>
             </div>
@@ -364,7 +360,6 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
                 disabled={loading}
                 className="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 disabled:opacity-50 text-white font-black text-sm shadow-xl shadow-cyan-950/50 transition-all flex items-center justify-center gap-2 tracking-wide"
               >
-                <span>⚔️</span>
                 <span>{loading ? 'Đang Khởi Chạy 2 Bot Python...' : 'KHỞI TRANH ĐẤU BOT 2 NGƯỜI (PvP)'}</span>
               </button>
             </div>
@@ -457,16 +452,15 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
             {/* Result Announcement */}
             {currentStepIdx >= totalSteps - 1 && (
               <div className="w-full mt-4 p-5 rounded-2xl bg-gradient-to-r from-blue-950/60 via-indigo-950/60 to-purple-950/60 border border-cyan-500/30 text-center space-y-2.5 shadow-2xl">
-                <div className="text-2xl">🏆</div>
                 <h3 className="font-black text-lg text-white">
                   CHIẾN THẮNG: {autoMatchData.winnerName}!
                 </h3>
                 <p className="text-xs text-slate-300">
                   Kết quả: <strong className="text-amber-300">
                     {autoMatchData.winReason === 'FLAG_CAPTURE'
-                      ? '🚩 CƯỚP CỜ THÀNH CÔNG (Chiếm căn cứ đối phương)'
+                      ? 'CƯỚP CỜ THÀNH CÔNG (Chiếm căn cứ đối phương)'
                       : autoMatchData.winReason === 'ELIMINATION'
-                      ? '⚔️ Tiêu diệt toàn bộ quân địch'
+                      ? 'Tiêu diệt toàn bộ quân địch'
                       : autoMatchData.winReason === 'MAX_TURNS_REACHED'
                       ? '⏱️ Hết 150 lượt (Bên nhiều quân hơn thắng)'
                       : autoMatchData.winReason}
@@ -478,7 +472,7 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
                     onClick={() => onSelectReplay(autoMatchData.replay)}
                     className="mt-2 px-5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs shadow-md transition-colors"
                   >
-                    Mở Trong Replay Viewer Phân Tích Chi Tiết 🎬
+                    Mở trình phân tích replay
                   </button>
                 )}
               </div>
@@ -489,7 +483,6 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
           <div className="rounded-2xl bg-[#0e1322]/80 border border-white/5 p-5 backdrop-blur-md h-[550px] flex flex-col">
             <h3 className="font-bold text-sm text-white pb-3 border-b border-white/5 flex items-center justify-between">
               <span className="flex items-center gap-2">
-                <span>📜</span>
                 <span>Nhật Ký Từng Bước Của 2 Bot</span>
               </span>
               <span className="text-[11px] font-mono text-cyan-400">{replaySteps.length} bước</span>
@@ -517,24 +510,24 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
                     </div>
 
                     <div className="mt-1 font-semibold text-slate-200">
-                      Đi ({step.move.fromRow}, {step.move.fromCol}) ➔ ({step.move.toRow}, {step.move.toCol})
+                      Đi ({step.move.fromRow}, {step.move.fromCol}) → ({step.move.toRow}, {step.move.toCol})
                     </div>
 
                     {step.combat && (
                       <div className="text-[11px] mt-1 text-amber-300 font-sans">
-                        ⚔️ Giao tranh: {step.combat.attacker?.type} vs {step.combat.defender?.type} ➔ {step.combat.outcome}
+                        Giao tranh: {step.combat.attacker?.type} vs {step.combat.defender?.type} → {step.combat.outcome}
                       </div>
                     )}
 
                     {step.itemCollected && (
                       <div className="text-[10px] mt-0.5 text-emerald-300 font-sans">
-                        ✨ Nhặt bình bảo vật: {step.itemCollected.type}
+                        Nhặt vật phẩm: {step.itemCollected.type}
                       </div>
                     )}
 
                     {step.warning && (
                       <div className="text-[10px] mt-1 text-amber-400 bg-amber-500/10 p-1 rounded border border-amber-500/20 font-sans">
-                        💡 {step.warning}
+                        {step.warning}
                       </div>
                     )}
                   </div>

@@ -42,7 +42,6 @@ export default function DataExplorerView({ onSelectReplay }) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-white tracking-wide flex items-center gap-2">
-            <span>📊</span>
             <span>Cơ Sở Dữ Liệu Trận Đấu (Data Explorer)</span>
           </h1>
           <p className="text-sm text-slate-400 mt-1">
@@ -126,7 +125,7 @@ export default function DataExplorerView({ onSelectReplay }) {
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 rounded bg-emerald-950/60 text-emerald-400 border border-emerald-500/20 font-bold text-[10px]">
-                            🏆 {match.winner_username} THẮNG
+                            {match.winner_username} THẮNG
                           </span>
                         )}
                       </td>
@@ -134,11 +133,11 @@ export default function DataExplorerView({ onSelectReplay }) {
                       <td className="py-3.5 px-5">
                         {match.win_reason === 'FLAG_CAPTURE' ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-300 font-bold text-[10px]">
-                            🚩 CƯỚP CỜ
+                            CƯỚP CỜ
                           </span>
                         ) : match.win_reason === 'ELIMINATION' ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-300 font-bold text-[10px]">
-                            💀 QUÉT SẠCH
+                            QUÉT SẠCH
                           </span>
                         ) : match.win_reason === 'MAX_TURNS_REACHED' ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-bold text-[10px]">
@@ -146,7 +145,7 @@ export default function DataExplorerView({ onSelectReplay }) {
                           </span>
                         ) : match.win_reason === 'INFINITE_LOOP' ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-red-500/20 border border-red-500/40 text-red-300 font-bold text-[10px]">
-                            🔄 LẶP VÔ HẠN
+                            LẶP VÔ HẠN
                           </span>
                         ) : match.win_reason === 'TIMEOUT' ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-300 font-bold text-[10px]">
@@ -172,7 +171,7 @@ export default function DataExplorerView({ onSelectReplay }) {
                           onClick={() => onSelectReplay(match.id)}
                           className="px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 hover:text-white border border-indigo-500/30 font-semibold transition-colors"
                         >
-                          Xem Replay 🎬
+                          Xem replay
                         </button>
                       </td>
                     </tr>

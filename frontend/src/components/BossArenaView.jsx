@@ -10,7 +10,7 @@ export default function BossArenaView({ onSelectReplay }) {
       id: 'EASY',
       name: 'Tân Thủ Heuristic',
       tier: 'ĐỒNG',
-      avatar: '🥉',
+      avatar: '01',
       difficulty: 'easy',
       description: 'Bot AI sử dụng hàm đánh giá Heuristic cơ bản, ưu tiên ăn quân đối phương và nhặt vật phẩm kề bên.',
       color: 'from-amber-800/40 to-orange-900/30 border-amber-600/40',
@@ -20,7 +20,7 @@ export default function BossArenaView({ onSelectReplay }) {
       id: 'MEDIUM',
       name: 'Sát Thủ Tốc Độ',
       tier: 'BẠC',
-      avatar: '⚡',
+      avatar: '02',
       difficulty: 'medium',
       description: 'Bot AI phản xạ nhanh, ưu tiên chiếm lĩnh bình Tăng Tốc để nhảy 2 bước đánh úp hàng ngũ đối phương.',
       color: 'from-blue-900/40 to-cyan-900/30 border-cyan-500/40',
@@ -30,7 +30,7 @@ export default function BossArenaView({ onSelectReplay }) {
       id: 'HARD',
       name: 'Bậc Thầy Alpha-Beta',
       tier: 'VÀNG',
-      avatar: '🧠',
+      avatar: '03',
       difficulty: 'hard',
       description: 'Thuật toán Minimax kết hợp tỉa nhánh Alpha-Beta 3 nước đi trước. Cực kỳ khôn khéo và bảo toàn lực lượng.',
       color: 'from-yellow-900/40 to-amber-900/30 border-yellow-500/40',
@@ -40,7 +40,7 @@ export default function BossArenaView({ onSelectReplay }) {
       id: 'GRANDMASTER',
       name: 'Đại Sư A* Flag Rusher',
       tier: 'KIM CƯƠNG',
-      avatar: '👑',
+      avatar: '04',
       difficulty: 'hard',
       description: 'Thuật toán A* Heuristic Pathfinding lao cờ, tính toán đường đi ngắn nhất né tránh khắc chế để cướp cứ điểm.',
       color: 'from-purple-900/40 to-pink-900/30 border-pink-500/40',
@@ -246,15 +246,15 @@ export default function BossArenaView({ onSelectReplay }) {
                 className="w-full py-3 px-3 rounded-xl bg-[#090d18] border border-white/10 text-white text-xs font-medium focus:outline-none focus:border-indigo-500"
               >
                 <optgroup label="Bản Mẫu Thuật Toán Chuẩn">
-                  <option value="template_alphabeta">🧠 Minimax Alpha-Beta Pruning Bot</option>
-                  <option value="template_astar">🚩 A* Flag Rusher Bot (Lao cờ)</option>
-                  <option value="template_heuristic">💡 Heuristic Starter Bot</option>
+                  <option value="template_alphabeta">Minimax Alpha-Beta Pruning Bot</option>
+                  <option value="template_astar">A* Flag Rusher Bot</option>
+                  <option value="template_heuristic">Heuristic Starter Bot</option>
                 </optgroup>
                 {myBots.length > 0 && (
                   <optgroup label="Kho Bot Học Sinh Của Bạn">
                     {myBots.map((bot) => (
                       <option key={bot.id} value={bot.id}>
-                        🤖 {bot.name} {bot.is_active ? '⭐ (Chính thức)' : ''}
+                        {bot.name} {bot.is_active ? '(Chính thức)' : ''}
                       </option>
                     ))}
                   </optgroup>
@@ -272,7 +272,6 @@ export default function BossArenaView({ onSelectReplay }) {
                 disabled={loading}
                 className="w-full py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 disabled:opacity-50 text-white font-bold text-sm shadow-xl shadow-indigo-950/50 transition-all flex items-center justify-center gap-2"
               >
-                <span>⚔️</span>
                 <span>{loading ? 'Đang Chạy Mô Phỏng Bot...' : `Khởi Tranh Tự Động vs ${selectedBoss.name}`}</span>
               </button>
             </div>
@@ -369,14 +368,14 @@ export default function BossArenaView({ onSelectReplay }) {
             {currentStepIdx >= totalSteps - 1 && (
               <div className="w-full mt-4 p-4 rounded-xl bg-gradient-to-r from-indigo-950/60 to-purple-950/40 border border-indigo-500/30 text-center space-y-2">
                 <h3 className="font-black text-base text-white">
-                  {autoMatchData.winner === 1 ? '🎉 BOT CỦA BẠN ĐÃ CHIẾN THẮNG!' : '🤖 BOSS AI ĐÃ CHIẾN THẮNG!'}
+                  {autoMatchData.winner === 1 ? 'BOT CỦA BẠN ĐÃ CHIẾN THẮNG' : 'BOSS ĐÃ CHIẾN THẮNG'}
                 </h3>
                 <p className="text-xs text-slate-300">
                   Kết quả: <strong className="text-amber-300">
                     {autoMatchData.winReason === 'FLAG_CAPTURE'
-                      ? '🚩 CƯỚP CỜ THÀNH CÔNG (Chiếm căn cứ đối phương)'
+                      ? 'CƯỚP CỜ THÀNH CÔNG (Chiếm căn cứ đối phương)'
                       : autoMatchData.winReason === 'ELIMINATION'
-                      ? '⚔️ Tiêu diệt toàn bộ quân địch'
+                      ? 'Tiêu diệt toàn bộ quân địch'
                       : autoMatchData.winReason === 'MAX_TURNS_REACHED'
                       ? '⏱️ Hết 150 lượt (Bên nhiều quân hơn thắng)'
                       : autoMatchData.winReason === 'TIMEOUT'
@@ -389,7 +388,7 @@ export default function BossArenaView({ onSelectReplay }) {
                     onClick={() => onSelectReplay(autoMatchData.replay)}
                     className="mt-2 px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md transition-colors"
                   >
-                    Mở Trong Replay Viewer Phân Tích 🎬
+                    Mở trình phân tích replay
                   </button>
                 )}
               </div>
@@ -399,7 +398,6 @@ export default function BossArenaView({ onSelectReplay }) {
           {/* Combat Log Panel */}
           <div className="rounded-2xl bg-[#0e1322]/80 border border-white/5 p-5 backdrop-blur-md h-[480px] flex flex-col">
             <h3 className="font-bold text-sm text-white pb-3 border-b border-white/5 flex items-center gap-2">
-              <span>📜</span>
               <span>Diễn Biến Từng Nước Đi Của Bot</span>
             </h3>
 
@@ -424,16 +422,16 @@ export default function BossArenaView({ onSelectReplay }) {
                       <span>{step.executionTimeMs || 0}ms</span>
                     </div>
                     <div className="mt-1 font-semibold">
-                      Di chuyển ({step.move.fromRow}, {step.move.fromCol}) ➔ ({step.move.toRow}, {step.move.toCol})
+                      Di chuyển ({step.move.fromRow}, {step.move.fromCol}) → ({step.move.toRow}, {step.move.toCol})
                     </div>
                     {step.combat && (
                       <div className="text-[11px] mt-1 text-amber-300">
-                        ⚔️ Giao tranh: {step.combat.attacker?.type} vs {step.combat.defender?.type} ➔ {step.combat.outcome}
+                        Giao tranh: {step.combat.attacker?.type} vs {step.combat.defender?.type} → {step.combat.outcome}
                       </div>
                     )}
                     {step.warning && (
                       <div className="text-[10px] mt-1 text-amber-400 bg-amber-500/10 p-1 rounded border border-amber-500/20">
-                        💡 {step.warning}
+                        {step.warning}
                       </div>
                     )}
                   </div>

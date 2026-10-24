@@ -260,7 +260,6 @@ export default function TournamentBracketsView({ onSelectReplay }) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-white tracking-wide flex items-center gap-2">
-            <span>⚔️</span>
             <span>Đấu Trường Giải Đấu Sinh Viên Đại Học (University Arena)</span>
           </h1>
           <p className="text-sm text-slate-400 mt-1">
@@ -277,7 +276,6 @@ export default function TournamentBracketsView({ onSelectReplay }) {
                 download
                 className="px-3.5 py-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 hover:text-white border border-emerald-500/30 font-semibold text-xs transition-colors flex items-center gap-1.5"
               >
-                <span>📥</span>
                 <span>Xuất Bảng Điểm Excel (.xlsx)</span>
               </a>
               <a
@@ -285,7 +283,6 @@ export default function TournamentBracketsView({ onSelectReplay }) {
                 download
                 className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs border border-white/5 transition-colors flex items-center gap-1.5"
               >
-                <span>📄</span>
                 <span>CSV</span>
               </a>
             </>
@@ -297,7 +294,6 @@ export default function TournamentBracketsView({ onSelectReplay }) {
               disabled={loading}
               className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md transition-all flex items-center gap-1.5"
             >
-              <span>⚡</span>
               <span>Chấm Điểm Toàn Bộ Sinh Viên</span>
             </button>
           )}
@@ -308,7 +304,6 @@ export default function TournamentBracketsView({ onSelectReplay }) {
               disabled={loading}
               className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold text-xs shadow-md transition-all flex items-center gap-1.5"
             >
-              <span>⚡</span>
               <span>Tự Động Chạy Toàn Bộ Nhánh Đấu</span>
             </button>
           )}
@@ -325,7 +320,6 @@ export default function TournamentBracketsView({ onSelectReplay }) {
               : 'text-slate-400 hover:text-white hover:bg-white/5'
           }`}
         >
-          <span className="text-2xl">🌐</span>
           <div className="text-left">
             <div className="font-extrabold uppercase tracking-wide">Mục 1: Thi Đấu Toàn Thể (All-in Grand Arena)</div>
             <div className="text-[11px] font-normal text-indigo-200 mt-0.5 opacity-90">
@@ -342,7 +336,6 @@ export default function TournamentBracketsView({ onSelectReplay }) {
               : 'text-slate-400 hover:text-white hover:bg-white/5'
           }`}
         >
-          <span className="text-2xl">🏆</span>
           <div className="text-left">
             <div className="font-extrabold uppercase tracking-wide">Mục 2: Các Giải Đấu Riêng Lẻ & Nhánh Đấu (Branch Tournaments)</div>
             <div className="text-[11px] font-normal text-amber-200 mt-0.5 opacity-90">
@@ -484,7 +477,6 @@ export default function TournamentBracketsView({ onSelectReplay }) {
             disabled={loading || !selectedTourneyId}
             className="w-full mt-3 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2"
           >
-            <span>📝</span>
             <span>{tournamentMode === 'ALL_IN' ? 'Xác Nhận Nộp Bài / Tham Gia' : 'Ghi Danh Vào Nhánh Đấu'}</span>
           </button>
         </div>
@@ -498,7 +490,6 @@ export default function TournamentBracketsView({ onSelectReplay }) {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-black text-white flex items-center gap-2">
-                <span>📊</span>
                 <span>Bảng Điểm & Xếp Hạng Sinh Viên Toàn Thể ({rawStandings.length} Thí Sinh)</span>
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
@@ -532,7 +523,7 @@ export default function TournamentBracketsView({ onSelectReplay }) {
                     rawStandings.map((p, idx) => (
                       <tr key={p.id || idx} className="hover:bg-white/[0.02] transition-colors">
                         <td className="py-3.5 px-5 font-bold">
-                          {idx === 0 ? '🥇 1' : idx === 1 ? '🥈 2' : idx === 2 ? '🥉 3' : `#${idx + 1}`}
+                          {idx < 3 ? `${idx + 1}` : `#${idx + 1}`}
                         </td>
                         <td className="py-3.5 px-5">
                           <div className="font-bold text-white">{p.username}</div>
@@ -573,11 +564,10 @@ export default function TournamentBracketsView({ onSelectReplay }) {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h2 className="text-lg font-black text-white flex items-center gap-2">
-                <span>🏆</span>
                 <span>Sơ Đồ Phân Nhánh Thi Đấu Loại Trực Tiếp (Knockout Brackets)</span>
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                Các cặp đấu sinh viên theo từng vòng: Tứ Kết (Quarterfinals) ➔ Bán Kết (Semifinals) ➔ Chung Kết Cúp Vô Địch
+                Các cặp đấu sinh viên theo từng vòng: Tứ kết → Bán kết → Chung kết
               </p>
             </div>
 
@@ -586,7 +576,6 @@ export default function TournamentBracketsView({ onSelectReplay }) {
                 onClick={() => setAssignModalOpen(true)}
                 className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md transition-colors flex items-center gap-1.5 self-start sm:self-auto"
               >
-                <span>⚙️</span>
                 <span>Admin Xếp Sinh Viên Vào Nhánh</span>
               </button>
             )}
@@ -671,14 +660,13 @@ export default function TournamentBracketsView({ onSelectReplay }) {
               <div className="space-y-4 flex flex-col justify-center">
                 <div className="text-center pb-2 border-b border-white/5">
                   <span className="text-xs font-black text-amber-400 uppercase tracking-widest flex items-center justify-center gap-1.5">
-                    <span>👑</span>
                     <span>Chung Kết Tranh Cúp</span>
                   </span>
                 </div>
                 {brackets.filter(b => b.round === 3).map((m) => (
                   <div key={m.id} className="p-4 rounded-xl bg-gradient-to-b from-[#151c33] to-[#090d18] border-2 border-amber-500/50 space-y-3 shadow-2xl shadow-amber-500/10">
                     <div className="flex items-center justify-between text-xs font-bold text-amber-300">
-                      <span>🏆 {m.title}</span>
+                      <span>{m.title}</span>
                       <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px]">
                         {m.status}
                       </span>
@@ -706,7 +694,7 @@ export default function TournamentBracketsView({ onSelectReplay }) {
                           Quán Quân Cúp Vô Địch
                         </div>
                         <div className="text-sm font-black text-white mt-0.5">
-                          🎉 {m.winner}
+                          {m.winner}
                         </div>
                       </div>
                     )}

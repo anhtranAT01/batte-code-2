@@ -37,7 +37,7 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
   // 5 Tier definition cards
   const tiers = [
     {
-      icon: '🥉',
+      icon: 'BR',
       name: 'Đồng Kỳ Thủ',
       desc: 'Dưới 1,200 Elo',
       border: 'border-amber-700/30 hover:border-amber-600/50',
@@ -45,7 +45,7 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
       iconBg: 'bg-amber-900/40 text-amber-400',
     },
     {
-      icon: '🥈',
+      icon: 'SI',
       name: 'Bạc Tinh Anh',
       desc: '1,200 - 1,349 Elo',
       border: 'border-slate-400/30 hover:border-slate-300/50',
@@ -53,7 +53,7 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
       iconBg: 'bg-slate-700/50 text-slate-200',
     },
     {
-      icon: '🥇',
+      icon: 'GO',
       name: 'Vàng Dũng Sĩ',
       desc: '1,350 - 1,499 Elo',
       border: 'border-yellow-500/30 hover:border-yellow-400/50',
@@ -61,7 +61,7 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
       iconBg: 'bg-yellow-700/40 text-yellow-300',
     },
     {
-      icon: '💎',
+      icon: 'DI',
       name: 'Kim Cương Bậc Thầy',
       desc: '1,500 - 1,699 Elo',
       border: 'border-cyan-500/30 hover:border-cyan-400/50',
@@ -69,7 +69,7 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
       iconBg: 'bg-cyan-800/40 text-cyan-300',
     },
     {
-      icon: '👑',
+      icon: 'EL',
       name: 'Thách Đấu Thần Thoại',
       desc: '1,700+ Elo',
       border: 'border-purple-500/30 hover:border-purple-400/50',
@@ -134,7 +134,6 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
             <span>Cổng FFA: Mở</span>
           </div>
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-950/40 border border-amber-500/20 text-xs text-amber-300 font-medium">
-            <span>⚡</span>
             <span>Hệ số ngày: x1.5</span>
           </div>
         </div>
@@ -222,7 +221,7 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
                               </span>
                             </div>
                             <div className="text-[11px] text-slate-400 mt-0.5">
-                              🎖️ {player.role === 'ADMIN' ? 'Tổng Quản Ban Tổ Chức' : 'Kỳ Thủ Nhập Môn'}
+                              {player.role === 'ADMIN' ? 'Ban tổ chức' : 'Kỳ thủ nhập môn'}
                             </div>
                           </div>
                         </div>
@@ -262,7 +261,6 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
                           onClick={() => onChallengePlayer(player)}
                           className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-medium text-xs shadow-md shadow-indigo-950/40 transition-all hover:scale-105 active:scale-95 inline-flex items-center gap-1.5"
                         >
-                          <span>⚔️</span>
                           <span>Thách đấu</span>
                         </button>
                       </td>
@@ -280,7 +278,6 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <span>⚔️</span>
               <span>Trận đấu gần đây (Recent Matches)</span>
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
@@ -293,7 +290,7 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
             className="text-xs font-medium text-indigo-400 hover:text-indigo-300 flex items-center gap-1 self-start sm:self-auto px-3 py-1.5 rounded-lg bg-indigo-950/30 border border-indigo-500/20 hover:border-indigo-500/40 transition-colors"
           >
             <span>Khám phá toàn bộ Dữ liệu (Data Explorer)</span>
-            <span>➔</span>
+            <span>→</span>
           </button>
         </div>
 
@@ -353,7 +350,7 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
                             </span>
                           ) : (
                             <span className="px-2 py-0.5 rounded bg-emerald-950/60 text-emerald-400 border border-emerald-500/20 font-semibold text-[10px]">
-                              🏆 {match.winner_username} THẮNG
+                              {match.winner_username} THẮNG
                             </span>
                           )}
                         </td>
@@ -374,7 +371,7 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
                             onClick={() => onSelectReplay(match.id)}
                             className="px-3 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 hover:text-white border border-indigo-500/30 font-medium transition-colors"
                           >
-                            Xem Replay 🎬
+                            Xem replay
                           </button>
                         </td>
                       </tr>

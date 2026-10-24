@@ -147,7 +147,7 @@ export default function AdminDashboardView({ onSelectReplay }) {
       const match = data.data;
       setAlertMsg({
         type: 'success',
-        text: `Kiểm thử "${botName}" hoàn tất: ${match.winner === 1 ? 'Bot THẮNG 🎉' : 'Bot THUA 🤖'} sau ${match.totalTurns} lượt.`,
+        text: `Kiểm thử "${botName}" hoàn tất: ${match.winner === 1 ? 'Bot THẮNG' : 'Bot THUA'} sau ${match.totalTurns} lượt.`,
       });
       if (match.replay && onSelectReplay) {
         onSelectReplay(match.replay);
@@ -269,7 +269,7 @@ export default function AdminDashboardView({ onSelectReplay }) {
               activeTab === 'users' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
             }`}
           >
-            👥 Thí Sinh ({usersList.length})
+            Thí Sinh ({usersList.length})
           </button>
           <button
             onClick={() => setActiveTab('bots')}
@@ -277,7 +277,7 @@ export default function AdminDashboardView({ onSelectReplay }) {
               activeTab === 'bots' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
             }`}
           >
-            🤖 Kho Bot ({botsList.length})
+            Kho Bot ({botsList.length})
           </button>
           <button
             onClick={() => setActiveTab('tournaments')}
@@ -285,7 +285,7 @@ export default function AdminDashboardView({ onSelectReplay }) {
               activeTab === 'tournaments' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
             }`}
           >
-            🏆 Giải Đấu Khối ({tourneysList.length})
+            Giải Đấu Khối ({tourneysList.length})
           </button>
           <button
             onClick={() => setActiveTab('stats')}
@@ -293,7 +293,7 @@ export default function AdminDashboardView({ onSelectReplay }) {
               activeTab === 'stats' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
             }`}
           >
-            ⚙️ Hạ Tầng & Queue
+            Hạ Tầng & Queue
           </button>
         </div>
       </div>
@@ -385,7 +385,7 @@ export default function AdminDashboardView({ onSelectReplay }) {
                         onClick={() => handleAdjustElo(u.id, u.elo_rating)}
                         className="px-2.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 font-semibold"
                       >
-                        Chỉnh Elo ✏️
+                        Chỉnh Elo
                       </button>
                     </td>
                   </tr>
@@ -420,7 +420,6 @@ export default function AdminDashboardView({ onSelectReplay }) {
                 {botsList.map((b) => (
                   <tr key={b.id} className="hover:bg-white/[0.02] transition-colors">
                     <td className="py-3.5 px-5 font-bold text-white flex items-center gap-2">
-                      <span>🤖</span>
                       <span>{b.name}</span>
                     </td>
                     <td className="py-3.5 px-5 text-slate-300">{b.username} ({b.elo_rating} Elo)</td>
@@ -444,13 +443,13 @@ export default function AdminDashboardView({ onSelectReplay }) {
                         disabled={loading}
                         className="px-2.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 font-semibold"
                       >
-                        ⚡ Chạy Kiểm Thử
+                        Chạy Kiểm Thử
                       </button>
                       <button
                         onClick={() => handleDeleteBot(b.id, b.name)}
                         className="px-2.5 py-1 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 font-semibold"
                       >
-                        🗑️ Xóa
+                        Xóa
                       </button>
                     </td>
                   </tr>
@@ -466,7 +465,7 @@ export default function AdminDashboardView({ onSelectReplay }) {
         <div className="space-y-6">
           {/* Create University Tournament Form */}
           <div className="p-6 rounded-2xl bg-[#0e1322]/80 border border-white/5 backdrop-blur-md">
-            <h3 className="font-bold text-white text-base mb-4">➕ Khởi Tạo Giải Đấu Sinh Viên Đại Học Mới</h3>
+            <h3 className="font-bold text-white text-base mb-4">Khởi Tạo Giải Đấu Sinh Viên Đại Học Mới</h3>
             <form onSubmit={handleCreateTournament} className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="md:col-span-2">
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
@@ -491,8 +490,8 @@ export default function AdminDashboardView({ onSelectReplay }) {
                   onChange={(e) => setNewTourneyMode(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-[#090d18] border border-white/10 text-white text-xs font-bold focus:outline-none focus:border-indigo-500"
                 >
-                  <option value="ALL_IN">🌐 Mục 1: Thi Đấu Toàn Thể (All-In)</option>
-                  <option value="BRANCHES">🏆 Mục 2: Nhánh Đấu Riêng Lẻ (Branches)</option>
+                  <option value="ALL_IN">Mục 1: Thi Đấu Toàn Thể (All-In)</option>
+                  <option value="BRANCHES">Mục 2: Nhánh Đấu Riêng Lẻ (Branches)</option>
                 </select>
               </div>
 
@@ -529,7 +528,6 @@ export default function AdminDashboardView({ onSelectReplay }) {
                   type="submit"
                   className="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5"
                 >
-                  <span>🚀</span>
                   <span>Khởi Tạo Giải Đấu Ngay</span>
                 </button>
               </div>
@@ -568,11 +566,11 @@ export default function AdminDashboardView({ onSelectReplay }) {
                         <td className="py-4 px-5">
                           {isBranches ? (
                             <span className="px-2.5 py-1 rounded-full font-bold text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                              🏆 NHÁNH ĐẤU
+                              NHÁNH ĐẤU
                             </span>
                           ) : (
                             <span className="px-2.5 py-1 rounded-full font-bold text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                              🌐 TOÀN THỂ
+                              TOÀN THỂ
                             </span>
                           )}
                         </td>
@@ -604,7 +602,7 @@ export default function AdminDashboardView({ onSelectReplay }) {
                               disabled={loading}
                               className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold shadow-md transition-all"
                             >
-                              ⚡ Chạy Toàn Nhánh
+                              Chạy Toàn Nhánh
                             </button>
                           ) : (
                             <button
@@ -612,7 +610,7 @@ export default function AdminDashboardView({ onSelectReplay }) {
                               disabled={loading}
                               className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold shadow-md transition-all"
                             >
-                              ⚡ Chấm Điểm Toàn Bộ
+                              Chấm Điểm Toàn Bộ
                             </button>
                           )}
 
@@ -621,7 +619,7 @@ export default function AdminDashboardView({ onSelectReplay }) {
                             className="px-2.5 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 font-semibold"
                             title="Xóa giải đấu"
                           >
-                            🗑️
+                            Xóa
                           </button>
                         </td>
                       </tr>

@@ -14,8 +14,10 @@ import WorldChatModal from './components/WorldChatModal';
 import AuthModal from './components/AuthModal';
 import AdminDashboardView from './components/AdminDashboardView';
 import { apiOrigin } from './lib/api';
+import useTheme from './hooks/useTheme';
 
 export default function App() {
+  const { theme, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState('leaderboard');
   const [previousTab, setPreviousTab] = useState('leaderboard');
   const [selectedReplay, setSelectedReplay] = useState(null);
@@ -90,7 +92,7 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen bg-[#080b14] text-slate-100 font-sans antialiased overflow-hidden selection:bg-indigo-500 selection:text-white">
+    <div className="app-shell flex h-screen font-sans antialiased overflow-hidden selection:bg-indigo-500 selection:text-white">
       {/* Left Sidebar Menu */}
       <Sidebar
         activeTab={activeTab}
@@ -101,10 +103,10 @@ export default function App() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* Top Header Bar */}
-        <HeaderBar onOpenAuthModal={handleOpenAuthModal} />
+        <HeaderBar onOpenAuthModal={handleOpenAuthModal} theme={theme} onToggleTheme={toggleTheme} />
 
         {/* Dynamic Page Views Container */}
-        <main className="flex-1 overflow-y-auto px-6 py-6 scrollbar-thin">
+        <main className="app-main flex-1 overflow-y-auto px-4 sm:px-6 py-6 scrollbar-thin">
           <div className="max-w-7xl mx-auto pb-12">
             {activeTab === 'leaderboard' && (
               <LeaderboardView

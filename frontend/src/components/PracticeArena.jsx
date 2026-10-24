@@ -158,10 +158,10 @@ export default function PracticeArena({ onSelectReplay }) {
           setLastReplay(result.replay);
           setStatusMessage(
             result.winner === 1
-              ? '🎉 Chúc mừng! Bạn đã giành CHIẾN THẮNG!'
+              ? 'Bạn đã giành CHIẾN THẮNG!'
               : result.winner === 2
-              ? '💀 Rất tiếc! Bot AI đã giành chiến thắng.'
-              : '🤝 Trận đấu kết thúc với kết quả HÒA.'
+              ? 'Bot máy đã giành chiến thắng.'
+              : 'Trận đấu kết thúc với kết quả HÒA.'
           );
         } else {
           setStatusMessage('Lượt tiếp theo của bạn (Người chơi 1).');
@@ -183,7 +183,7 @@ export default function PracticeArena({ onSelectReplay }) {
         <div className="flex flex-wrap items-center justify-between gap-4 mb-4 pb-4 border-b border-white/5">
           <div>
             <h2 className="text-xl font-bold text-white flex items-center gap-2">
-              <span>🎮</span> Đấu Trường Luyện Tập Chiến Thuật
+              Đấu Trường Luyện Tập Chiến Thuật
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
               Tùy biến bản đồ 8x8 hoặc 9x9, rèn luyện kỹ năng với Bot AI hoặc ghép trận xếp hạng Elo
@@ -195,7 +195,7 @@ export default function PracticeArena({ onSelectReplay }) {
             disabled={loading}
             className="px-5 py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-black shadow-lg shadow-emerald-500/20 transition-all transform hover:-translate-y-0.5 disabled:opacity-50"
           >
-            {loading ? 'Đang Khởi Tạo...' : '✨ Tạo Trận Đấu Mới'}
+            {loading ? 'Đang Khởi Tạo...' : 'Tạo Trận Đấu Mới'}
           </button>
         </div>
 
@@ -319,7 +319,7 @@ export default function PracticeArena({ onSelectReplay }) {
                   onClick={() => onSelectReplay(lastReplay)}
                   className="w-full py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 text-white shadow-lg shadow-purple-500/20 transition-all flex items-center justify-center gap-1.5"
                 >
-                  <span>📹</span> Mở Xem Lại Trận Này (Replay)
+                  Mở Xem Lại Trận Này (Replay)
                 </button>
               </div>
             )}
@@ -328,17 +328,17 @@ export default function PracticeArena({ onSelectReplay }) {
           {/* Tactical Tips Card */}
           <div className="glass-panel p-5 rounded-2xl border border-white/10 space-y-2 text-xs text-slate-300">
             <h4 className="font-bold text-amber-400 flex items-center gap-1.5">
-              <span>💡</span> Mẹo Chiến Thuật Cao Cấp:
+              Mẹo Chiến Thuật Cao Cấp:
             </h4>
             <ul className="list-disc list-inside space-y-1.5 text-slate-400">
               <li>
-                <strong className="text-slate-200">🧪 Bình Đồng Hóa:</strong> Giúp bạn biến quân đối phương thành quân mình thay vì tiêu diệt. Rất giá trị khi lật ngược thế cờ!
+                <strong className="text-slate-200">Bình Đồng Hóa:</strong> Giúp bạn biến quân đối phương thành quân mình thay vì tiêu diệt. Rất giá trị khi lật ngược thế cờ!
               </li>
               <li>
-                <strong className="text-slate-200">➕ Bình Sinh Sản:</strong> Tự động sinh thêm 1 quân cờ cùng loại ở ô kề bên, nhân đôi quân số.
+                <strong className="text-slate-200">Bình Sinh Sản:</strong> Tự động sinh thêm 1 quân cờ cùng loại ở ô kề bên, nhân đôi quân số.
               </li>
               <li>
-                <strong className="text-slate-200">⚡ Bình Đi 2 Bước:</strong> Đột kích bất ngờ hoặc rút chạy an toàn khi bị dồn ép.
+                <strong className="text-slate-200">Bình Đi 2 Bước:</strong> Đột kích bất ngờ hoặc rút chạy an toàn khi bị dồn ép.
               </li>
             </ul>
           </div>
