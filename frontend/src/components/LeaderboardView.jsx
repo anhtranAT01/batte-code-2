@@ -144,7 +144,7 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
         {tiers.map((t, idx) => (
           <div
             key={idx}
-            className={`p-3.5 rounded-2xl bg-gradient-to-br ${t.bg} border ${t.border} backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5`}
+            className={`tier-card p-3.5 rounded-2xl bg-gradient-to-br ${t.bg} border ${t.border} backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5`}
           >
             <div className="flex items-center gap-3">
               <div className={`w-9 h-9 rounded-xl ${t.iconBg} flex items-center justify-center text-lg shadow-inner`}>
@@ -278,7 +278,7 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <span>Trận đấu gần đây (Recent Matches)</span>
+              <span>Trận đấu gần đây</span>
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
               Bất kỳ ai cũng có thể bấm vào xem lại từng nước đi trực tiếp
@@ -289,7 +289,7 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
             onClick={onExploreData}
             className="text-xs font-medium text-indigo-400 hover:text-indigo-300 flex items-center gap-1 self-start sm:self-auto px-3 py-1.5 rounded-lg bg-indigo-950/30 border border-indigo-500/20 hover:border-indigo-500/40 transition-colors"
           >
-            <span>Khám phá toàn bộ Dữ liệu (Data Explorer)</span>
+            <span>Xem toàn bộ dữ liệu</span>
             <span>→</span>
           </button>
         </div>

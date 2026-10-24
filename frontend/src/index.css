@@ -236,6 +236,8 @@ html[data-theme='light'] .modal-overlay { background: rgba(28,39,61,.35); }
 .app-main textarea,
 .app-main select { border-radius: 9px !important; box-shadow: none !important; }
 .app-main button { box-shadow: none; }
+.tier-card { border-color: var(--line-strong) !important; background: var(--surface) !important; }
+.tier-card:hover { border-color: color-mix(in srgb, var(--brand) 45%, var(--line-strong)) !important; }
 .app-main button:focus-visible,
 .app-main a:focus-visible,
 .app-main input:focus-visible,
