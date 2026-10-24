@@ -64,7 +64,12 @@ const fs = require('fs');
 const frontendDistPath = path.join(__dirname, '../../frontend/dist');
 const frontendPath = path.join(__dirname, '../../frontend');
 const staticPath = fs.existsSync(frontendDistPath) ? frontendDistPath : frontendPath;
-app.use(express.static(staticPath));
+const frontendIndexPath = path.join(staticPath, 'index.html');
+const hasBundledFrontend = fs.existsSync(frontendIndexPath);
+
+if (hasBundledFrontend) {
+  app.use(express.static(staticPath));
+}
 
 // API Routes
 const gameRoutes = require('./game/gameRoutes');
@@ -148,7 +153,16 @@ app.get('*', (req, res, next) => {
       message: `Endpoint ${req.method} ${req.originalUrl} không tồn tại trên hệ thống.`,
     });
   }
-  res.sendFile(path.join(staticPath, 'index.html'));
+  if (hasBundledFrontend) {
+    return res.sendFile(frontendIndexPath);
+  }
+
+  return res.status(200).json({
+    service: 'Battle Code API',
+    status: 'RUNNING',
+    health: '/api/health',
+    frontend: process.env.FRONTEND_URL || null,
+  });
 });
 
 // Global Error Handler
