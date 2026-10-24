@@ -13,7 +13,12 @@ const redisConfig = {
 
 if (process.env.REDIS_PASSWORD) redisConfig.password = process.env.REDIS_PASSWORD;
 
-const redisConnection = new Redis(redisConfig);
+const redisConnection = process.env.REDIS_URL
+  ? new Redis(process.env.REDIS_URL, {
+      maxRetriesPerRequest: null,
+      enableReadyCheck: false,
+    })
+  : new Redis(redisConfig);
 
 redisConnection.on('connect', () => {
   console.log('[Redis] Connected successfully to Redis server');

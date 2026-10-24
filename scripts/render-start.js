@@ -1,4 +1,13 @@
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
+
+const databaseSetup = spawnSync(process.execPath, ['backend/src/scripts/deployDatabase.js'], {
+  stdio: 'inherit',
+});
+
+if (databaseSetup.status !== 0) {
+  console.error('[Render] Database setup failed; service will not start.');
+  process.exit(databaseSetup.status || 1);
+}
 
 const processes = [
   spawn(process.execPath, ['backend/src/server.js'], { stdio: 'inherit' }),

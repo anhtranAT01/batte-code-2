@@ -82,6 +82,7 @@ Redeploy Render rồi kiểm tra:
 | `JWT_SECRET` | Render tự sinh |
 | `CORS_ORIGIN` | URL Pages/custom domain |
 | `REDIS_HOST`, `REDIS_PORT` | Render Blueprint tự nối |
+| `REDIS_URL` | Có thể dùng thay cho host/port khi tạo service thủ công |
 | `BOT_STORAGE_ROOT` | `/var/data/bots` |
 
 ### Cloudflare Pages

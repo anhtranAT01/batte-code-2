@@ -1,4 +1,5 @@
 const { Worker } = require('bullmq');
+const Redis = require('ioredis');
 const { Pool } = require('pg');
 const dotenv = require('dotenv');
 const fs = require('fs');
@@ -22,13 +23,17 @@ const pool = new Pool({
   idleTimeoutMillis: 30000,
 });
 
-const redisConnection = {
+const redisConfig = {
   host: process.env.REDIS_HOST || '127.0.0.1',
   port: parseInt(process.env.REDIS_PORT || '6379', 10),
   maxRetriesPerRequest: null,
 };
 
-if (process.env.REDIS_PASSWORD) redisConnection.password = process.env.REDIS_PASSWORD;
+if (process.env.REDIS_PASSWORD) redisConfig.password = process.env.REDIS_PASSWORD;
+
+const redisConnection = process.env.REDIS_URL
+  ? new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: null })
+  : redisConfig;
 
 const TURN_TIMEOUT_MS = parseInt(process.env.TURN_TIMEOUT_MS || '1000', 10);
 
