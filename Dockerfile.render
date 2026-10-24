@@ -1,8 +1,10 @@
-FROM node:20-alpine
+FROM node:20-bookworm-slim
 
 WORKDIR /app
 
-RUN apk add --no-cache python3 git
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 git openssl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY backend/package*.json ./backend/
 COPY judge-worker/package*.json ./judge-worker/
