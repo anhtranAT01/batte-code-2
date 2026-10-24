@@ -1,0 +1,48 @@
+{
+  "name": "rps-tactical-backend",
+  "version": "1.0.0",
+  "description": "Tactical Rock-Paper-Scissors Arena Backend Server with Real-time WebSockets and BullMQ",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:push": "prisma db push",
+    "prisma:studio": "prisma studio",
+    "seed:admin": "node src/scripts/seedAdmin.js",
+    "seed": "node src/scripts/seedAdmin.js"
+  },
+  "keywords": [
+    "rock-paper-scissors",
+    "board-game",
+    "ai-arena",
+    "socket.io",
+    "bullmq",
+    "postgresql",
+    "redis"
+  ],
+  "author": "Tactical RPS Arena Team",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^5.14.0",
+    "bcryptjs": "^2.4.3",
+    "bullmq": "^5.7.14",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "exceljs": "^4.4.0",
+    "express": "^4.19.2",
+    "helmet": "^7.1.0",
+    "ioredis": "^5.4.1",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "multer": "^2.4.0",
+    "pg": "^8.11.5",
+    "socket.io": "^4.7.5",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0",
+    "prisma": "^5.14.0"
+  }
+}

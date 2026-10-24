@@ -1,0 +1,150 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+enum BotSourceType {
+  file
+  git
+}
+
+enum BotStatus {
+  active
+  inactive
+  compiling
+  error
+}
+
+enum MapSize {
+  SIZE_8x8 @map("8x8")
+  SIZE_9x9 @map("9x9")
+}
+
+enum MapDifficulty {
+  easy
+  medium
+  hard
+  random
+}
+
+enum TournamentStatus {
+  UPCOMING
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+enum WinReason {
+  CHECKMATE
+  TIMEOUT
+  INVALID_MOVE
+  INFINITE_LOOP
+  DRAW
+  SURRENDER
+}
+
+model User {
+  id            String    @id @default(uuid()) @db.Uuid
+  username      String    @unique @db.VarChar(50)
+  password_hash String    @db.VarChar(255)
+  role          Role      @default(STUDENT)
+  elo_rating    Int       @default(1200)
+  created_at    DateTime  @default(now()) @db.Timestamptz
+  updated_at    DateTime  @default(now()) @updatedAt @db.Timestamptz
+
+  bots          Bot[]
+  matches_as_p1 Match[]   @relation("Player1Matches")
+  matches_as_p2 Match[]   @relation("Player2Matches")
+  matches_won   Match[]   @relation("WinnerMatches")
+
+  @@index([elo_rating(sort: Desc)])
+  @@map("Users")
+}
+
+model Bot {
+  id                   String        @id @default(uuid()) @db.Uuid
+  user_id              String        @db.Uuid
+  name                 String        @db.VarChar(100)
+  source_type          BotSourceType @default(file)
+  file_path_or_git_url String        @db.Text
+  status               BotStatus     @default(active)
+  error_count          Int           @default(0)
+  created_at           DateTime      @default(now()) @db.Timestamptz
+  updated_at           DateTime      @default(now()) @updatedAt @db.Timestamptz
+
+  user                 User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  matches_as_bot1      Match[]       @relation("Bot1Matches")
+  matches_as_bot2      Match[]       @relation("Bot2Matches")
+
+  @@index([user_id])
+  @@map("Bots")
+}
+
+model Map {
+  id               String        @id @default(uuid()) @db.Uuid
+  name             String        @db.VarChar(100)
+  size             MapSize       @default(SIZE_8x8)
+  difficulty       MapDifficulty @default(medium)
+  grid_layout_json Json          @default("{}")
+  created_at       DateTime      @default(now()) @db.Timestamptz
+
+  matches          Match[]
+
+  @@map("Maps")
+}
+
+model Tournament {
+  id               String           @id @default(uuid()) @db.Uuid
+  name             String           @db.VarChar(150)
+  status           TournamentStatus @default(UPCOMING)
+  max_participants Int              @default(1000)
+  settings_json    Json             @default("{}")
+  created_at       DateTime         @default(now()) @db.Timestamptz
+  updated_at       DateTime         @default(now()) @updatedAt @db.Timestamptz
+
+  matches          Match[]
+
+  @@index([status])
+  @@map("Tournaments")
+}
+
+model Match {
+  id                      String      @id @default(uuid()) @db.Uuid
+  tournament_id           String?     @db.Uuid
+  player1_id              String      @db.Uuid
+  player2_id              String      @db.Uuid
+  player1_bot_id          String?     @db.Uuid
+  player2_bot_id          String?     @db.Uuid
+  map_id                  String      @db.Uuid
+  winner_id               String?     @db.Uuid
+  win_reason              WinReason?
+  duration_ms             Int         @default(0)
+  p1_elo_change           Int         @default(0)
+  p2_elo_change           Int         @default(0)
+  has_infinite_loop_error Boolean     @default(false)
+  replay_json             Json        @default("[]")
+  created_at              DateTime    @default(now()) @db.Timestamptz
+
+  tournament              Tournament? @relation(fields: [tournament_id], references: [id], onDelete: SetNull)
+  player1                 User        @relation("Player1Matches", fields: [player1_id], references: [id], onDelete: Cascade)
+  player2                 User        @relation("Player2Matches", fields: [player2_id], references: [id], onDelete: Cascade)
+  player1_bot             Bot?        @relation("Bot1Matches", fields: [player1_bot_id], references: [id], onDelete: SetNull)
+  player2_bot             Bot?        @relation("Bot2Matches", fields: [player2_bot_id], references: [id], onDelete: SetNull)
+  map                     Map         @relation(fields: [map_id], references: [id], onDelete: Restrict)
+  winner                  User?       @relation("WinnerMatches", fields: [winner_id], references: [id], onDelete: SetNull)
+
+  @@index([player1_id])
+  @@index([player2_id])
+  @@index([tournament_id])
+  @@map("Matches")
+}

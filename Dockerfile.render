@@ -1,0 +1,24 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+RUN apk add --no-cache python3 git
+
+COPY backend/package*.json ./backend/
+COPY judge-worker/package*.json ./judge-worker/
+RUN cd backend && npm ci \
+    && cd ../judge-worker && npm ci --omit=dev
+
+COPY backend ./backend
+COPY judge-worker ./judge-worker
+COPY scripts ./scripts
+
+RUN cd backend && npx prisma generate
+
+ENV NODE_ENV=production
+ENV PORT=10000
+ENV BOT_STORAGE_ROOT=/var/data/bots
+
+EXPOSE 10000
+
+CMD ["node", "scripts/render-start.js"]

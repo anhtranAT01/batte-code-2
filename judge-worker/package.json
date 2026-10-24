@@ -1,0 +1,28 @@
+{
+  "name": "rps-judge-worker",
+  "version": "1.0.0",
+  "description": "Distributed Match Judge Worker for Rock-Paper-Scissors Tactical Board Game",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "keywords": [
+    "judge",
+    "worker",
+    "bullmq",
+    "rock-paper-scissors",
+    "ai-arena"
+  ],
+  "author": "Tactical RPS Arena Team",
+  "license": "ISC",
+  "dependencies": {
+    "bullmq": "^5.7.14",
+    "dotenv": "^16.4.5",
+    "ioredis": "^5.4.1",
+    "pg": "^8.11.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}

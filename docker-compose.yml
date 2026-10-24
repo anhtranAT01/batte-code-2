@@ -1,0 +1,116 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: rps_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-rps_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rps_secret_password_2026}
+      POSTGRES_DB: ${POSTGRES_DB:-rps_arena}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rps_admin} -d ${POSTGRES_DB:-rps_arena}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rps_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: rps_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-rps_redis_password_2026}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-rps_redis_password_2026}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rps_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: rps_backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-rps_admin}:${POSTGRES_PASSWORD:-rps_secret_password_2026}@postgres:5432/${POSTGRES_DB:-rps_arena}?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-rps_redis_password_2026}
+      JWT_SECRET: ${JWT_SECRET:-super_secret_jwt_key_tactical_rps_2026_x892k}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      CORS_ORIGIN: "*"
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - bot_storage:/app/storage/bots
+    networks:
+      - rps_network
+
+  judge-worker:
+    build:
+      context: ./judge-worker
+      dockerfile: Dockerfile
+    container_name: rps_judge_worker
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-rps_admin}:${POSTGRES_PASSWORD:-rps_secret_password_2026}@postgres:5432/${POSTGRES_DB:-rps_arena}?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-rps_redis_password_2026}
+      MAX_MATCH_DURATION_MS: 30000
+      TURN_TIMEOUT_MS: 1000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - bot_storage:/app/storage/bots
+    networks:
+      - rps_network
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: rps_cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:-dummy_token_configure_in_env}
+    networks:
+      - rps_network
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  bot_storage:
+    driver: local
+
+networks:
+  rps_network:
+    driver: bridge

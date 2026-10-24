@@ -1,0 +1,18 @@
+# Battle Code RPS - Tactical Arena Platform
+node_modules
+.env
+dist
+build
+coverage
+*.log
+.DS_Store
+Thumbs.db
+__pycache__/
+*.py[cod]
+
+# Runtime uploads and user-submitted bot source
+storage/bots/
+
+# Docker data mounts (if any created locally)
+postgres_data/
+redis_data/

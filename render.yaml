@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: battle-code-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile.render
+    plan: 0.5c-512mb
+    region: singapore
+    healthCheckPath: /api/health
+    preDeployCommand: node backend/src/scripts/deployDatabase.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: CORS_ORIGIN
+        sync: false
+      - key: BOT_STORAGE_ROOT
+        value: /var/data/bots
+      - key: TURN_TIMEOUT_MS
+        value: 1000
+      - key: REDIS_HOST
+        fromService:
+          type: keyvalue
+          name: battle-code-queue
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          type: keyvalue
+          name: battle-code-queue
+          property: port
+    disk:
+      name: bot-storage
+      mountPath: /var/data/bots
+      sizeGB: 5
+
+  - type: keyvalue
+    name: battle-code-queue
+    plan: free
+    region: singapore
+    ipAllowList: []
+    maxmemoryPolicy: noeviction

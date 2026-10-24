@@ -1,0 +1,20 @@
+{
+  "name": "rps-tactical-arena-monorepo",
+  "version": "1.0.0",
+  "description": "Tactical Rock-Paper-Scissors Arena Platform Monorepo",
+  "scripts": {
+    "dev": "npm --prefix backend run dev",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:worker": "npm --prefix judge-worker run dev",
+    "docker:up": "docker-compose up -d --build",
+    "docker:down": "docker-compose down"
+  },
+  "keywords": [
+    "rock-paper-scissors",
+    "arena",
+    "ai-arena"
+  ],
+  "author": "Tactical RPS Arena Team",
+  "license": "ISC"
+}
