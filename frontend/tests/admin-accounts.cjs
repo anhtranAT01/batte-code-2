@@ -10,7 +10,8 @@ const source = fs.readFileSync(path.resolve(__dirname, '../src/components/AdminD
 const moduleExports = { exports: {} };
 new Function('require', 'module', 'exports', transformSync(source, { loader: 'jsx', format: 'cjs' }).code)(
   id => id === '../context/AuthContext' ? { useAuth: () => auth }
-    : id === '../lib/publicData' ? {invalidatePublicData() {}} : require(id), moduleExports, moduleExports.exports
+    : id === '../lib/publicData' ? {invalidatePublicData() {}}
+    : id === '../lib/matchLabel' ? {matchLabel:m=>`#${String(m.match_number || '').padStart(3,'0')}`} : require(id), moduleExports, moduleExports.exports
 );
 const Admin = moduleExports.exports.default;
 const text = value => Array.isArray(value) ? value.map(text).join('') : value && typeof value === 'object' ? text(value.props?.children) : String(value ?? '');

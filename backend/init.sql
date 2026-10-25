@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS "Tournaments" (
 -- Table: Matches
 CREATE TABLE IF NOT EXISTS "Matches" (
     "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "match_number" BIGSERIAL UNIQUE,
     "tournament_id" UUID REFERENCES "Tournaments"("id") ON DELETE SET NULL,
     "player1_id" UUID REFERENCES "Users"("id") ON DELETE CASCADE,
     "player2_id" UUID REFERENCES "Users"("id") ON DELETE CASCADE,

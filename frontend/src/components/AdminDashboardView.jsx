@@ -1,3 +1,4 @@
+import { matchLabel } from '../lib/matchLabel';
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { invalidatePublicData } from '../lib/publicData';
@@ -493,7 +494,7 @@ export default function AdminDashboardView({ onSelectReplay }) {
             {['MÃ TRẬN','XANH (P1)','ĐỎ (P2)','KẾT QUẢ','NGÀY TẠO','THAO TÁC'].map(label => <th key={label} className="py-3 px-4">{label}</th>)}
           </tr></thead>
           <tbody className="divide-y divide-white/5">{matchesList.map(match => <tr key={match.id}>
-            <td className="py-3 px-4 font-mono text-slate-300" title={match.id}>{match.id.slice(0,8)}</td>
+            <td className="py-3 px-4 font-mono text-slate-300" title={match.id}><span className="match-label">{matchLabel(match)}</span></td>
             <td className="py-3 px-4 text-blue-300">{match.p1_username || 'Khách'}</td>
             <td className="py-3 px-4 text-red-300">{match.p2_username || 'Boss AI'}</td>
             <td className="py-3 px-4 text-slate-300">{match.winner_username ? `${match.winner_username} thắng` : match.result_known ? 'Hòa' : 'Chưa xác định'}</td>

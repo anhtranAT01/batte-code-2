@@ -13,6 +13,8 @@ export default function TournamentBracketsView({ onSelectReplay }) {
   const [standingsData, setStandingsData] = useState(null);
   const [myBots, setMyBots] = useState([]);
   const [selectedBotId, setSelectedBotId] = useState('');
+  const selectedBot = myBots.find(bot => bot.id === selectedBotId);
+  const selectedTournament = tournaments.find(tournament => tournament.id === selectedTourneyId);
   const [loading, setLoading] = useState(false);
   const [actionMsg, setActionMsg] = useState(null);
 
@@ -368,6 +370,8 @@ export default function TournamentBracketsView({ onSelectReplay }) {
           </label>
           <select
             value={selectedTourneyId || ''}
+            title={selectedTournament?.name || 'Chọn giải đấu'}
+            aria-label="Giải đấu đã chọn"
             onChange={(e) => setSelectedTourneyId(e.target.value)}
             className="w-full py-2.5 px-3 rounded-xl bg-[#090d18] border border-white/10 text-white text-xs font-semibold focus:outline-none focus:border-indigo-500"
           >
@@ -377,6 +381,7 @@ export default function TournamentBracketsView({ onSelectReplay }) {
               </option>
             ))}
           </select>
+          {selectedTournament && <p className="selection-summary">Đã chọn: <strong>{selectedTournament.name}</strong></p>}
 
           {tourney && (
             <div className="text-xs text-slate-400 space-y-1.5 pt-2 border-t border-white/5">
@@ -460,15 +465,18 @@ export default function TournamentBracketsView({ onSelectReplay }) {
             <div className="mt-2.5">
               <select
                 value={selectedBotId}
+                title={selectedBot?.name || 'Chọn bot'}
+                aria-label="Bot tham gia giải đấu"
                 onChange={(e) => setSelectedBotId(e.target.value)}
                 className="w-full py-2 px-3 rounded-xl bg-[#090d18] border border-white/10 text-white text-xs font-semibold focus:outline-none focus:border-indigo-500"
               >
                 {myBots.map((b) => (
                   <option key={b.id} value={b.id}>
-                    {b.name} ({b.tactic || 'Cướp Cờ'}) {b.is_active ? '⭐' : ''}
+                    {b.name} {b.is_active ? '— Bot chính' : ''}
                   </option>
                 ))}
               </select>
+              {selectedBot && <p className="selection-summary">Đã chọn: <strong>{selectedBot.name}</strong></p>}
             </div>
           </div>
 

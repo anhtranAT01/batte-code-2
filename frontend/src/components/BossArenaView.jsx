@@ -54,6 +54,10 @@ export default function BossArenaView({ onSelectReplay }) {
   const [boardSize, setBoardSize] = useState(9);
   const [myBots, setMyBots] = useState([]);
   const [selectedBotId, setSelectedBotId] = useState('template_alphabeta');
+  const selectedBotName = myBots.find(bot => bot.id === selectedBotId)?.name || {
+    template_alphabeta:'Minimax Alpha-Beta Pruning Bot',template_astar:'A* Flag Rusher Bot',
+    template_heuristic:'Heuristic Starter Bot',template_speed:'Sát Thủ Tốc Độ',
+  }[selectedBotId] || selectedBotId;
   const [loading, setLoading] = useState(false);
   const [matchError, setMatchError] = useState('');
 
@@ -265,6 +269,8 @@ export default function BossArenaView({ onSelectReplay }) {
               </label>
               <select
                 value={selectedBotId}
+                title={selectedBotName}
+                aria-label="Thuật toán bot của bạn"
                 onChange={(e) => setSelectedBotId(e.target.value)}
                 className="w-full py-3 px-3 rounded-xl bg-[#090d18] border border-white/10 text-white text-xs font-medium focus:outline-none focus:border-indigo-500"
               >
@@ -284,6 +290,7 @@ export default function BossArenaView({ onSelectReplay }) {
                   </optgroup>
                 )}
               </select>
+              <p className="selection-summary">Đã chọn: <strong>{selectedBotName}</strong></p>
               <p className="text-[11px] text-slate-400 mt-1.5">
                 Mỗi lượt chọn một quân theo thuật toán. Nhật ký hiển thị thuật toán và mục tiêu của nước đi.
               </p>

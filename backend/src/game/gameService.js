@@ -123,10 +123,10 @@ async function submitPlayerMove({ matchId, move, executionTimeMs = 120 }) {
       const replayJson = game.getReplayJson();
       Object.assign(replayJson,{mode:'PRACTICE',p1Name:session.userName,p2Name:`Boss AI (${session.botLevel})`,p2BotName:`Boss AI (${session.botLevel})`});
       if (session.userId) {
-        await query(
+        const persisted = await query(
           `INSERT INTO "Matches" (id, player1_id, player2_id, map_id, winner_id, win_reason, duration_ms, replay_json)
            VALUES ($1, $2, NULL, (SELECT id FROM "Maps" LIMIT 1), $3, $4, $5, $6)
-           ON CONFLICT (id) DO NOTHING;`,
+           ON CONFLICT (id) DO NOTHING RETURNING match_number;`,
           [
             matchId,
             session.userId,
@@ -136,6 +136,7 @@ async function submitPlayerMove({ matchId, move, executionTimeMs = 120 }) {
             JSON.stringify(replayJson),
           ]
         );
+        session.matchNumber = persisted.rows[0]?.match_number || session.matchNumber;
       }
     } catch (dbErr) {
       console.warn('[GameService DB Warning]: Could not persist match to database:', dbErr.message);
@@ -151,7 +152,7 @@ async function submitPlayerMove({ matchId, move, executionTimeMs = 120 }) {
     winReason: game.winReason,
     board: game.getBoardSnapshot(),
     validMoves: game.isGameOver ? [] : game.getValidMovesForPlayer(1),
-    replay: game.isGameOver ? game.getReplayJson() : null,
+    replay: game.isGameOver ? {...game.getReplayJson(),matchNumber:session.matchNumber} : null,
   };
 }
 
@@ -162,14 +163,17 @@ async function getReplay(matchId) {
   // 1. Check in-memory active match sessions
   const session = activeMatches.get(matchId);
   if (session) {
-    return {...session.game.getReplayJson(),mode:'PRACTICE',p1Name:session.userName,
+    return {...session.game.getReplayJson(),matchNumber:session.matchNumber,mode:'PRACTICE',p1Name:session.userName,
       p2Name:`Boss AI (${session.botLevel})`,p2BotName:`Boss AI (${session.botLevel})`};
   }
 
   // 2. Query historical matches from PostgreSQL database
   try {
+    const input = String(matchId).trim();
+    const number = input.replace(/^#/,'');
+    const byNumber = /^\d{1,19}$/.test(number) && BigInt(number) <= 9223372036854775807n;
     const res = await query(
-      `SELECT m.id, m.player1_id, m.player2_id, m.player2_bot_id, m.winner_id, m.win_reason, m.duration_ms, m.replay_json,
+      `SELECT m.id, m.match_number, m.player1_id, m.player2_id, m.player2_bot_id, m.winner_id, m.win_reason, m.duration_ms, m.replay_json,
               u1.username AS p1_username, u2.username AS p2_username,
               b1.name AS p1_bot_name, b2.name AS p2_bot_name,
               uw.username AS winner_username
@@ -179,8 +183,8 @@ async function getReplay(matchId) {
        LEFT JOIN "Bots" b1 ON b1.id = m.player1_bot_id
        LEFT JOIN "Bots" b2 ON b2.id = m.player2_bot_id
        LEFT JOIN "Users" uw ON uw.id = m.winner_id
-       WHERE m.id::text = $1 OR m.id::text LIKE $2`,
-      [matchId, `${matchId}%`]
+       WHERE ${byNumber ? 'm.match_number = $1::bigint' : 'm.id::text = $1 OR m.id::text LIKE $2'}`,
+      byNumber ? [number] : [input, `${input}%`]
     );
 
     if (res.rows.length > 0) {
@@ -196,6 +200,7 @@ async function getReplay(matchId) {
         return {
           ...replay,
           matchId: match.id,
+          matchNumber: match.match_number,
           p1Name: match.p1_username || 'Phe Xanh (P1)',
           p2Name: match.p2_username || 'Phe Đỏ (P2)',
           p1BotName: match.p1_bot_name,
@@ -209,6 +214,7 @@ async function getReplay(matchId) {
       if (Array.isArray(replay)) {
         return {
           matchId: match.id,
+          matchNumber: match.match_number,
           steps: replay,
           initialBoard: replay[0]?.boardSnapshot || [],
           p1Name: match.p1_username || 'Phe Xanh (P1)',
@@ -346,10 +352,10 @@ async function runAutomatedBotDuel({
   // Persist match in database if user is logged in
   try {
     const winnerId = game.winner === 1 ? userId : (game.winner === 2 && player2UserId ? player2UserId : null);
-    await query(
+    const persisted = await query(
       `INSERT INTO "Matches" (id, player1_id, player2_id, player1_bot_id, player2_bot_id, map_id, winner_id, win_reason, duration_ms, replay_json)
        VALUES ($1, $2, $3, $4, $5, (SELECT id FROM "Maps" LIMIT 1), $6, $7, $8, $9)
-       ON CONFLICT (id) DO NOTHING;`,
+       ON CONFLICT (id) DO NOTHING RETURNING match_number;`,
       [
         matchId,
         userId,
@@ -362,6 +368,7 @@ async function runAutomatedBotDuel({
         JSON.stringify(replayJson),
       ]
     );
+    if (persisted.rows[0]?.match_number) replayJson.matchNumber = persisted.rows[0].match_number;
 
     // Update player Elo if won or lost (both P1 and P2!)
     if (userId) {
@@ -388,6 +395,7 @@ async function runAutomatedBotDuel({
   return {
     success: true,
     matchId,
+    matchNumber: replayJson.matchNumber,
     winner: game.winner,
     winnerName: game.winner === 1 ? userName : (player2Username || bot2Name),
     winReason: game.winReason,

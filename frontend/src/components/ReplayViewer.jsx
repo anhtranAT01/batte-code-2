@@ -1,3 +1,4 @@
+import { matchLabel } from '../lib/matchLabel';
 import React, { useState, useEffect, useRef } from 'react';
 import GameBoard from './GameBoard';
 
@@ -31,7 +32,7 @@ export default function ReplayViewer({ initialReplay = null, onBack = null }) {
     setError('');
     setIsPlaying(false);
     try {
-      const res = await fetch(`/api/game/replay/${id}`);
+      const res = await fetch(`/api/game/replay/${encodeURIComponent(id.trim())}`);
       const data = await res.json();
       if (res.ok && data.success) {
         setReplay(data.data);
@@ -82,7 +83,7 @@ export default function ReplayViewer({ initialReplay = null, onBack = null }) {
     setIsPlaying(false);
 
     try {
-      const res = await fetch(`/api/game/replay/${matchIdInput.trim()}`);
+      const res = await fetch(`/api/game/replay/${encodeURIComponent(matchIdInput.trim())}`);
       const data = await res.json();
       if (res.ok && data.success) {
         setReplay(data.data);
@@ -128,7 +129,7 @@ export default function ReplayViewer({ initialReplay = null, onBack = null }) {
               <p className="text-xs text-slate-400 mt-0.5">
                 {replay?.matchId ? (
                   <span>
-                    Trận <strong className="text-cyan-400 font-mono">#{String(replay.matchId).substring(0, 8)}</strong>: <strong className="text-blue-400">{replay.p1Name || 'Phe Xanh'}</strong> vs <strong className="text-red-400">{replay.p2Name || 'Phe Đỏ'}</strong> {replay.winnerName ? (
+                    Trận <strong className="text-cyan-400 font-mono">{matchLabel(replay)}</strong>: <strong className="text-blue-400">{replay.p1Name || 'Phe Xanh'}</strong> vs <strong className="text-red-400">{replay.p2Name || 'Phe Đỏ'}</strong> {replay.winnerName ? (
                       <span>
                         {' '}— <strong className="text-emerald-400">{replay.winnerName}</strong> Thắng ({replay.winReason === 'FLAG_CAPTURE' ? 'Cướp Cờ Thành Công' : replay.winReason === 'ELIMINATION' ? 'Quét Sạch Quân' : replay.winReason || ''})
                       </span>
@@ -147,7 +148,8 @@ export default function ReplayViewer({ initialReplay = null, onBack = null }) {
               type="text"
               value={matchIdInput}
               onChange={(e) => setMatchIdInput(e.target.value)}
-              placeholder="Nhập ID trận đấu (Ví dụ: match_17...)"
+              placeholder="Mã trận, ví dụ #001 hoặc 001"
+              aria-label="Mã trận cần xem lại"
               className="px-3.5 py-2 rounded-xl bg-dark-900 border border-white/10 text-white placeholder-slate-500 text-xs focus:outline-none focus:border-cyan-400 w-56 lg:w-72"
             />
             <button

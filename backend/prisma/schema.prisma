@@ -121,6 +121,7 @@ model Tournament {
 
 model Match {
   id                      String      @id @default(uuid()) @db.Uuid
+  match_number            BigInt      @unique @default(autoincrement())
   tournament_id           String?     @db.Uuid
   player1_id              String?     @db.Uuid
   player2_id              String?     @db.Uuid

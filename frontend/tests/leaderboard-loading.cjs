@@ -20,6 +20,7 @@ const cache = load('../src/lib/publicData.js');
 const Leaderboard = load('../src/components/LeaderboardView.jsx', {
   '../context/AuthContext': { useAuth: () => ({ user: { id: 'me' } }) },
   '../lib/publicData': cache,
+  '../lib/matchLabel': load('../src/lib/matchLabel.js'),
 }).default;
 const deferred = () => {
   let resolve, reject;

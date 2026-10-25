@@ -36,7 +36,7 @@ function getRecentMatches(limit = 10) {
   const count = boundedLimit(limit, 10);
   return readCached(`recent:${count}`, async () => {
     const { rows } = await query(`
-      SELECT m.id, m.player1_id, m.player2_id, m.player2_bot_id,
+      SELECT m.id, m.match_number, m.player1_id, m.player2_id, m.player2_bot_id,
              m.duration_ms, m.winner_id, m.win_reason, m.p1_elo_change, m.p2_elo_change,
              m.has_infinite_loop_error, m.created_at,
              CASE WHEN jsonb_typeof(m.replay_json) = 'object'

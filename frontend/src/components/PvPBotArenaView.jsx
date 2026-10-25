@@ -163,6 +163,7 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
             <label htmlFor="pvp-opponent" className="block text-sm font-bold text-blue-300">Bạn (phe Xanh) chọn đối thủ</label>
             <div className="flex flex-wrap items-center gap-3">
               <select id="pvp-opponent" aria-label="Người chơi đối thủ" value={selectedOpponentId}
+                title={selectedOpponent?.username || 'Chọn đối thủ'}
                 onChange={event => setSelectedOpponentId(event.target.value)}
                 className="min-w-0 flex-1 py-2.5 px-3 rounded-xl bg-[#090d18] border border-blue-500/20 text-white text-xs font-semibold">
                 <option value="" disabled>{botsLoading ? 'Đang tải người chơi...' : 'Chọn người chơi'}</option>
@@ -176,6 +177,7 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
               </button>
               <button type="button" onClick={() => loadPlayers()} disabled={botsLoading} className="text-xs text-cyan-300 underline">Làm mới danh sách và bot chính</button>
             </div>
+            {selectedOpponent && <p className="selection-summary">Đối thủ đã chọn: <strong>{selectedOpponent.username}</strong> · {selectedOpponent.elo_rating} Elo</p>}
             <p className="text-xs text-slate-400">Người bạn chọn sẽ xuất hiện ở phe Đỏ bên dưới, cùng bot chính do họ kích hoạt.</p>
             {!botsLoading && !opponents.length && <p className="text-xs text-slate-400">Chưa có người chơi khác đăng ký.</p>}
           </div>
@@ -194,7 +196,7 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
               </div>
 
               <div className="flex items-center gap-3.5 pt-1">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-500 flex items-center justify-center text-xl font-black text-white shadow-lg shadow-blue-500/30">
+                <div className="duelist-avatar w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black">
                   {user?.username ? user.username.charAt(0).toUpperCase() : 'B'}
                 </div>
                 <div>
@@ -235,7 +237,7 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
 
               <div className="flex items-center justify-between pt-1">
                 <div className="flex items-center gap-3.5">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-red-600 to-orange-500 flex items-center justify-center text-xl font-black text-white shadow-lg shadow-red-500/30">
+                  <div className="duelist-avatar is-red w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black">
                     {selectedOpponent?.username ? selectedOpponent.username.charAt(0).toUpperCase() : 'O'}
                   </div>
                   <div>

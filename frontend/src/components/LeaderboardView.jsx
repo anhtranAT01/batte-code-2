@@ -1,3 +1,4 @@
+import { matchLabel } from '../lib/matchLabel';
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getPublicData, peekPublicData, invalidatePublicData } from '../lib/publicData';
@@ -311,7 +312,7 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
                     return (
                       <tr key={match.id} className="hover:bg-white/[0.02] transition-colors">
                         <td className="py-3.5 px-5 font-mono text-slate-500">
-                          #{match.id.substring(0, 8)}
+                          <span className="match-label" title={match.id}>{matchLabel(match)}</span>
                         </td>
 
                         <td className="py-3.5 px-5">

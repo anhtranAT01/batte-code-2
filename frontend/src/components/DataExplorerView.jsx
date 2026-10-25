@@ -1,3 +1,4 @@
+import { matchLabel, matchesMatchNumber } from '../lib/matchLabel';
 import React, { useState, useEffect } from 'react';
 
 export default function DataExplorerView({ onSelectReplay }) {
@@ -27,6 +28,7 @@ export default function DataExplorerView({ onSelectReplay }) {
   const filteredMatches = matches.filter((m) => {
     const q = searchTerm.toLowerCase();
     return (
+      matchesMatchNumber(m,q) ||
       (m.p1_username && m.p1_username.toLowerCase().includes(q)) ||
       (m.p2_username && m.p2_username.toLowerCase().includes(q)) ||
       (m.p1_bot_name && m.p1_bot_name.toLowerCase().includes(q)) ||
@@ -98,7 +100,7 @@ export default function DataExplorerView({ onSelectReplay }) {
                   return (
                     <tr key={match.id} className="hover:bg-white/[0.02] transition-colors">
                       <td className="py-3.5 px-5 font-mono text-slate-400">
-                        #{match.id.substring(0, 8)}
+                        <span className="match-label" title={match.id}>{matchLabel(match)}</span>
                       </td>
 
                       <td className="py-3.5 px-5">

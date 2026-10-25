@@ -4,6 +4,7 @@
   "type": "module",
   "description": "Tactical Rock-Paper-Scissors Arena Web UI - React, TailwindCSS, Socket.io",
   "scripts": {
+    "test:match-labels": "node tests/match-labels.cjs",
     "test:performance": "node tests/duel-stream.cjs && node tests/leaderboard-loading.cjs && node tests/admin-accounts.cjs",
     "test:bot-flows": "node tests/bot-flows.cjs",
     "dev": "vite",

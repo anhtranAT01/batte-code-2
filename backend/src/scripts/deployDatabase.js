@@ -18,6 +18,7 @@ async function deployDatabase() {
     ALTER TABLE "Tournaments" ADD COLUMN IF NOT EXISTS "brackets_json" JSONB NOT NULL DEFAULT '[]'::jsonb;
     ALTER TABLE "Tournaments" ADD COLUMN IF NOT EXISTS "mode" VARCHAR(30) DEFAULT 'ALL_IN';
   `);
+  await pool.query(fs.readFileSync(path.join(__dirname,'matchNumbers.sql'),'utf8'));
 
   console.log('[Deploy] Supabase database schema is ready.');
 }
