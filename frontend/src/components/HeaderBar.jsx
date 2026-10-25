@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import Icon from './Icons';
-import { useSystemStatus } from './SystemStatus';
+import { useSystemStatus } from '../lib/systemHealth';
 
 const PAGE_META = {
   status: ['Hỗ trợ kỹ thuật', 'Trạng thái hệ thống'],

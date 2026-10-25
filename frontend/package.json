@@ -6,6 +6,7 @@
   "scripts": {
     "test:offline": "node tests/offline-queue.cjs",
     "test:offline-e2e": "node tests/offline-outbox-e2e.cjs",
+    "test:support-ui": "node tests/support-status.cjs",
     "test:match-labels": "node tests/match-labels.cjs",
     "test:performance": "node tests/duel-stream.cjs && node tests/leaderboard-loading.cjs && node tests/admin-accounts.cjs",
     "test:bot-flows": "node tests/bot-flows.cjs",

@@ -18,9 +18,10 @@ function load(filename, imports = {}) {
 }
 const cache = load('../src/lib/publicData.js');
 const Leaderboard = load('../src/components/LeaderboardView.jsx', {
-  '../context/AuthContext': { useAuth: () => ({ user: { id: 'me' } }) },
+  '../context/AuthContext': { useAuth: () => ({ user: { id: 'me', username: 'Me' } }) },
   '../lib/publicData': cache,
   '../lib/matchLabel': load('../src/lib/matchLabel.js'),
+  './Icons': props => React.createElement('span', props),
 }).default;
 const deferred = () => {
   let resolve, reject;
@@ -42,8 +43,8 @@ async function main() {
   await act(async () => { tree = create(React.createElement(Leaderboard)); });
   await act(async () => { leaderboard.resolve(response([player])); });
   assert.match(body(tree), /Visible before history/);
-  assert.match(body(tree), /Đang tải trận đấu gần đây/);
-  const selfButton = tree.root.findAllByType('button').find(node => stringify(node.props.children) === 'Bạn');
+  assert.match(body(tree), /Đang tải dữ liệu trận đấu gần đây/);
+  const selfButton = tree.root.findAllByType('button').find(node => stringify(node.props.children).includes('Chính Bạn'));
   assert.equal(selfButton.props.disabled, true);
   await act(async () => { history.resolve(response([])); });
   act(() => tree.unmount());

@@ -2,10 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {outbox} from '../lib/outbox';
 import {readDraft,writeDraft} from '../lib/deviceStore';
-import DeviceSafety from './DeviceSafety';
-import OfflineLab from './OfflineLab';
 
-export default function BotVaultView() {
+export default function BotVaultView({onNavigateStatus}) {
   const { user, getAuthHeaders } = useAuth();
 
   const [myBots, setMyBots] = useState([]);
@@ -21,8 +19,6 @@ export default function BotVaultView() {
   const [uploadMode, setUploadMode] = useState('code'); // 'code' | 'file' | 'git'
   const [uploading, setUploading] = useState(false);
   const [alertMsg, setAlertMsg] = useState(null);
-  const [offlineSource,setOfflineSource]=useState('');
-  useEffect(()=>{let active=true;if(uploadMode==='file'&&selectedFile)selectedFile.text().then(text=>{if(active)setOfflineSource(text);});else setOfflineSource(codeContent);return()=>{active=false;};},[codeContent,uploadMode,selectedFile]);
   const [draftReady,setDraftReady]=useState(false);
   const [draftStatus,setDraftStatus]=useState('');
   const draftOwner=useRef(null);
@@ -186,8 +182,6 @@ export default function BotVaultView() {
 
   return (
     <div className="view-shell animate-fadeIn max-w-7xl mx-auto">
-      <DeviceSafety onAccepted={fetchMyBots} />
-      <OfflineLab source={draftReady&&draftOwner.current===(user?.id||'guest')?offlineSource:''} />
       <p className="text-xs mb-3" role="status">{draftStatus}</p>
       {/* Header */}
       <div className="page-header">
@@ -198,6 +192,7 @@ export default function BotVaultView() {
           <p className="text-sm text-slate-400 mt-1">
             Tạo, quản lý và chọn bot chính thức để tham gia thi đấu.
           </p>
+          <button type="button" className="secondary-action mt-3" onClick={onNavigateStatus}>Trạng thái nộp bài & hỗ trợ</button>
         </div>
 
         {/* Tab Switcher */}

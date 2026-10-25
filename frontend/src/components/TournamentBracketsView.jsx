@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { apiUrl } from '../lib/api';
 import {outbox, subscribeOutbox} from '../lib/outbox';
-import DeviceSafety from './DeviceSafety';
 
-export default function TournamentBracketsView({ onSelectReplay }) {
+export default function TournamentBracketsView({ onSelectReplay, onNavigateStatus }) {
   const { user, token, getAuthHeaders, refreshProfile } = useAuth();
 
   // 2 Core Tournament Modes: 'ALL_IN' | 'BRANCHES'
@@ -416,7 +415,6 @@ export default function TournamentBracketsView({ onSelectReplay }) {
 
   return (
     <div className="view-shell animate-fadeIn max-w-7xl mx-auto">
-      <DeviceSafety />
       {/* Page Header */}
       <div className="page-header">
         <div>
@@ -426,6 +424,7 @@ export default function TournamentBracketsView({ onSelectReplay }) {
           <p className="text-sm text-slate-400 mt-1">
             Quản lý lịch thi đấu, bảng điểm và các nhánh tranh tài.
           </p>
+          <button type="button" className="secondary-action mt-3" onClick={onNavigateStatus}>Trạng thái đăng ký & hỗ trợ</button>
         </div>
 
         {/* Export & Actions */}

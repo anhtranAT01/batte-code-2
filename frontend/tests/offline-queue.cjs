@@ -34,5 +34,17 @@ async function main(){
   console.log('PASS: terminal errors stop automatic retries; only the owner may retry');
   const noAuth=createOutbox({store,now:()=>clock,fetcher:async()=>({ok:false,status:401})});await noAuth.flush(()=>session);assert.equal((await rejected.list('two'))[0].state,'queued');
   assert.equal(original.payload.source,'print(1)');
+  let idleRequests=0;
+  const idle=createOutbox({store:{list:async()=>[],put:async()=>{},remove:async()=>{}},fetcher:async()=>{idleRequests++;return {ok:true,json:async()=>({data:{id:'one'}})}}});
+  await idle.flush(()=>session);assert.equal(idleRequests,0,'Empty outboxes should not make background identity requests');
+  console.log('PASS: empty outbox pump performs no network request');
+  const tournamentRows=new Map();
+  const tournamentStore={put:async row=>tournamentRows.set(row.id,structuredClone(row)),list:async()=>[...tournamentRows.values()].map(row=>structuredClone(row)),remove:async id=>tournamentRows.delete(id)};
+  let tournamentId=0;
+  const tournamentQueue=createOutbox({store:tournamentStore,uuid:()=>`t-${++tournamentId}`});
+  const registration=await tournamentQueue.enqueue('one','tournament',{tournamentId:'cup-1',botId:'bot-1'});
+  const duplicate=await tournamentQueue.enqueue('one','tournament',{tournamentId:'cup-1',botId:'bot-1'});
+  assert.equal(duplicate.id,registration.id);assert.equal(tournamentRows.size,1,'Repeated tournament registration must reuse the original device receipt');
+  console.log('PASS: repeated tournament registration is idempotent on the device');
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});

@@ -3,7 +3,17 @@ export function createOutbox({store=deviceStore,fetcher=(...args)=>fetch(...args
   let running=false;
   async function enqueue(userId,kind,payload) {
     if(!userId)throw new Error('Hãy đăng nhập trước khi lưu bài chờ gửi.');
-    const entries=(await store.list()).filter(x=>x.userId===userId&&x.state!=='received');
+    const all=await store.list();
+    // Tournament registrations are unique per account and tournament. Reuse the
+    // durable submission id so repeated clicks/retries cannot create local rows.
+    if(kind==='tournament'){
+      const existing=all.find(x=>x.userId===userId&&x.kind==='tournament'&&x.payload?.tournamentId===payload?.tournamentId&&x.state!=='rejected');
+      if(existing){
+        if(existing.payload?.botId!==payload?.botId||existing.payload?.teamName!==payload?.teamName)throw new Error('Bạn đã có yêu cầu tham gia giải này trên thiết bị. Hãy mở Trạng thái hệ thống để kiểm tra trước khi đổi bot hoặc đội.');
+        return existing;
+      }
+    }
+    const entries=all.filter(x=>x.userId===userId&&x.state!=='received');
     if(entries.length>=20)throw new Error('Đã có 20 mục chờ trên máy. Hãy gửi hoặc tải dự phòng rồi xóa mục cũ.');
     const entry={id:uuid(),userId,kind,payload,createdAt:now(),state:'queued',attempts:0,nextAt:0};
     await store.put(entry);notify();return entry;
@@ -13,6 +23,10 @@ export function createOutbox({store=deviceStore,fetcher=(...args)=>fetch(...args
     running=true;
     try {
       const identity=session();
+      const pending=(await store.list()).some(x=>x.userId===identity.userId&&x.state==='queued'&&x.nextAt<=now());
+      // The global pump wakes periodically, but should make no network request
+      // for accounts with an empty outbox.
+      if(!pending)return;
       const timedFetch=async(url,init)=>{
         const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);
         try{return await fetcher(url,{...init,signal:controller.signal});}finally{clearTimeout(timer);}

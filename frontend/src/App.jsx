@@ -6,8 +6,7 @@ import LeaderboardView from './components/LeaderboardView';
 import AuthModal from './components/AuthModal';
 import { apiOrigin } from './lib/api';
 import useTheme from './hooks/useTheme';
-import {OutboxPump} from './components/DeviceSafety';
-import SystemStatus from './components/SystemStatus';
+import OutboxPump from './components/OutboxPump';
 
 // Load game, replay and admin tools when opened instead of delaying the first page.
 const BossArenaView = lazy(() => import('./components/BossArenaView'));
@@ -20,6 +19,7 @@ const ReplayViewer = lazy(() => import('./components/ReplayViewer'));
 const WorldChatModal = lazy(() => import('./components/WorldChatModal'));
 const AdminDashboardView = lazy(() => import('./components/AdminDashboardView'));
 const AlgorithmTrainingView = lazy(() => import('./components/AlgorithmTrainingView'));
+const SystemStatus = lazy(() => import('./components/SystemStatus'));
 
 export default function App() {
   const { theme, toggleTheme } = useTheme();
@@ -148,7 +148,7 @@ export default function App() {
             )}
 
             {activeTab === 'tournament' && (
-              <TournamentBracketsView onSelectReplay={handleOpenReplay} />
+              <TournamentBracketsView onSelectReplay={handleOpenReplay} onNavigateStatus={() => setActiveTab('status')} />
             )}
 
             {activeTab === 'training' && (
@@ -156,7 +156,7 @@ export default function App() {
             )}
 
             {activeTab === 'rules' && (
-              <><SystemStatus /><RulesAndStrategyView onGoToTemplates={() => setActiveTab('bots')} /></>
+              <RulesAndStrategyView onGoToTemplates={() => setActiveTab('bots')} />
             )}
 
             {activeTab === 'database' && (
@@ -164,7 +164,7 @@ export default function App() {
             )}
 
             {activeTab === 'bots' && (
-              <BotVaultView />
+              <BotVaultView onNavigateStatus={() => setActiveTab('status')} />
             )}
 
             {activeTab === 'admin' && (
