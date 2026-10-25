@@ -1,5 +1,6 @@
 const { getPracticeBot } = require('./practiceBots');
 const { executePythonBot } = require('./pythonRunner');
+const { buildBotInput } = require('./botInput');
 
 const TEMPLATES = Object.freeze({
   template_heuristic: { level: 'EASY', name: 'Heuristic Starter Bot' },
@@ -29,15 +30,9 @@ async function playBotTurn(game, participant, runPython = executePythonBot) {
   if (participant.bot) {
     decision = participant.bot.chooseMove(game);
   } else {
-    const target = player === 1 ? [game.rows - 1, game.cols - 1] : [0, 0];
     const result = await runPython({
       botScriptPath: participant.scriptPath,
-      inputPayload: {
-        player_id: player, board_size: game.size, grid: game.getBoardSnapshot(),
-        turn: game.turnCount,
-        my_flag: player === 1 ? [0, 0] : [game.rows - 1, game.cols - 1],
-        enemy_flag: target, target_flag: target,
-      },
+      inputPayload:buildBotInput(game,player),
       timeoutMs: 1000,
     });
     if (!result.success) {

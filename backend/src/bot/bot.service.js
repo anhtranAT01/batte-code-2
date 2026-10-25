@@ -4,9 +4,11 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { execSync, execFileSync } = require('child_process');
 const { query } = require('../config/db');
-const { STORAGE_ROOT, isBotAvailable } = require('./botStorage');
+const { STORAGE_ROOT, isBotAvailable, resolveBotPath } = require('./botStorage');
+const { getPythonCommand } = require('../game/pythonRunner');
+const { validateBotExecution } = require('./botValidation');
 
 /**
  * Ensure storage directory exists
@@ -26,8 +28,7 @@ function ensureUserStorageDir(userId) {
 function validatePythonSyntax(filePath) {
   try {
     // Try python or python3
-    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
-    execSync(`${pythonCmd} -m py_compile "${filePath}"`, {
+    execFileSync(getPythonCommand(), ['-m','py_compile',filePath], {
       timeout: 3000,
       stdio: 'pipe',
     });
@@ -58,6 +59,13 @@ async function saveUploadedBot({ userId, botName, file, tactic = 'FLAG_RUSHER' }
     fs.unlinkSync(file.path); // Remove temp file
   } catch {}
 
+  if (!fs.readFileSync(targetPath,'utf8').replace(/^\uFEFF/,'').trim()) {
+    fs.unlinkSync(targetPath);
+    const error = new Error('File Python đang rỗng. Hãy chọn file .py chứa toàn bộ mã nguồn bot.');
+    error.statusCode = 400;
+    throw error;
+  }
+
   // Validate Python Syntax
   const syntaxCheck = validatePythonSyntax(targetPath);
   if (!syntaxCheck.valid) {
@@ -70,7 +78,10 @@ async function saveUploadedBot({ userId, botName, file, tactic = 'FLAG_RUSHER' }
     throw error;
   }
 
-  // Insert into Bots table
+  try { await validateBotExecution(targetPath); }
+  catch (error) { try { fs.unlinkSync(targetPath); } catch {} throw error; }
+
+  // Insert only after the uploaded source produces legal moves for both sides.
   const insertSql = `
     INSERT INTO "Bots" (user_id, name, source_type, file_path_or_git_url, status, error_count, source_code, is_active, tactic)
     VALUES ($1, $2, 'file', $3, 'active', 0, $4,
@@ -153,6 +164,7 @@ async function saveGitBot({ userId, botName, gitUrl }) {
     VALUES ($1, $2, 'git', $3, 'active', 0)
     RETURNING id, user_id, name, source_type, file_path_or_git_url, status, error_count, created_at;
   `;
+  await validateBotExecution(entrypoint);
   const res = await query(insertSql, [userId, botName || path.basename(gitUrl, '.git'), entrypoint]);
   return res.rows[0];
 }
@@ -225,6 +237,7 @@ async function activateBot(botId, userId) {
     error.statusCode = 422;
     throw error;
   }
+  await validateBotExecution(resolveBotPath(bot));
   // One statement changes the owner's official bot; callers cannot activate
   // another player's bot or leave multiple choices through a partial update.
   const res = await query(
@@ -282,6 +295,9 @@ async function createCodeBot({ userId, botName, code, tactic = 'FLAG_RUSHER' }) 
     error.statusCode = 400;
     throw error;
   }
+
+  try { await validateBotExecution(targetPath); }
+  catch (error) { try { fs.unlinkSync(targetPath); } catch {} throw error; }
 
   // Deactivate others if this is the first bot
   const existingBots = await query('SELECT id FROM "Bots" WHERE user_id = $1', [userId]);

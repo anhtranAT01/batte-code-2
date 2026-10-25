@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const {randomUUID} = require('crypto');
 
 const STORAGE_ROOT = process.env.BOT_STORAGE_ROOT
   ? path.resolve(process.env.BOT_STORAGE_ROOT)
@@ -27,15 +28,21 @@ function isBotAvailable(bot) {
 }
 
 function resolveBotPath(bot) {
-  const existing = existingBotPath(bot);
-  if (existing) return existing;
+  // The saved upload is authoritative. A present but empty/stale disk file must
+  // not shadow the exact source the owner submitted and we backed up.
   if (bot.source_type === 'file' && bot.source_code) {
     const userDir = path.join(STORAGE_ROOT, String(bot.user_id));
     fs.mkdirSync(userDir, { recursive: true });
     const restored = path.join(userDir, `${bot.id}.py`);
-    fs.writeFileSync(restored, bot.source_code, 'utf8');
+    if (!fs.existsSync(restored) || fs.readFileSync(restored,'utf8') !== bot.source_code) {
+      const temporary = `${restored}.${randomUUID()}.tmp`;
+      fs.writeFileSync(temporary, bot.source_code, 'utf8');
+      fs.renameSync(temporary,restored);
+    }
     return restored;
   }
+  const existing = existingBotPath(bot);
+  if (existing) return existing;
   const error = new Error(`Bot "${bot.name}" đã được chọn nhưng file không còn trên máy chủ. Vào Kho bot và tải lại file .py (hoặc nộp lại repository Git).`);
   error.statusCode = 422;
   throw error;

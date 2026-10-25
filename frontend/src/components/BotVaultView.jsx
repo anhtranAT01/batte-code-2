@@ -173,6 +173,10 @@ export default function BotVaultView() {
 
   // Download template code as .py
   const downloadCode = (filename, code) => {
+    if (!code || !code.trim()) {
+      setAlertMsg({type:'error',text:'Mẫu bot chưa có mã nguồn. Hãy tải lại trang sau khi backend deploy xong, không tải file rỗng lên.'});
+      return;
+    }
     const blob = new Blob([code], { type: 'text/x-python;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -489,8 +493,16 @@ export default function BotVaultView() {
           <div>
             <h3 className="font-bold text-lg text-white">Nộp & Tùy Biến Thuật Toán Bot Python Mới</h3>
             <p className="text-xs text-slate-400 mt-1">
-              Hệ thống sẽ biên dịch và kiểm tra cú pháp tự động trước khi nạp vào máy chấm phân tán (Judge Worker)
+              Hệ thống kiểm tra cú pháp và chạy thử bot cho cả hai phe trước khi lưu.
             </p>
+            <button type="button" disabled={!templates.some(template => template.filename === 'heuristic.py' && template.code?.trim())}
+              onClick={() => {
+                const template = templates.find(item => item.filename === 'heuristic.py');
+                downloadCode('heuristic.py',template?.code);
+              }}
+              className="mt-3 text-xs font-semibold text-indigo-300 underline disabled:opacity-50">
+              Tải heuristic.py mẫu đầy đủ để thử
+            </button>
           </div>
 
           {/* Mode switch */}
@@ -590,6 +602,12 @@ export default function BotVaultView() {
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
+                    if (file.size === 0) {
+                      setSelectedFile(null);
+                      setAlertMsg({type:'error',text:'File Python đang rỗng. Hãy chọn file chứa toàn bộ mã nguồn bot.'});
+                      e.target.value = '';
+                      return;
+                    }
                     if (!file.name.toLowerCase().endsWith('.py')) {
                       setAlertMsg({type:'error',text:'Chỉ chấp nhận file Python (.py).'});
                       e.target.value = '';
@@ -607,7 +625,7 @@ export default function BotVaultView() {
                   className="w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 cursor-pointer"
                   required={!selectedFile}
                 />
-                {selectedFile && <p role="status" className="mt-2 text-xs text-emerald-300">Đã chọn: {selectedFile.name}</p>}
+                {selectedFile && <p role="status" className="mt-2 text-xs text-emerald-300">Đã chọn: {selectedFile.name} · {selectedFile.size.toLocaleString('vi-VN')} byte</p>}
               </div>
             )}
 
@@ -633,7 +651,7 @@ export default function BotVaultView() {
                 disabled={uploading}
                 className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 disabled:opacity-50 text-white font-bold text-xs shadow-xl shadow-indigo-950/40 transition-all flex items-center justify-center gap-2"
               >
-                <span>{uploading ? 'Đang Kiểm Tra Cú Pháp & Kích Hoạt...' : 'Xác Nhận Nạp Bot Lên Sàn Đấu'}</span>
+                <span>{uploading ? 'Đang Kiểm Tra & Chạy Thử Bot...' : 'Xác Nhận Nạp Bot Lên Sàn Đấu'}</span>
               </button>
             </div>
           </form>

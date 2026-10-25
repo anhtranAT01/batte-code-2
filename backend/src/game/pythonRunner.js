@@ -4,6 +4,10 @@
 
 const { spawn, execSync } = require('child_process');
 
+function getPythonCommand() {
+  return process.env.PYTHON_EXECUTABLE || (process.platform === 'win32' ? 'python' : 'python3');
+}
+
 function killProcessTree(pid) {
   if (!pid) return;
   try {
@@ -22,7 +26,7 @@ function killProcessTree(pid) {
 function executePythonBot({ botScriptPath, inputPayload, timeoutMs = 1000 }) {
   return new Promise((resolve) => {
     const startTime = Date.now();
-    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+    const pythonCmd = getPythonCommand();
 
     let stdoutData = '';
     let stderrData = '';
@@ -57,6 +61,9 @@ function executePythonBot({ botScriptPath, inputPayload, timeoutMs = 1000 }) {
     child.stderr.on('data', (chunk) => {
       stderrData += chunk.toString();
     });
+    // A script may exit before consuming stdin. Handle EPIPE without crashing
+    // the server; the close handler still reports its actual stdout/stderr.
+    child.stdin.on('error', () => {});
 
     child.on('error', (err) => {
       clearTimeout(timer);
@@ -105,7 +112,7 @@ function executePythonBot({ botScriptPath, inputPayload, timeoutMs = 1000 }) {
           timedOut: false,
           hasInfiniteLoop: false,
           durationMs,
-          error: 'EMPTY_OUTPUT: Bot không in ra nước đi (STDOUT trống).',
+          error: `EMPTY_OUTPUT: File Python chạy xong nhưng không in nước đi. Hãy tải lại toàn bộ file .py, gồm đoạn if __name__ == "__main__": gọi hàm chính và print JSON.${stderrData.trim() ? ` Chi tiết: ${stderrData.trim()}` : ''}`,
         });
       }
 
@@ -155,4 +162,5 @@ function executePythonBot({ botScriptPath, inputPayload, timeoutMs = 1000 }) {
 module.exports = {
   executePythonBot,
   killProcessTree,
+  getPythonCommand,
 };

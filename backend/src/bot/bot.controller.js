@@ -20,7 +20,7 @@ async function uploadBot(req, res, next) {
 
     return res.status(201).json({
       success: true,
-      message: 'Tải lên Bot Python thành công! Cú pháp hợp lệ.',
+      message: `Nộp bot thành công! Đã chạy thử nước đi cho cả hai phe. ${bot.is_active ? 'Bot này đang là bot chính của bạn.' : 'Bấm Chọn Làm Bot Chính để dùng bot vừa nộp khi đấu PvP.'}`,
       data: bot,
     });
   } catch (err) {
@@ -125,7 +125,7 @@ async function createBot(req, res, next) {
 
     return res.status(201).json({
       success: true,
-      message: 'Khởi tạo Bot Python thành công! Cú pháp hợp lệ.',
+      message: 'Tạo bot thành công! Đã kiểm tra cú pháp và chạy thử nước đi cho cả hai phe.',
       data: bot,
     });
   } catch (err) {
