@@ -240,9 +240,10 @@ export default function PracticeArena({ onSelectReplay }) {
               onChange={(e) => setBotLevel(e.target.value)}
               className="w-full px-3 py-2 rounded-xl bg-dark-900 border border-white/10 text-white text-xs font-medium focus:outline-none focus:border-cyan-400"
             >
-              <option value="EASY">Bot Dễ (Ngẫu nhiên, tiến lên tò mò)</option>
-              <option value="MEDIUM">Bot Trung Bình (Heuristic 1-ply, ăn cờ)</option>
-              <option value="HARD">Bot Khó (MiniMax 2-ply Alpha-Beta)</option>
+              <option value="EASY">Tân Thủ Heuristic (Ăn quân, nhặt vật phẩm)</option>
+              <option value="MEDIUM">Sát Thủ Tốc Độ (Ưu tiên bình Tăng Tốc)</option>
+              <option value="HARD">Bậc Thầy Alpha-Beta (Minimax 3 lượt)</option>
+              <option value="GRANDMASTER">Đại Sư A* (Tìm đường cướp cờ)</option>
             </select>
           </div>
 

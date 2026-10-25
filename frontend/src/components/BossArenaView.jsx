@@ -32,7 +32,7 @@ export default function BossArenaView({ onSelectReplay }) {
       tier: 'VÀNG',
       avatar: '03',
       difficulty: 'hard',
-      description: 'Thuật toán Minimax kết hợp tỉa nhánh Alpha-Beta 3 nước đi trước. Cực kỳ khôn khéo và bảo toàn lực lượng.',
+      description: 'Minimax kết hợp tỉa nhánh Alpha-Beta, mô phỏng 3 lượt: mình, đối thủ, mình. Ưu tiên bảo vệ cờ và bảo toàn lực lượng.',
       color: 'from-yellow-900/40 to-amber-900/30 border-yellow-500/40',
       tagColor: 'bg-yellow-900/60 text-yellow-300',
     },
@@ -117,7 +117,7 @@ export default function BossArenaView({ onSelectReplay }) {
         },
         body: JSON.stringify({
           bot1Id: selectedBotId,
-          bot2Level: selectedBoss.id === 'GRANDMASTER' ? 'HARD' : selectedBoss.id,
+          bot2Level: selectedBoss.id,
           boardSize,
           difficulty: selectedBoss.difficulty,
         }),

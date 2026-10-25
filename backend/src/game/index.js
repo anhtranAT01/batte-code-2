@@ -11,6 +11,7 @@ const {
   EasyPracticeBot,
   MediumPracticeBot,
   HardPracticeBot,
+  FlagRusherPracticeBot,
   getPracticeBot,
 } = require('./practiceBots');
 const gameService = require('./gameService');
@@ -27,6 +28,7 @@ module.exports = {
   EasyPracticeBot,
   MediumPracticeBot,
   HardPracticeBot,
+  FlagRusherPracticeBot,
   getPracticeBot,
   gameService,
   gameRoutes,

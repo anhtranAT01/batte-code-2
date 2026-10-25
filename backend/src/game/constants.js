@@ -37,6 +37,7 @@ const BOT_LEVELS = Object.freeze({
   EASY: 'EASY',
   MEDIUM: 'MEDIUM',
   HARD: 'HARD',
+  GRANDMASTER: 'GRANDMASTER',
 });
 
 // Combat advantage matrix: 1 = attacker wins, -1 = attacker loses, 0 = tie
