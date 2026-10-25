@@ -63,7 +63,7 @@ async function resetPassword(id, password) {
   const newPassword = parse(passwordSchema, password, 'Mật khẩu mới phải dài ít nhất 8 ký tự và tối đa 72 byte.');
   const hash = await bcrypt.hash(newPassword, 10);
   const result = await query(
-    'UPDATE "Users" SET password_hash = $1, updated_at = NOW() WHERE id = $2 RETURNING id, username',
+    'UPDATE "Users" SET password_hash = $1, auth_version=auth_version+1, updated_at = NOW() WHERE id = $2 RETURNING id, username',
     [hash, id]
   );
   if (!result.rows[0]) throw fail(404, 'Không tìm thấy người dùng.');

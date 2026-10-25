@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const authController = require('./auth.controller');
 const { authenticateJWT } = require('./auth.middleware');
+router.use(require('./passwordRecovery'));
 
 /**
  * @route   POST /api/auth/register

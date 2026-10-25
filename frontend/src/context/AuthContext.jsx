@@ -1,11 +1,12 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(()=>{try{const saved=JSON.parse(localStorage.getItem('rps_profile'));return saved?.token===localStorage.getItem('rps_token')?saved.user:null;}catch{return null;}});
   const [token, setToken] = useState(() => localStorage.getItem('rps_token'));
   const [loading, setLoading] = useState(true);
+  const tokenRef=useRef(token);tokenRef.current=token;
 
   // Load user profile on token change
   useEffect(() => {
@@ -18,6 +19,8 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     }
   }, [token]);
+  useEffect(()=>{const refresh=()=>{if(tokenRef.current)fetchProfile(tokenRef.current);};window.addEventListener('online',refresh);return()=>window.removeEventListener('online',refresh);},[]);
+  useEffect(()=>{try{if(user&&token)localStorage.setItem('rps_profile',JSON.stringify({token,user}));}catch{}},[user,token]);
 
   const fetchProfile = async (authToken) => {
     try {
@@ -28,8 +31,8 @@ export const AuthProvider = ({ children }) => {
       });
       if (res.ok) {
         const data = await res.json();
-        setUser(data.data);
-      } else {
+        if(tokenRef.current===authToken)setUser(data.data);
+      } else if ([401,403].includes(res.status)&&tokenRef.current===authToken) {
         logout();
       }
     } catch (err) {
@@ -54,11 +57,11 @@ export const AuthProvider = ({ children }) => {
     return data.data;
   };
 
-  const register = async (username, password, role = 'STUDENT', adminRegistrationSecret) => {
+  const register = async (username, password, role = 'STUDENT', adminRegistrationSecret, profile = {}) => {
     const res = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, role, ...(role === 'ADMIN' ? {adminRegistrationSecret} : {}) }),
+      body: JSON.stringify({ username, password, role, ...profile, ...(role !== 'STUDENT' ? {adminRegistrationSecret} : {}) }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -74,6 +77,7 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     setUser(null);
     localStorage.removeItem('rps_token');
+    localStorage.removeItem('rps_profile');
   };
 
   const getAuthHeaders = () => {

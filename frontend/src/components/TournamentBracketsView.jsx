@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { apiUrl } from '../lib/api';
+import {outbox} from '../lib/outbox';
+import DeviceSafety from './DeviceSafety';
 
 export default function TournamentBracketsView({ onSelectReplay }) {
   const { user, getAuthHeaders } = useAuth();
@@ -143,18 +145,9 @@ export default function TournamentBracketsView({ onSelectReplay }) {
     setLoading(true);
     setActionMsg(null);
     try {
-      const res = await fetch(`/api/tournaments/${selectedTourneyId}/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders(),
-        },
-        body: JSON.stringify({ botId: selectedBotId || null }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Đăng ký thất bại');
-      setActionMsg({ type: 'success', text: data.message });
-      fetchStandings(selectedTourneyId);
+      if(!selectedBotId)throw new Error('Hãy chọn bot đã được máy chủ kiểm tra.');
+      await outbox.enqueue(user.id,'tournament',{tournamentId:selectedTourneyId,botId:selectedBotId});
+      setActionMsg({ type: 'success', text:'Đã lưu yêu cầu đăng ký trên máy. Chỉ hoàn tất khi Trạng thái bài nộp báo máy chủ đã nhận.' });
     } catch (err) {
       setActionMsg({ type: 'error', text: err.message });
     } finally {
@@ -258,6 +251,7 @@ export default function TournamentBracketsView({ onSelectReplay }) {
 
   return (
     <div className="view-shell animate-fadeIn max-w-7xl mx-auto">
+      <DeviceSafety />
       {/* Page Header */}
       <div className="page-header">
         <div>

@@ -1,0 +1,97 @@
+// Actual PostgreSQL semantics in a disposable in-memory PGlite database.
+const assert=require('node:assert/strict');
+const fs=require('fs');
+const path=require('path');
+const {randomUUID}=require('crypto');
+async function main(){
+  if(!process.env.TEST_PGLITE_MODULE)throw new Error('Set TEST_PGLITE_MODULE to the installed PGlite module; no live database is used.');
+  const {PGlite}=require(process.env.TEST_PGLITE_MODULE),db=new PGlite();
+  const pg=require('../config/db');pg.prisma=null;
+  const sql=async(text,args=[])=>args.length?db.query(text,args):(await db.exec(text)).at(-1)||{rows:[]};
+  pg.query=sql;pg.pool.query=sql;pg.pool.connect=async()=>({query:sql,release(){}});
+  let server;
+  const temp=fs.mkdtempSync(path.join(require('os').tmpdir(),'rps-support-test-'));process.env.BOT_STORAGE_ROOT=temp;
+  try{
+    await db.exec(fs.readFileSync(path.join(__dirname,'../../init.sql'),'utf8').split('-- Seed default System Administrator account')[0].replace('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";','').replaceAll('uuid_generate_v4()','gen_random_uuid()'));
+    const migration=fs.readFileSync(path.join(__dirname,'../scripts/resilience.sql'),'utf8');await db.exec(migration);await db.exec(migration);
+    await db.exec('ALTER TABLE "Bots" ADD COLUMN tactic TEXT');
+    const one=randomUUID(),two=randomUUID(),teacher=randomUUID();
+    for(const [id,name,role] of [[one,'StudentOne','STUDENT'],[two,'StudentTwo','STUDENT'],[teacher,'Teacher','TEACHER']])await sql('INSERT INTO "Users" (id,username,password_hash,role) VALUES ($1,$2,\'test\',$3)',[id,name,role]);
+    const express=require('express'),jwt=require('jsonwebtoken'),app=express();app.use(express.json({limit:'3mb'}));app.use('/api/support',require('./support.routes'));app.use('/api/auth',require('../auth/auth.routes'));app.use((err,req,res,next)=>res.status(err.statusCode||500).json({message:err.message}));
+    server=app.listen(0,'127.0.0.1');await new Promise(resolve=>server.once('listening',resolve));
+    const tokens=Object.fromEntries([one,two,teacher].map(id=>[id,jwt.sign({id},process.env.JWT_SECRET||'super_secret_jwt_key_tactical_rps_2026_x892k')]));
+    const request=async(user,url,method='GET',body)=>{
+      const res=await fetch(`http://127.0.0.1:${server.address().port}/api${url}`,{method,headers:{'Content-Type':'application/json',...(user?{Authorization:`Bearer ${tokens[user]}`}:{})},...(body?{body:JSON.stringify(body)}:{})});return {status:res.status,...await res.json()};
+    };
+    const id=randomUUID(),source=fs.readFileSync(path.join(__dirname,'../../../sample-bots/heuristic.py'),'utf8');
+    const body={id,name:'Test heuristic',source};
+    assert.equal((await request(one,'/support/submissions','POST',body)).status,202);
+    const again=await request(one,'/support/submissions','POST',body);assert.equal(again.status,200);assert.equal(again.data.status,'pending');
+    assert.equal((await request(two,'/support/submissions','POST',body)).status,409);
+    assert.equal((await request(one,'/support/submissions','POST',{...body,source:'different'})).status,409);
+    assert.equal((await request(two,'/support/submissions')).data.length,0);
+    assert.equal((await sql('SELECT count(*)::int AS n FROM "Submissions"')).rows[0].n,1);
+    const queue=require('./submissionQueue');await queue.tick();
+    let row=(await request(one,'/support/submissions')).data[0];assert.equal(row.status,'accepted',row.message);
+    assert.equal((await sql('SELECT count(*)::int AS n FROM "Bots"')).rows[0].n,1);
+    // Crash after bot commit but before receipt update: retry must reuse the bot.
+    await sql(`UPDATE "Submissions" SET status='processing',locked_until=NOW()-INTERVAL '1 minute' WHERE id=$1`,[id]);await queue.tick();
+    assert.equal((await sql('SELECT count(*)::int AS n FROM "Bots"')).rows[0].n,1);
+    console.log('PASS: durable receipt, ID/payload ownership, actual Python validation, expired lease recovery and no duplicate bot after crash');
+    const invalid={id:randomUUID(),name:'Invalid',source:'print(\'no move\')'};await request(one,'/support/submissions','POST',invalid);await queue.tick();
+    assert.equal((await request(one,'/support/submissions')).data.find(r=>r.id===invalid.id).status,'rejected');
+    const infra={id:randomUUID(),name:'Recovery after outage',source};await request(one,'/support/submissions','POST',infra);
+    const python=process.env.PYTHON_EXECUTABLE;process.env.PYTHON_EXECUTABLE='missing-python-executable-test';await queue.tick();process.env.PYTHON_EXECUTABLE=python;
+    assert.equal((await request(one,'/support/submissions')).data.find(r=>r.id===infra.id).status,'pending');
+    await sql(`UPDATE "Submissions" SET retry_at=NOW() WHERE id=$1`,[infra.id]);
+    await sql(`INSERT INTO "SystemSettings" VALUES ('judge','{"paused":true}')`);await queue.tick();
+    assert.equal((await request(one,'/support/submissions')).data.find(r=>r.id===infra.id).status,'pending');
+    await sql(`UPDATE "SystemSettings" SET value='{"paused":false}' WHERE key='judge'`);await queue.tick();
+    assert.equal((await request(one,'/support/submissions')).data.find(r=>r.id===infra.id).status,'accepted');
+    console.log('PASS: judge infrastructure failure stays pending; admin pause preserves submissions; recovery finishes automatically');
+    const question={id:randomUUID(),category:'technical',question:'How do I submit my Python bot?'};
+    assert.equal((await request(one,'/support/questions','POST',question)).status,201);
+    assert.equal((await request(two,'/support/questions')).data.length,0);
+    assert.equal((await request(null,'/support/questions/public')).data.length,0);
+    assert.equal((await request(two,'/support/questions/'+question.id,'PATCH',{answer:'Fake answer',isPublic:true})).status,403);
+    assert.equal((await request(teacher,'/support/questions')).data.length,1);
+    assert.equal((await request(teacher,'/support/questions/'+question.id,'PATCH',{answer:'Upload in Bot Vault.',isPublic:true})).status,200);
+    const published=(await request(null,'/support/questions/public')).data[0];assert.equal(published.answer,'Upload in Bot Vault.');assert.ok(!('user_id' in published));assert.ok(!('username' in published));assert.ok(!('answered_by' in published));
+    assert.equal((await request(one,'/support/questions')).data[0].answer,'Upload in Bot Vault.');
+    console.log('PASS: private questions never reach another student; only staff answer; public FAQ removes identity');
+    const {recordResult}=require('../../../judge-worker/src/recordResult');
+    const match=randomUUID(),map=(await sql('SELECT id FROM "Maps" LIMIT 1')).rows[0].id;
+    await sql('INSERT INTO "Matches" (id,player1_id,player2_id,map_id) VALUES ($1,$2,$3,$4)',[match,one,two,map]);
+    const resultArgs={pool:pg.pool,matchId:match,player1Id:one,player2Id:two,winnerId:one,winReason:'FLAG_CAPTURE',durationMs:20,hasInfiniteLoopError:false,replay:[]};
+    let fail=true;
+    const failingPool={connect:async()=>({release(){},query:async(text,args)=>{if(fail&&text.includes('SET elo_rating')&&args[1]===two){fail=false;throw new Error('Simulated DB outage');}return sql(text,args);}})};
+    await assert.rejects(recordResult({...resultArgs,pool:failingPool}),/Simulated DB outage/);
+    assert.equal((await sql('SELECT elo_rating FROM "Users" WHERE id=$1',[one])).rows[0].elo_rating,1200);
+    assert.equal((await sql('SELECT judged_at FROM "Matches" WHERE id=$1',[match])).rows[0].judged_at,null);
+    await recordResult(resultArgs);await recordResult(resultArgs);
+    assert.equal((await sql('SELECT elo_rating FROM "Users" WHERE id=$1',[one])).rows[0].elo_rating,1216);
+    assert.equal((await sql('SELECT elo_rating FROM "Users" WHERE id=$1',[two])).rows[0].elo_rating,1184);
+    console.log('PASS: database failure rolls back match and both Elo updates; retry records exactly once');
+    delete process.env.SMTP_HOST;
+    assert.equal((await request(null,'/auth/forgot-password','POST',{email:'test@example.com'})).status,503);
+    console.log('PASS: recovery reports unavailable without SMTP, never pretends an email was sent');
+    const mailer=require('nodemailer'),originalTransport=mailer.createTransport;let mail;
+    mailer.createTransport=()=>({sendMail:async message=>{mail=message;}});
+    process.env.SMTP_HOST='smtp.test.invalid';process.env.SMTP_FROM='noreply@example.test';process.env.PASSWORD_RESET_URL='https://example.test/';
+    await sql('UPDATE "Users" SET email=$1 WHERE id=$2',['student@example.test',one]);
+    assert.equal((await request(null,'/auth/forgot-password','POST',{email:'student@example.test'})).status,200);
+    const resetUrl=new URL(mail.text.split('15 phút: ')[1].split('\n')[0]),token=new URLSearchParams(resetUrl.hash.slice(1)).get('reset_token');
+    assert.ok(token);assert.equal(resetUrl.search,'');
+    assert.ok(!(await sql('SELECT token_hash FROM "PasswordResets"')).rows.some(r=>r.token_hash===token));
+    assert.equal((await request(null,'/auth/reset-password','POST',{token,password:'new-test-password'})).status,200);
+    assert.equal((await request(one,'/support/questions')).status,401,'Password recovery invalidates previous sessions');
+    assert.equal((await request(null,'/auth/reset-password','POST',{token,password:'different-password'})).status,400);
+    assert.equal((await request(null,'/auth/login','POST',{username:'student@example.test',password:'new-test-password'})).status,200);
+    mailer.createTransport=originalTransport;
+    console.log('PASS: reset token is hashed, single-use and omitted from URL query; password changes revoke old sessions; email login works');
+  }finally{
+    if(server)await new Promise(resolve=>{server.close(resolve);server.closeAllConnections?.();});
+    await db.close();await pg.pool.end();fs.rmSync(temp,{recursive:true,force:true});
+  }
+}
+main().catch(error=>{console.error(error);process.exitCode=1;});

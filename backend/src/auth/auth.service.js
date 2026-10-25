@@ -15,6 +15,7 @@ function generateToken(user) {
       id: user.id,
       username: user.username,
       role: user.role,
+      authVersion:user.auth_version||0,
     },
     JWT_SECRET,
     {
@@ -26,110 +27,30 @@ function generateToken(user) {
 /**
  * Register a new user
  */
-async function registerUser({ username, password, role = 'STUDENT', adminRegistrationSecret }) {
-  if (role === 'ADMIN') {
-    const configured = process.env.ADMIN_REGISTRATION_SECRET;
-    const digest = value => createHash('sha256').update(value).digest();
-    if (!configured || typeof adminRegistrationSecret !== 'string'
-      || !timingSafeEqual(digest(configured),digest(adminRegistrationSecret))) {
-      const error = new Error('Mã cấp quyền quản trị không hợp lệ hoặc đăng ký admin chưa được bật.');
-      error.statusCode = 403;
-      throw error;
-    }
+async function registerUser({username,password,role='STUDENT',adminRegistrationSecret,studentId,teamName,email,consent}) {
+  if(role==='ADMIN'||role==='TEACHER') {
+    const configured=role==='ADMIN'?process.env.ADMIN_REGISTRATION_SECRET:process.env.TEACHER_REGISTRATION_SECRET;
+    const digest=value=>createHash('sha256').update(value).digest();
+    if(!configured||typeof adminRegistrationSecret!=='string'||!timingSafeEqual(digest(configured),digest(adminRegistrationSecret)))
+      throw Object.assign(new Error('Mã cấp quyền không hợp lệ hoặc đăng ký vai trò này chưa được bật.'),{statusCode:403});
   }
-  // Check if username is already taken
-  let existingUser = null;
-
-  if (prisma) {
-    try {
-      existingUser = await prisma.user.findUnique({
-        where: { username },
-      });
-    } catch {
-      // Fallback to raw pg query
-      const checkRes = await query('SELECT id FROM "Users" WHERE username = $1 LIMIT 1', [username]);
-      existingUser = checkRes.rows[0];
-    }
-  } else {
-    const checkRes = await query('SELECT id FROM "Users" WHERE username = $1 LIMIT 1', [username]);
-    existingUser = checkRes.rows[0];
-  }
-
-  if (existingUser) {
-    const error = new Error('Tên tài khoản này đã được sử dụng. Vui lòng chọn tên khác.');
-    error.statusCode = 409;
+  const passwordHash=await bcrypt.hash(password,10);
+  try {
+    const result=await query(`INSERT INTO "Users" (username,password_hash,role,elo_rating,student_id,team_name,email,consent_at)
+      VALUES ($1,$2,$3,1200,$4,$5,$6,CASE WHEN $7 THEN NOW() ELSE NULL END)
+      RETURNING id,username,role,elo_rating,created_at,student_id,team_name,email`,[username,passwordHash,role,studentId||null,teamName||null,email?.trim().toLowerCase()||null,Boolean(consent)]);
+    const user=result.rows[0];return {user,token:generateToken(user)};
+  } catch(error) {
+    if(error.code==='23505')throw Object.assign(new Error('Tên đăng nhập, mã sinh viên hoặc email đã được sử dụng.'),{statusCode:409});
     throw error;
   }
-
-  // Hash password
-  const salt = await bcrypt.genSalt(10);
-  const passwordHash = await bcrypt.hash(password, salt);
-
-  let newUser = null;
-
-  if (prisma) {
-    try {
-      newUser = await prisma.user.create({
-        data: {
-          username,
-          password_hash: passwordHash,
-          role,
-          elo_rating: 1200,
-        },
-        select: {
-          id: true,
-          username: true,
-          role: true,
-          elo_rating: true,
-          created_at: true,
-        },
-      });
-    } catch {
-      const insertSql = `
-        INSERT INTO "Users" (username, password_hash, role, elo_rating)
-        VALUES ($1, $2, $3, 1200)
-        RETURNING id, username, role, elo_rating, created_at;
-      `;
-      const insertRes = await query(insertSql, [username, passwordHash, role]);
-      newUser = insertRes.rows[0];
-    }
-  } else {
-    const insertSql = `
-      INSERT INTO "Users" (username, password_hash, role, elo_rating)
-      VALUES ($1, $2, $3, 1200)
-      RETURNING id, username, role, elo_rating, created_at;
-    `;
-    const insertRes = await query(insertSql, [username, passwordHash, role]);
-    newUser = insertRes.rows[0];
-  }
-
-  const token = generateToken(newUser);
-
-  return {
-    user: newUser,
-    token,
-  };
 }
 
 /**
  * Login existing user
  */
 async function loginUser({ username, password }) {
-  let user = null;
-
-  if (prisma) {
-    try {
-      user = await prisma.user.findUnique({
-        where: { username },
-      });
-    } catch {
-      const res = await query('SELECT * FROM "Users" WHERE username = $1 LIMIT 1', [username]);
-      user = res.rows[0];
-    }
-  } else {
-    const res = await query('SELECT * FROM "Users" WHERE username = $1 LIMIT 1', [username]);
-    user = res.rows[0];
-  }
+  const user=(await query('SELECT * FROM "Users" WHERE username=$1 OR student_id=$1 OR lower(email)=lower($1) LIMIT 1',[username])).rows[0];
 
   if (!user) {
     const error = new Error('Tài khoản hoặc mật khẩu không chính xác.');
@@ -151,6 +72,7 @@ async function loginUser({ username, password }) {
     role: user.role,
     elo_rating: user.elo_rating,
     created_at: user.created_at,
+    auth_version:user.auth_version||0,
   };
 
   const token = generateToken(safeUser);

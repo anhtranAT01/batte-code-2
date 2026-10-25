@@ -1,8 +1,10 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import Icon from './Icons';
+import {useSystemStatus} from './SystemStatus';
 
 const PAGE_META = {
+  status:['Hỗ trợ thi đấu','Trạng thái hệ thống'],
   leaderboard: ['Tổng quan thi đấu', 'Bảng xếp hạng'],
   pvp: ['Thi đấu trực tiếp', 'Đấu bot PvP'],
   boss: ['Khu luyện tập', 'Thử thách chiến thuật'],
@@ -16,6 +18,7 @@ const PAGE_META = {
 
 export default function HeaderBar({ activeTab, onOpenAuthModal, theme, onToggleTheme }) {
   const { user, isAuthenticated, logout } = useAuth();
+  const health=useSystemStatus();
   const elo = user?.elo_rating || 1200;
   const tier = elo >= 1700 ? 'Thách đấu' : elo >= 1500 ? 'Kim cương' : elo >= 1350 ? 'Vàng' : elo >= 1200 ? 'Bạc' : 'Đồng';
   const [section, page] = PAGE_META[activeTab] || PAGE_META.leaderboard;
@@ -27,7 +30,7 @@ export default function HeaderBar({ activeTab, onOpenAuthModal, theme, onToggleT
         <strong>{page}</strong>
       </div>
       <div className="flex items-center gap-2">
-        <span className="system-pill hidden lg:flex"><i className="status-dot" /> Máy chấm trực tuyến</span>
+        <span className="system-pill hidden lg:flex"><i className="status-dot" style={{background:health.offline||health.unreachable?'#d97706':health.judge==='online'?'#10b981':'#d97706'}} /> {health.offline?'Ngoại tuyến':health.unreachable?'Chưa kết nối máy chủ':health.judge==='online'?'Máy chấm hoạt động':health.judge==='paused'?'Máy chấm tạm dừng':'Đang kiểm tra máy chấm'}</span>
         <button type="button" onClick={onToggleTheme} className="icon-button" title={theme === 'dark' ? 'Giao diện sáng' : 'Giao diện tối'}><Icon name={theme === 'dark' ? 'sun' : 'moon'} size={18} /></button>
         {isAuthenticated ? (
           <>

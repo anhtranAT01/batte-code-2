@@ -4,6 +4,7 @@
   "description": "Tactical Rock-Paper-Scissors Arena Backend Server with Real-time WebSockets and BullMQ",
   "main": "src/server.js",
   "scripts": {
+    "test:resilience": "node src/support/testSupport.js",
     "test:match-numbers": "node src/game/testMatchNumbers.js && node src/game/testMatchNumberMigration.js",
     "test:performance": "node src/game/testSearchSimulation.js && node src/game/testArenaReads.js && node src/game/testDuelExecutor.js && node src/game/testDuelResponse.js",
     "test:admin-accounts": "node src/admin/testAdminAccounts.js",
@@ -47,6 +48,7 @@
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "multer": "^2.4.0",
+    "nodemailer": "^7.0.0",
     "pg": "^8.11.5",
     "socket.io": "^4.7.5",
     "zod": "^3.23.8"

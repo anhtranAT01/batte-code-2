@@ -474,3 +474,12 @@ html[data-theme='light'] .item-clone { color: #6540b0; }
   box-shadow: 0 0 15px rgba(139, 92, 246, 0.25);
   border-color: rgba(139, 92, 246, 0.5);
 }
+
+.safety-panel { background:var(--surface);color:var(--ink);border:1px solid var(--line-strong);border-radius:18px;padding:20px; }
+.safety-panel h2 { font-weight:800;font-size:17px; }
+.safety-panel p,.safety-panel small { color:var(--muted);line-height:1.7;overflow-wrap:anywhere; }
+.safety-row { display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 14px;border:1px solid var(--line);background:var(--surface-subtle);border-radius:12px; }
+.safety-row strong { color:var(--ink); }
+.health-badge { border:1px solid #d9770655;background:#d9770615;color:#d97706;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:700;white-space:nowrap; }
+.health-badge.is-ok { border-color:#10b98155;background:#10b98115;color:#059669; }
+@media(max-width:640px){.safety-panel{padding:16px;}.safety-row{align-items:flex-start;flex-wrap:wrap;}}

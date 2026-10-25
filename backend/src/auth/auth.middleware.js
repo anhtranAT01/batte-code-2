@@ -45,9 +45,10 @@ async function authenticateJWT(req, res, next) {
     });
   }
   try {
-    const current = await query('SELECT id,username,role FROM "Users" WHERE id = $1',[decoded.id]);
+    const current = await query('SELECT id,username,role,auth_version FROM "Users" WHERE id = $1',[decoded.id]);
     if (!current.rows[0]) return res.status(401).json({success:false,
       code:'ACCOUNT_REMOVED',message:'Tài khoản không còn tồn tại. Vui lòng đăng nhập lại.'});
+    if((decoded.authVersion||0)!==(current.rows[0].auth_version||0))return res.status(401).json({success:false,message:'Mật khẩu đã thay đổi. Hãy đăng nhập lại.'});
     req.user = {...decoded,...current.rows[0]};
     next();
   } catch (error) { next(error); }

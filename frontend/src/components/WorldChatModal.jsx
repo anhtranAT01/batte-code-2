@@ -1,154 +1,54 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../context/AuthContext';
-
-export default function WorldChatModal({ isOpen, onClose, socket, onlineCount = 1 }) {
-  const { user } = useAuth();
-  const [messages, setMessages] = useState([
-    {
-      id: 'system_welcome',
-      username: 'Hệ Thống',
-      role: 'ADMIN',
-      elo: 2000,
-      text: 'Chào mừng các kỳ thủ và lập trình viên đến với Kênh Thế Giới Đấu Trường Battlecode 9x9!',
-      timestamp: Date.now(),
-    },
-  ]);
-  const [inputVal, setInputVal] = useState('');
-  const messagesEndRef = useRef(null);
-
-  useEffect(() => {
-    if (!socket) return;
-
-    const handleBroadcast = (msg) => {
-      setMessages((prev) => [...prev, msg]);
-    };
-
-    socket.on('chat:broadcast', handleBroadcast);
-    return () => {
-      socket.off('chat:broadcast', handleBroadcast);
-    };
-  }, [socket]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  if (!isOpen) return null;
-
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    if (!inputVal.trim()) return;
-
-    const msgData = {
-      username: user?.username || 'Khách Vô Danh',
-      role: user?.role || 'STUDENT',
-      elo: user?.elo_rating || 1200,
-      text: inputVal.trim(),
-    };
-
-    if (socket) {
-      socket.emit('chat:message', msgData);
-    } else {
-      // Local fallback
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          ...msgData,
-          timestamp: Date.now(),
-        },
-      ]);
-    }
-
-    setInputVal('');
+import React,{useEffect,useState} from 'react';
+import {useAuth} from '../context/AuthContext';
+import {outbox} from '../lib/outbox';
+import DeviceSafety from './DeviceSafety';
+export default function WorldChatModal({isOpen,onClose,onLogin}){
+  const {user,getAuthHeaders}=useAuth();const staff=['ADMIN','TEACHER'].includes(user?.role);
+  const [items,setItems]=useState([]),[publicItems,setPublicItems]=useState([]),[text,setText]=useState(''),[category,setCategory]=useState('technical'),[message,setMessage]=useState(''),[loading,setLoading]=useState(false),[answers,setAnswers]=useState({}),[publish,setPublish]=useState({});
+  const refresh=async()=>{
+    try{
+      const res=await fetch(user?'/api/support/questions':'/api/support/questions/public',{headers:user?getAuthHeaders():{}});
+      const data=await res.json();if(!res.ok)throw new Error(data.message||'Chưa tải được câu hỏi.');
+      if(user)setItems(data.data||[]);else setPublicItems(data.data||[]);
+      if(user){const publicRes=await fetch('/api/support/questions/public');if(publicRes.ok)setPublicItems((await publicRes.json()).data||[]);}
+    }catch{setMessage('Chưa kết nối được máy chủ. Nội dung đang nhập vẫn được giữ.');}
   };
-
-  return (
-    <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 animate-fadeIn">
-      <div className="modal-card w-full max-w-lg flex flex-col h-[520px] overflow-hidden">
-        {/* Header */}
-        <div className="p-4 bg-[#090d18] border-b border-white/5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <span className="feature-code">CHAT</span>
-            <div>
-              <h3 className="font-bold text-white text-sm">Kênh trò chuyện</h3>
-              <div className="flex items-center gap-1.5 text-[11px] text-emerald-400">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span>{onlineCount} người đang trực tuyến</span>
-              </div>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Message Feed */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin">
-          {messages.map((m) => {
-            const isMe = user?.username === m.username;
-            return (
-              <div
-                key={m.id}
-                className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} space-y-1`}
-              >
-                <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-                  <span className="font-bold text-slate-200">{m.username}</span>
-                  {m.role === 'ADMIN' ? (
-                    <span className="px-1.5 py-0.2 rounded bg-red-500/20 text-red-300 font-bold text-[9px]">
-                      ADMIN
-                    </span>
-                  ) : (
-                    <span className="px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 font-bold text-[9px]">
-                      {m.elo} Elo
-                    </span>
-                  )}
-                  <span className="text-[10px] text-slate-600">
-                    {new Date(m.timestamp).toLocaleTimeString('vi-VN', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </span>
-                </div>
-
-                <div
-                  className={`p-3 rounded-2xl max-w-[85%] text-xs leading-relaxed ${
-                    isMe
-                      ? 'bg-indigo-600 text-white rounded-tr-none'
-                      : 'bg-[#141a2e] text-slate-200 border border-white/5 rounded-tl-none'
-                  }`}
-                >
-                  {m.text}
-                </div>
-              </div>
-            );
-          })}
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Chat Input */}
-        <form onSubmit={handleSendMessage} className="p-3 bg-[#090d18] border-t border-white/5 flex gap-2">
-          <input
-            type="text"
-            placeholder={user ? 'Nhập tin nhắn giao lưu chiến thuật...' : 'Đăng nhập để chat...'}
-            value={inputVal}
-            onChange={(e) => setInputVal(e.target.value)}
-            disabled={!user}
-            maxLength={250}
-            className="flex-1 px-3.5 py-2.5 rounded-xl bg-[#11172a] border border-white/10 text-white text-xs focus:outline-none focus:border-indigo-500 disabled:opacity-50"
-          />
-          <button
-            type="submit"
-            disabled={!user || !inputVal.trim()}
-            className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold text-xs transition-colors flex items-center gap-1"
-          >
-            <span>Gửi</span>
-          </button>
-        </form>
-      </div>
+  useEffect(()=>{setItems([]);setText('');setAnswers({});setPublish({});if(!isOpen)return;refresh();const timer=setInterval(refresh,30000);return()=>clearInterval(timer);},[isOpen,user?.id]);
+  if(!isOpen)return null;
+  const send=async(event)=>{event.preventDefault();setLoading(true);try{await outbox.enqueue(user.id,'question',{category,question:text.trim()});setText('');setMessage('Đã lưu câu hỏi trên thiết bị. Hệ thống tự gửi tới Admin / Giáo viên khi có kết nối.');}catch(error){setMessage(error.message);}finally{setLoading(false);}};
+  const answer=async item=>{
+    setLoading(true);try{
+      const res=await fetch(`/api/support/questions/${item.id}`,{method:'PATCH',headers:{...getAuthHeaders(),'Content-Type':'application/json'},body:JSON.stringify({answer:answers[item.id]??item.answer??'',isPublic:publish[item.id]??item.is_public})});
+      if(!res.ok)throw new Error((await res.json()).message||'Chưa lưu được câu trả lời.');
+      setMessage('Đã lưu câu trả lời.');await refresh();
+    }catch(error){setMessage(error.message);}finally{setLoading(false);}
+  };
+  return <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-3" role="dialog" aria-modal="true" aria-label="Hỏi đáp với Ban tổ chức">
+    <div className="modal-card w-full max-w-4xl max-h-[92vh] overflow-y-auto p-5 sm:p-7">
+      <div className="flex justify-between gap-4"><div><h1 className="text-xl font-bold">Hỏi đáp với Admin & Giáo viên</h1><p className="text-sm mt-2">Hỏi về luật, kỹ thuật, lịch thi hoặc báo sự cố. Câu hỏi riêng chỉ bạn và Ban tổ chức xem được.</p></div><button className="secondary-action self-start" onClick={onClose} aria-label="Đóng hỏi đáp">Đóng</button></div>
+      <p className="text-sm mt-2">Câu trả lời chung do Ban tổ chức công khai sẽ ẩn danh người gửi. Không đưa mật khẩu hoặc thông tin riêng vào câu hỏi.</p>
+      {message&&<p className="safety-panel my-4" role="status">{message}</p>}
+      {!user?<div className="safety-panel my-5 text-center"><h2>Đăng nhập để gửi câu hỏi</h2><button className="primary-action mt-4" onClick={onLogin}>Đăng nhập</button></div>:<>
+        {!staff&&<form className="safety-panel my-5 space-y-3" onSubmit={send}>
+          <label className="block">Chủ đề<select className="w-full mt-2 p-2 rounded-lg border" value={category} onChange={e=>setCategory(e.target.value)}><option value="rules">Luật thi đấu</option><option value="technical">Kỹ thuật / nộp bot</option><option value="schedule">Lịch thi</option><option value="incident">Báo sự cố</option></select></label>
+          <label className="block">Câu hỏi<textarea className="w-full mt-2 p-3 rounded-lg border" rows={4} minLength={5} maxLength={4000} required value={text} onChange={e=>setText(e.target.value)}/></label>
+          <button className="primary-action" disabled={loading}>Gửi đến Admin / Giáo viên</button>
+        </form>}
+        <DeviceSafety />
+        <div className="flex justify-between items-center mt-6"><h2 className="font-bold">{staff?'Hộp thư Ban tổ chức':'Câu hỏi của bạn'}</h2><button className="secondary-action" onClick={refresh}>Làm mới</button></div>
+        {!items.length&&<p className="my-4">Chưa có câu hỏi trên máy chủ.</p>}
+        {items.filter(item=>staff||item.user_id===user.id).map(item=><article className="safety-panel my-3" key={item.id}>
+          <small>{staff?`${item.username} · `:''}{new Date(item.created_at).toLocaleString('vi-VN')} · {item.answer?'Đã trả lời':'Chờ phản hồi'}</small>
+          <p className="whitespace-pre-wrap my-3 font-semibold">{item.question}</p>
+          {staff?<div className="space-y-3"><label className="block">Câu trả lời<textarea className="w-full mt-2 p-3 rounded-lg border" rows={3} maxLength={8000} value={answers[item.id]??item.answer??''} onChange={e=>setAnswers({...answers,[item.id]:e.target.value})}/></label>
+            <label className="flex items-start gap-2"><input type="checkbox" checked={publish[item.id]??item.is_public} onChange={e=>setPublish({...publish,[item.id]:e.target.checked})}/><span>Công khai ẩn danh. Kiểm tra và loại bỏ thông tin cá nhân trong nội dung trước khi công khai.</span></label>
+            <button className="primary-action" disabled={loading||!(answers[item.id]??item.answer??'').trim()} onClick={()=>answer(item)}>Lưu trả lời</button>
+          </div>:<p className="whitespace-pre-wrap">{item.answer||'Ban tổ chức sẽ trả lời tại đây.'}</p>}
+        </article>)}
+      </>}
+      <h2 className="font-bold mt-6">Hỏi đáp chung · ẩn danh</h2>
+      {publicItems.map(item=><details className="safety-panel my-3" key={item.id}><summary className="cursor-pointer font-semibold">{item.question}</summary><p className="whitespace-pre-wrap mt-3">{item.answer}</p></details>)}
+      {!publicItems.length&&<p className="my-4">Chưa có câu trả lời công khai.</p>}
     </div>
-  );
+  </div>;
 }

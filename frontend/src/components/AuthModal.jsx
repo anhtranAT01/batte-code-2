@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import PasswordRecovery from './PasswordRecovery';
 
 export default function AuthModal({ isOpen, initialMode = 'login', onClose }) {
   const { login, register } = useAuth();
@@ -10,10 +11,11 @@ export default function AuthModal({ isOpen, initialMode = 'login', onClose }) {
   const [adminRegistrationSecret, setAdminRegistrationSecret] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [studentId,setStudentId]=useState(''),[teamName,setTeamName]=useState(''),[email,setEmail]=useState(''),[consent,setConsent]=useState(false),[showPassword,setShowPassword]=useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      setMode(initialMode.toLowerCase() === 'register' ? 'REGISTER' : 'LOGIN');
+      setMode(initialMode.toLowerCase() === 'recovery'?'RECOVERY':initialMode.toLowerCase() === 'register' ? 'REGISTER' : 'LOGIN');
       setError('');
       setAdminRegistrationSecret('');
     }
@@ -28,7 +30,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', onClose }) {
 
     try {
       if (mode === 'REGISTER') {
-        await register(username, password, role, role === 'ADMIN' ? adminRegistrationSecret : undefined);
+        await register(username, password, role, role !== 'STUDENT' ? adminRegistrationSecret : undefined,{studentId,teamName,email,consent});
       } else {
         await login(username, password);
       }
@@ -42,7 +44,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', onClose }) {
 
   return (
     <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
-      <div className="modal-card relative w-full max-w-md p-6">
+      <div className="modal-card relative w-full max-w-md p-6 max-h-[92vh] overflow-y-auto">
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -100,10 +102,10 @@ export default function AuthModal({ isOpen, initialMode = 'login', onClose }) {
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {mode==='RECOVERY'?<PasswordRecovery onBack={()=>setMode('LOGIN')}/>:<form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-medium text-slate-300 mb-1.5">
-              Tên Đăng Nhập
+              {mode==='LOGIN'?'Tên đăng nhập / MSSV / Email':'Tên đăng nhập'}
             </label>
             <input
               type="text"
@@ -120,14 +122,24 @@ export default function AuthModal({ isOpen, initialMode = 'login', onClose }) {
               Mật Khẩu
             </label>
             <input
-              type="password"
+              type={showPassword?'text':'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Ít nhất 6 ký tự"
               required
               className="w-full px-3.5 py-2.5 rounded-xl bg-dark-900 border border-white/10 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-cyan-400 transition-colors"
             />
+            <button type="button" className="text-xs mt-2 underline" onClick={()=>setShowPassword(!showPassword)}>{showPassword?'Ẩn mật khẩu':'Hiện mật khẩu'}</button>
           </div>
+
+          {mode==='REGISTER'&&<>
+            <label className="block text-sm">Mã sinh viên (Đội trưởng)<input required maxLength={50} className="w-full mt-2 px-3 py-2 rounded-xl border" value={studentId} onChange={e=>setStudentId(e.target.value)} placeholder="Ví dụ: 24020001"/></label>
+            <label className="block text-sm">Tên đội thi đấu<input required maxLength={100} className="w-full mt-2 px-3 py-2 rounded-xl border" value={teamName} onChange={e=>setTeamName(e.target.value)} placeholder="Ví dụ: K69 CyberBots"/></label>
+            <label className="block text-sm">Email (đăng nhập và khôi phục mật khẩu)<input type="email" required maxLength={254} className="w-full mt-2 px-3 py-2 rounded-xl border" value={email} onChange={e=>setEmail(e.target.value)}/></label>
+            <p className="text-xs">Mỗi email và mã sinh viên chỉ gắn với một tài khoản.</p>
+            <label className="flex gap-2 text-xs items-start"><input type="checkbox" required checked={consent} onChange={e=>setConsent(e.target.checked)}/><span>Tôi đồng ý quy chế giải và việc Ban tổ chức xử lý dữ liệu tài khoản để tổ chức giải.</span></label>
+            <details className="text-xs"><summary className="cursor-pointer">Dữ liệu được thu và quyền của bạn</summary><p className="mt-2">Hệ thống lưu tên đăng nhập, mã sinh viên, tên đội, email, mật khẩu đã băm, mã bot và lịch sử thi đấu. Email và mã sinh viên không hiển thị công khai. Bạn có thể yêu cầu Ban tổ chức chỉnh sửa hoặc xóa dữ liệu qua Hỏi đáp. Tên đăng nhập, bot chính và kết quả có thể xuất hiện trên bảng thi đấu.</p></details>
+          </>}
 
           {mode === 'REGISTER' && (
             <div>
@@ -146,7 +158,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', onClose }) {
             </div>
           )}
 
-          {mode === 'REGISTER' && role === 'ADMIN' && (
+          {mode === 'REGISTER' && role !== 'STUDENT' && (
             <div>
               <label htmlFor="admin-registration-secret" className="block text-xs font-medium text-slate-300 mb-1.5">Mã cấp quyền quản trị</label>
               <input id="admin-registration-secret" type="password" autoComplete="off" required maxLength={256}
@@ -163,7 +175,8 @@ export default function AuthModal({ isOpen, initialMode = 'login', onClose }) {
           >
             {loading ? 'Đang Xử Lý...' : mode === 'REGISTER' ? 'Xác Nhận Đăng Ký' : 'Đăng Nhập'}
           </button>
-        </form>
+          {mode==='LOGIN'&&<button type="button" className="text-sm underline" onClick={()=>setMode('RECOVERY')}>Quên mật khẩu?</button>}
+        </form>}
       </div>
     </div>
   );

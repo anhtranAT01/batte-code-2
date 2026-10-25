@@ -16,8 +16,7 @@ async function register(req, res, next) {
       });
     }
 
-    const { username, password, role, adminRegistrationSecret } = parseResult.data;
-    const result = await authService.registerUser({ username, password, role, adminRegistrationSecret });
+    const result = await authService.registerUser(parseResult.data);
 
     return res.status(201).json({
       success: true,

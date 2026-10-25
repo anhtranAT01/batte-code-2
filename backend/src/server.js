@@ -54,7 +54,7 @@ app.use(cors({
   origin: corsOrigin,
   credentials: true,
 }));
-app.use(express.json());
+app.use(express.json({limit:'3mb'}));
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
@@ -81,16 +81,12 @@ app.use('/api/game', gameRoutes);
 app.use('/api/bots', botRoutes);
 app.use('/api/tournaments', tournamentRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/support',require('./support/support.routes'));
 
 // System Health Check
 app.get('/api/health', async (req, res) => {
-  const isDbHealthy = await checkDbConnection();
-  res.status(isDbHealthy ? 200 : 503).json({
-    status: isDbHealthy ? 'HEALTHY' : 'DEGRADED',
-    timestamp: new Date().toISOString(),
-    uptime_seconds: Math.floor(process.uptime()),
-    database: isDbHealthy ? 'CONNECTED' : 'DISCONNECTED',
-  });
+  const health=await require('./support/systemHealth').check();
+  res.set('Cache-Control','no-store').status(health.database==='online'?200:503).json(health);
 });
 
 // Real-time WebSocket connection handling
@@ -122,19 +118,7 @@ io.on('connection', (socket) => {
   // Broadcast online user count
   io.emit('online:count', { count: io.engine.clientsCount });
 
-  // World Chat channel
-  socket.on('chat:message', (data) => {
-    if (data && data.text && data.text.trim().length > 0) {
-      io.emit('chat:broadcast', {
-        id: Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
-        username: data.username || 'Khách',
-        role: data.role || 'STUDENT',
-        elo: data.elo || 1200,
-        text: data.text.trim().slice(0, 300),
-        timestamp: Date.now(),
-      });
-    }
-  });
+  // Questions use authenticated, owner-scoped REST routes; no public message broadcast.
 
   socket.on('disconnect', (reason) => {
     console.log(`[Socket.io] Client disconnected: ${socket.id} (Reason: ${reason})`);
@@ -184,12 +168,14 @@ server.listen(PORT, async () => {
   console.log(` Cloudflare WebSockets KeepAlive: 15s interval`);
   console.log(`=======================================================`);
   await checkDbConnection();
+  require('./support/submissionQueue').start();
 });
 
 // Graceful Shutdown
 function handleShutdown(signal) {
   console.log(`\n[Process] Received ${signal}. Gracefully closing server and database pool...`);
   require('./game/duelExecutor').shutdown().catch(console.error);
+  require('./support/submissionQueue').stop();
   server.close(async () => {
     try {
       await pool.end();

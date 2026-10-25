@@ -22,7 +22,7 @@ async function main() {
     await new Promise(resolve => server.once('listening',resolve));
     const register = async body => {
       const result = await fetch(`http://127.0.0.1:${server.address().port}/api/auth/register`,{
-        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:'test_user',password:'test_password',...body}),
+        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:'test_user',password:'test_password',studentId:'24020001',teamName:'Test Team',email:'test@example.com',consent:true,...body}),
       });
       return {status:result.status,...await result.json()};
     };
@@ -38,7 +38,11 @@ async function main() {
     assert.ok(!JSON.stringify(admin).includes('test-only-server-secret'));
     assert.ok(!JSON.stringify(writes).includes('test-only-server-secret'));
     assert.equal((await register({role:'STUDENT'})).status,201);
-    assert.equal((await register({role:'TEACHER'})).status,201);
+    assert.equal((await register({role:'TEACHER'})).status,403);
+    process.env.TEACHER_REGISTRATION_SECRET='test-teacher-secret';
+    assert.equal((await register({role:'TEACHER',adminRegistrationSecret:'test-teacher-secret'})).status,201);
+    delete process.env.TEACHER_REGISTRATION_SECRET;
+    assert.equal((await register({role:'STUDENT',consent:false})).status,400);
     assert.equal((await register({role:'admin'})).status,400);
     console.log('PASS: direct API admin signup requires configured correct secret; no secret is stored/returned; normal signup still works');
   } finally {

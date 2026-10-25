@@ -1,5 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import {outbox} from '../lib/outbox';
+import {readDraft,writeDraft} from '../lib/deviceStore';
+import DeviceSafety from './DeviceSafety';
+import OfflineLab from './OfflineLab';
 
 export default function BotVaultView() {
   const { user, getAuthHeaders } = useAuth();
@@ -17,6 +21,29 @@ export default function BotVaultView() {
   const [uploadMode, setUploadMode] = useState('code'); // 'code' | 'file' | 'git'
   const [uploading, setUploading] = useState(false);
   const [alertMsg, setAlertMsg] = useState(null);
+  const [offlineSource,setOfflineSource]=useState('');
+  useEffect(()=>{let active=true;if(uploadMode==='file'&&selectedFile)selectedFile.text().then(text=>{if(active)setOfflineSource(text);});else setOfflineSource(codeContent);return()=>{active=false;};},[codeContent,uploadMode,selectedFile]);
+  const [draftReady,setDraftReady]=useState(false);
+  const [draftStatus,setDraftStatus]=useState('');
+  const draftOwner=useRef(null);
+  const currentDraft=useRef(null);
+  currentDraft.current={id:user?.id||'guest',botName,codeContent,uploadMode,gitUrl,selectedFile};
+  useEffect(()=>{
+    let active=true;setDraftReady(false);draftOwner.current=user?.id||'guest';
+    readDraft(draftOwner.current).then(draft=>{
+      if(!active)return;
+      setBotName(draft?.botName||'');setCodeContent(draft?.codeContent||'');setUploadMode(draft?.uploadMode||'code');setGitUrl(draft?.gitUrl||'');setSelectedFile(draft?.selectedFile||null);
+      setDraftReady(true);setDraftStatus(draft?'Đã khôi phục bản nháp trên thiết bị.':'');
+    }).catch(()=>{if(active){setDraftReady(true);setDraftStatus('Không mở được kho lưu. Hãy tải bản dự phòng.');}});
+    return()=>{active=false;};
+  },[user?.id]);
+  useEffect(()=>{
+    if(!draftReady)return;
+    const save=()=>writeDraft({...currentDraft.current,updatedAt:Date.now()}).then(()=>setDraftStatus('Đã lưu bản nháp trên thiết bị.'),()=>setDraftStatus('Chưa lưu được bản nháp. Hãy tải mã nguồn dự phòng.'));
+    const timer=setTimeout(save,250);
+    window.addEventListener('pagehide',save);document.addEventListener('visibilitychange',save);
+    return()=>{clearTimeout(timer);window.removeEventListener('pagehide',save);document.removeEventListener('visibilitychange',save);};
+  },[draftReady,botName,codeContent,uploadMode,gitUrl,selectedFile]);
 
   useEffect(() => {
     fetchMyBots();
@@ -45,9 +72,6 @@ export default function BotVaultView() {
         setTemplates(list);
         if (list.length > 0) {
           setSelectedTemplate(list[0]);
-          if (!codeContent) {
-            setCodeContent(list[0].code);
-          }
         }
       }
     } catch (e) {
@@ -91,6 +115,7 @@ export default function BotVaultView() {
   // Handle submit bot
   const handleSubmitBot = async (e) => {
     e.preventDefault();
+    if(!draftReady||draftOwner.current!==(user?.id||'guest')){setAlertMsg({type:'error',text:'Đang khôi phục bản nháp cho tài khoản này. Hãy đợi một chút.'});return;}
     if (!botName.trim()) {
       setAlertMsg({ type: 'error', text: 'Vui lòng đặt tên cho Bot.' });
       return;
@@ -100,56 +125,21 @@ export default function BotVaultView() {
     setAlertMsg(null);
 
     try {
-      if (uploadMode === 'code') {
-        if (!codeContent.trim()) {
-          throw new Error('Vui lòng nhập nội dung mã nguồn Python.');
-        }
-        const res = await fetch('/api/bots/create', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...getAuthHeaders(),
-          },
-          body: JSON.stringify({
-            name: botName.trim(),
-            code: codeContent.trim(),
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Khởi tạo bot thất bại.');
-        setAlertMsg({ type: 'success', text: data.message });
-      } else if (uploadMode === 'file') {
-        if (!selectedFile) {
-          throw new Error('Vui lòng chọn file mã nguồn Python (.py).');
-        }
-        const formData = new FormData();
-        formData.append('name', botName.trim());
-        formData.append('file', selectedFile);
-
-        const res = await fetch('/api/bots/upload', {
-          method: 'POST',
-          headers: { ...getAuthHeaders() },
-          body: formData,
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Tải lên bot thất bại.');
-        setAlertMsg({ type: 'success', text: data.message });
-      } else {
-        if (!gitUrl.trim()) {
-          throw new Error('Vui lòng cung cấp URL Git repository.');
-        }
-        const res = await fetch('/api/bots/git', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...getAuthHeaders(),
-          },
-          body: JSON.stringify({ name: botName.trim(), gitUrl: gitUrl.trim() }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Clone Git repository thất bại.');
-        setAlertMsg({ type: 'success', text: data.message });
+      if (uploadMode === 'code' || uploadMode === 'file') {
+        if(uploadMode==='file'&&!selectedFile)throw new Error('Vui lòng chọn file Python (.py).');
+        if(selectedFile?.size>2*1024*1024)throw new Error('File Python tối đa 2 MB.');
+        const source=uploadMode==='file'?new TextDecoder('utf-8',{fatal:true}).decode(await selectedFile.arrayBuffer()):codeContent;
+        if(!source.trim())throw new Error('Mã nguồn Python không được để trống.');
+        await outbox.enqueue(user.id,'bot',{name:botName.trim(),source});
+        setAlertMsg({type:'success',text:'Đã lưu bài trên thiết bị. Xem Trạng thái bài nộp để biết khi nào máy chủ nhận và kiểm tra xong.'});
+        setActiveSubTab('vault');
+        return;
       }
+      if (!gitUrl.trim()) throw new Error('Vui lòng cung cấp URL Git repository.');
+      const res=await fetch('/api/bots/git',{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({name:botName.trim(),gitUrl:gitUrl.trim()})});
+      const data=await res.json();
+      if(!res.ok)throw new Error(data.message||'Clone Git thất bại.');
+      setAlertMsg({type:'success',text:data.message});
 
       setBotName('');
       setSelectedFile(null);
@@ -196,6 +186,9 @@ export default function BotVaultView() {
 
   return (
     <div className="view-shell animate-fadeIn max-w-7xl mx-auto">
+      <DeviceSafety onAccepted={fetchMyBots} />
+      <OfflineLab source={draftReady&&draftOwner.current===(user?.id||'guest')?offlineSource:''} />
+      <p className="text-xs mb-3" role="status">{draftStatus}</p>
       {/* Header */}
       <div className="page-header">
         <div>
@@ -493,7 +486,7 @@ export default function BotVaultView() {
           <div>
             <h3 className="font-bold text-lg text-white">Nộp & Tùy Biến Thuật Toán Bot Python Mới</h3>
             <p className="text-xs text-slate-400 mt-1">
-              Hệ thống kiểm tra cú pháp và chạy thử bot cho cả hai phe trước khi lưu.
+            Bài được lưu trước, sau đó máy chủ kiểm tra cú pháp và chạy thử bot cho cả hai phe.
             </p>
             <button type="button" disabled={!templates.some(template => template.filename === 'heuristic.py' && template.code?.trim())}
               onClick={() => {

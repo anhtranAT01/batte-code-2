@@ -3,7 +3,7 @@
  * and dispatches parallel matches to BullMQ Judge Workers
  */
 
-const { query } = require('../config/db');
+const { query, pool } = require('../config/db');
 const { matchQueue } = require('../config/redis');
 const { generateSwissPairings } = require('./swissPairing');
 
@@ -33,82 +33,32 @@ async function createTournament({ name, maxParticipants = 1000, settings = {} })
 /**
  * Register a student and their bot to a tournament
  */
-async function registerStudent({ tournamentId, userId, botId = null }) {
-  const tourneyRes = await query('SELECT * FROM "Tournaments" WHERE id = $1', [tournamentId]);
-  const tourney = tourneyRes.rows[0];
-  if (!tourney) {
-    const error = new Error('Không tìm thấy giải đấu.');
-    error.statusCode = 404;
-    throw error;
-  }
-
-  if (tourney.status !== 'UPCOMING') {
-    const error = new Error('Giải đấu đã bắt đầu hoặc đã kết thúc. Không thể đăng ký thêm.');
-    error.statusCode = 400;
-    throw error;
-  }
-
-  const settings = tourney.settings_json || {};
-  const participants = settings.participants || [];
-
-  if (participants.length >= tourney.max_participants) {
-    const error = new Error(`Giải đấu đã đạt giới hạn tối đa ${tourney.max_participants} thí sinh.`);
-    error.statusCode = 400;
-    throw error;
-  }
-
-  // Check if already registered
-  const existing = participants.find((p) => p.userId === userId);
-  if (existing) {
-    const error = new Error('Bạn đã đăng ký tham gia giải đấu này rồi.');
-    error.statusCode = 400;
-    throw error;
-  }
-
-  // Fetch user and bot info
-  const userRes = await query('SELECT username, elo_rating FROM "Users" WHERE id = $1', [userId]);
-  const user = userRes.rows[0];
-  if (!user) {
-    const error = new Error('Không tìm thấy người dùng.');
-    error.statusCode = 404;
-    throw error;
-  }
-
-  let botName = 'Chưa chọn Bot';
-  let botPath = null;
-  if (botId) {
-    const botRes = await query('SELECT name, file_path_or_git_url FROM "Bots" WHERE id = $1', [botId]);
-    if (botRes.rows[0]) {
-      botName = botRes.rows[0].name;
-      botPath = botRes.rows[0].file_path_or_git_url;
+async function registerStudent({tournamentId,userId,botId=null}) {
+  const client=await pool.connect();
+  const fail=(message,statusCode=400)=>{throw Object.assign(new Error(message),{statusCode});};
+  try {
+    await client.query('BEGIN');
+    const tourney=(await client.query('SELECT * FROM "Tournaments" WHERE id=$1 FOR UPDATE',[tournamentId])).rows[0];
+    if(!tourney)fail('Không tìm thấy giải đấu.',404);
+    const settings=tourney.settings_json||{},participants=settings.participants||[];
+    const existing=participants.find(p=>p.userId===userId);
+    // A lost successful response can be retried even after the tournament starts.
+    if(existing){
+      if(existing.botId!==botId)fail('Bạn đã đăng ký với bot khác. Liên hệ ban tổ chức để đổi bot.',409);
+      await client.query('COMMIT');return {success:true,message:'Máy chủ đã ghi nhận đăng ký trước đó.',totalParticipants:participants.length};
     }
-  }
-
-  participants.push({
-    id: userId,
-    userId,
-    botId,
-    botName,
-    botPath,
-    username: user.username,
-    elo: user.elo_rating,
-    initialElo: user.elo_rating,
-    points: 0,
-    registeredAt: new Date().toISOString(),
-  });
-
-  settings.participants = participants;
-
-  await query('UPDATE "Tournaments" SET settings_json = $1 WHERE id = $2', [
-    JSON.stringify(settings),
-    tournamentId,
-  ]);
-
-  return {
-    success: true,
-    message: `Đăng ký thành công cho ${user.username}! Hiện có ${participants.length}/${tourney.max_participants} thí sinh.`,
-    totalParticipants: participants.length,
-  };
+    if(tourney.status!=='UPCOMING')fail('Giải đấu đã bắt đầu hoặc kết thúc. Chưa nhận thêm đăng ký.');
+    if(tourney.scheduled_start_at&&new Date(tourney.scheduled_start_at)<=new Date())fail('Đã đến giờ bắt đầu. Liên hệ ban tổ chức nếu cần gia hạn.');
+    if(participants.length>=tourney.max_participants)fail('Giải đấu đã đủ số lượng đăng ký.');
+    const user=(await client.query('SELECT username,elo_rating FROM "Users" WHERE id=$1',[userId])).rows[0];
+    const bot=(await client.query(`SELECT name,file_path_or_git_url FROM "Bots" WHERE id=$1 AND user_id=$2 AND status='active'`,[botId,userId])).rows[0];
+    if(!user||!bot)fail('Hãy chọn bot của bạn đã được máy chủ kiểm tra.');
+    participants.push({id:userId,userId,botId,botName:bot.name,botPath:bot.file_path_or_git_url,username:user.username,elo:user.elo_rating,initialElo:user.elo_rating,points:0,registeredAt:new Date().toISOString()});
+    settings.participants=participants;
+    await client.query('UPDATE "Tournaments" SET settings_json=$1 WHERE id=$2',[JSON.stringify(settings),tournamentId]);
+    await client.query('COMMIT');
+    return {success:true,message:'Máy chủ đã nhận đăng ký giải đấu.',totalParticipants:participants.length};
+  } catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
 }
 
 /**

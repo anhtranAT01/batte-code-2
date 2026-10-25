@@ -18,8 +18,9 @@ export default function Sidebar({ activeTab, setActiveTab, onlineCount = 1 }) {
       { id: 'bots', label: 'Kho bot', icon: 'bots' },
       ...(isAdmin ? [{ id: 'admin', label: 'Quản trị', icon: 'admin', badge: 'ADMIN' }] : []),
     ]},
-    { group: 'Cộng đồng', items: [
-      { id: 'chat', label: 'Kênh trò chuyện', icon: 'chat', onlineStatus: onlineCount },
+    { group: 'Hỗ trợ', items: [
+      { id: 'status', label: 'Trạng thái hệ thống', icon: 'database' },
+      { id: 'chat', label: 'Hỏi đáp Admin / Giáo viên', icon: 'chat' },
     ]},
   ];
 
@@ -51,7 +52,7 @@ export default function Sidebar({ activeTab, setActiveTab, onlineCount = 1 }) {
         ))}
       </nav>
       <div className="hidden md:flex sidebar-footer items-center justify-between px-5 py-4 text-[11px]">
-        <span className="flex items-center gap-2 theme-muted"><i className="status-dot" /> Hệ thống sẵn sàng</span>
+        <span className="flex items-center gap-2 theme-muted">BattleCode Arena</span>
         <span className="font-mono theme-faint">v2.4</span>
       </div>
     </aside>

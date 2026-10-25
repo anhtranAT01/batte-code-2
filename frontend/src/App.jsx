@@ -6,6 +6,8 @@ import LeaderboardView from './components/LeaderboardView';
 import AuthModal from './components/AuthModal';
 import { apiOrigin } from './lib/api';
 import useTheme from './hooks/useTheme';
+import {OutboxPump} from './components/DeviceSafety';
+import SystemStatus from './components/SystemStatus';
 
 // Load game, replay and admin tools when opened instead of delaying the first page.
 const BossArenaView = lazy(() => import('./components/BossArenaView'));
@@ -28,6 +30,7 @@ export default function App() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [onlineCount, setOnlineCount] = useState(1);
   const [socket, setSocket] = useState(null);
+  useEffect(()=>{if(new URLSearchParams(window.location.hash.slice(1)).has('reset_token')||new URLSearchParams(window.location.search).has('reset_token')){setIsAuthModalOpen(true);setAuthModalMode('recovery');}},[]);
 
   // Initialize Socket.io connection
   useEffect(() => {
@@ -95,6 +98,7 @@ export default function App() {
 
   return (
     <div className="app-shell flex h-screen font-sans antialiased overflow-hidden selection:bg-indigo-500 selection:text-white">
+      <OutboxPump />
       {/* Left Sidebar Menu */}
       <Sidebar
         activeTab={activeTab}
@@ -118,6 +122,7 @@ export default function App() {
                 onExploreData={() => setActiveTab('database')}
               />
             )}
+            {activeTab === 'status' && <SystemStatus />}
 
             {activeTab === 'pvp' && (
               <PvPBotArenaView
@@ -136,7 +141,7 @@ export default function App() {
             )}
 
             {activeTab === 'rules' && (
-              <RulesAndStrategyView onGoToTemplates={() => setActiveTab('bots')} />
+              <><SystemStatus /><RulesAndStrategyView onGoToTemplates={() => setActiveTab('bots')} /></>
             )}
 
             {activeTab === 'database' && (
@@ -176,6 +181,7 @@ export default function App() {
           onClose={() => setIsChatOpen(false)}
           socket={socket}
           onlineCount={onlineCount}
+          onLogin={()=>{setIsChatOpen(false);handleOpenAuthModal('login');}}
         />
       </Suspense>}
     </div>

@@ -10,6 +10,9 @@ let auth = { user:{id:'me',username:'Me'}, getAuthHeaders:() => ({Authorization:
 const alerts = [];
 global.alert = message => alerts.push(message);
 const helperModules = new Map();
+global.window={addEventListener(){},removeEventListener(){}};
+global.document={addEventListener(){},removeEventListener(){}};
+let queued;
 function helper(filename) {
   if (helperModules.has(filename)) return helperModules.get(filename);
   const js = transformSync(fs.readFileSync(filename,'utf8'),{loader:'js',format:'cjs'}).code;
@@ -25,6 +28,9 @@ function component(name) {
   new Function('require','module','exports',js)((id) => {
     if (id === '../context/AuthContext') return {useAuth:() => auth};
     if (id === './GameBoard') return {__esModule:true,default:() => null};
+    if (['./DeviceSafety','./OfflineLab','./PasswordRecovery'].includes(id)) return {__esModule:true,default:()=>null};
+    if(id==='../lib/deviceStore')return {readDraft:async()=>null,writeDraft:async()=>{}};
+    if(id==='../lib/outbox')return {outbox:{enqueue:async(...args)=>{queued=args;}}};
     if (id.startsWith('../lib/')) return helper(path.resolve(path.dirname(filename),`${id}.js`));
     return require(id);
   },module,module.exports);
@@ -118,14 +124,13 @@ async function main() {
   await act(async () => { button(tree,'Tải lên file').props.onClick(); });
   assert.equal(tree.root.findByProps({type:'file'}).props.required,false);
   await act(async () => { tree.root.findByProps({type:'file'}).props.onChange({target:{files:[]}}); });
-  assert.ok(text(tree.root.findByProps({role:'status'}).props.children).includes('MyBot.PY'));
+  assert.ok(tree.root.findAllByProps({role:'status'}).some(node=>text(node.props.children).includes('MyBot.PY')));
   await act(async () => { await tree.root.findByType('form').props.onSubmit({preventDefault(){}}); });
-  assert.equal(uploaded.get('file').name,'MyBot.PY');
-  assert.equal(await uploaded.get('file').text(),'print("{}")');
-  assert.equal(uploaded.get('name'),'MyBot');
-  assert.equal(uploaded.get('tactic'),null);
+  assert.equal(queued[0],'me');assert.equal(queued[1],'bot');
+  assert.deepEqual(queued[2],{name:'MyBot',source:'print("{}")'});
+  assert.equal(uploaded,undefined,'File is durably queued before any network send');
   act(() => tree.unmount());
-  console.log('PASS: file survives mode changes/cancel and multipart submission contains the selected Python file');
+  console.log('PASS: file survives mode changes/cancel and its exact UTF-8 content enters the durable queue');
 
   let registration;
   auth = {...auth,register:async (...args) => { registration = args; }};
@@ -141,7 +146,7 @@ async function main() {
   await act(async () => { await tree.root.findByType('form').props.onSubmit({preventDefault(){}}); });
   assert.equal(registration[3],undefined);
   act(() => tree.unmount());
-  console.log('PASS: admin signup alone requests separate secret; ordinary signup never sends it');
+  console.log('PASS: privileged signup requests a separate secret; student signup never sends it');
 
   global.fetch = async () => response([
     {id:'boss-win',p1_username:'trex',p2_username:'Boss AI',winner_username:'Boss AI',winner_side:2,result_known:true,win_reason:'FLAG_CAPTURE'},

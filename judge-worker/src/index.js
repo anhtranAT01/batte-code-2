@@ -56,16 +56,6 @@ const TURN_TIMEOUT_MS = parseInt(process.env.TURN_TIMEOUT_MS || '1000', 10);
 /**
  * Standard Elo calculation
  */
-function calculateElo(p1Rating, p2Rating, outcome) {
-  const K = 32;
-  const expectedP1 = 1 / (1 + Math.pow(10, (p2Rating - p1Rating) / 400));
-  const expectedP2 = 1 - expectedP1;
-
-  const p1Change = Math.round(K * (outcome - expectedP1));
-  const p2Change = Math.round(K * ((1 - outcome) - expectedP2));
-
-  return { p1Change, p2Change };
-}
 
 /**
  * Simulate / Judge a Match between two bots
@@ -266,54 +256,9 @@ async function processMatchJob(job) {
 
   const durationMs = Date.now() - startTime;
 
-  // 7. Calculate Elo & Update Database
-  let p1EloChange = 0;
-  let p2EloChange = 0;
-
-  try {
-    const p1Query = await pool.query('SELECT elo_rating FROM "Users" WHERE id = $1', [player1Id]);
-    const p2Query = await pool.query('SELECT elo_rating FROM "Users" WHERE id = $1', [player2Id]);
-
-    const p1Rating = p1Query.rows[0]?.elo_rating || 1200;
-    const p2Rating = p2Query.rows[0]?.elo_rating || 1200;
-
-    let outcome = 0.5;
-    if (winnerId === player1Id) outcome = 1;
-    else if (winnerId === player2Id) outcome = 0;
-
-    const eloResult = calculateElo(p1Rating, p2Rating, outcome);
-    p1EloChange = eloResult.p1Change;
-    p2EloChange = eloResult.p2Change;
-
-    // Update match record in DB
-    await pool.query(
-      `UPDATE "Matches"
-       SET winner_id = $1, win_reason = $2, duration_ms = $3,
-           p1_elo_change = $4, p2_elo_change = $5,
-           has_infinite_loop_error = $6, replay_json = $7
-       WHERE id = $8`,
-      [
-        winnerId,
-        winReason,
-        durationMs,
-        p1EloChange,
-        p2EloChange,
-        hasInfiniteLoopError,
-        JSON.stringify(replay),
-        matchId,
-      ]
-    );
-
-    // Update users Elo
-    await pool.query('UPDATE "Users" SET elo_rating = elo_rating + $1 WHERE id = $2', [p1EloChange, player1Id]);
-    await pool.query('UPDATE "Users" SET elo_rating = elo_rating + $1 WHERE id = $2', [p2EloChange, player2Id]);
-
-    console.log(
-      `[Judge Worker] Match ${matchId} ended. Winner: ${winnerId || 'DRAW'} (${winReason}). Duration: ${durationMs}ms. InfiniteLoop: ${hasInfiniteLoopError}`
-    );
-  } catch (dbErr) {
-    console.error('[Judge Worker DB Error]:', dbErr.message);
-  }
+  const recorded=await require('./recordResult').recordResult({pool,matchId,player1Id,player2Id,winnerId,winReason,durationMs,hasInfiniteLoopError,replay});
+  if(recorded.alreadyRecorded)return recorded;
+  const {p1EloChange,p2EloChange}=recorded;
 
   return {
     matchId,
@@ -332,6 +277,11 @@ const worker = new Worker('match-queue', processMatchJob, {
   connection: redisConnection,
   concurrency: 5,
 });
+const heartbeat=setInterval(()=>{
+  worker.client.then(client=>{if(client.status==='ready')return client.set('battlecode:judge:heartbeat',String(Date.now()),'EX',45);}).catch(()=>{});
+},15000);
+heartbeat.unref();
+worker.on('error',error=>console.error('[Judge Worker]',error.message));
 
 worker.on('completed', (job) => {
   console.log(`[Judge Worker] Match Job ${job.id} completed successfully.`);

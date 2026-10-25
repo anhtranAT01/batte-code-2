@@ -271,7 +271,7 @@ async function getPlayers() {
 /**
  * Create a new bot from raw Python code or chosen template
  */
-async function createCodeBot({ userId, botName, code, tactic = 'FLAG_RUSHER' }) {
+async function createCodeBot({ userId, botName, code, tactic = 'FLAG_RUSHER', botId, validated = false }) {
   if (!code || typeof code !== 'string' || !code.trim()) {
     const error = new Error('Nội dung mã nguồn Python không được để trống.');
     error.statusCode = 400;
@@ -286,7 +286,7 @@ async function createCodeBot({ userId, botName, code, tactic = 'FLAG_RUSHER' }) 
   fs.writeFileSync(targetPath, code, 'utf-8');
 
   // Validate syntax
-  const syntaxCheck = validatePythonSyntax(targetPath);
+  const syntaxCheck = validated ? {valid:true} : validatePythonSyntax(targetPath);
   if (!syntaxCheck.valid) {
     try {
       fs.unlinkSync(targetPath);
@@ -296,7 +296,7 @@ async function createCodeBot({ userId, botName, code, tactic = 'FLAG_RUSHER' }) 
     throw error;
   }
 
-  try { await validateBotExecution(targetPath); }
+  try { if (!validated) await validateBotExecution(targetPath); }
   catch (error) { try { fs.unlinkSync(targetPath); } catch {} throw error; }
 
   // Deactivate others if this is the first bot
@@ -304,12 +304,15 @@ async function createCodeBot({ userId, botName, code, tactic = 'FLAG_RUSHER' }) 
   const shouldBeActive = existingBots.rows.length === 0;
 
   const insertSql = `
-    INSERT INTO "Bots" (user_id, name, source_type, file_path_or_git_url, status, error_count, is_active, tactic, source_code)
-    VALUES ($1, $2, 'file', $3, 'active', 0, $4, $5, $6)
+    INSERT INTO "Bots" (user_id, name, source_type, file_path_or_git_url, status, error_count, is_active, tactic, source_code, id)
+    VALUES ($1, $2, 'file', $3, 'active', 0, $4, $5, $6, COALESCE($7::uuid,gen_random_uuid()))
+    ON CONFLICT(id) DO NOTHING
     RETURNING id, user_id, name, source_type, file_path_or_git_url, status, error_count, is_active, tactic, created_at;
   `;
-  const res = await query(insertSql, [userId, botName || 'Bot Chiến Thuật', targetPath, shouldBeActive, tactic, code]);
-  return res.rows[0];
+  const res = await query(insertSql, [userId, botName || 'Bot Chiến Thuật', targetPath, shouldBeActive, tactic, code, botId || null]);
+  if (res.rows[0]) return res.rows[0];
+  try { fs.unlinkSync(targetPath); } catch {}
+  return (await query('SELECT id,name,is_active FROM "Bots" WHERE id=$1 AND user_id=$2',[botId,userId])).rows[0];
 }
 
 /**
