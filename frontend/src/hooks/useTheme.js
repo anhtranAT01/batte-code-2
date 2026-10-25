@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 function initialTheme() {
   const saved = localStorage.getItem('battlecode-theme');
   if (saved === 'light' || saved === 'dark') return saved;
-  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  return 'dark';
 }
 
 export default function useTheme() {

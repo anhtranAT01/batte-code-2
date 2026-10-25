@@ -17,7 +17,7 @@ const PAGE_META = {
   replay: ['Phân tích trận đấu', 'Trình xem lại ván cờ'],
 };
 
-export default function HeaderBar({ activeTab, onOpenAuthModal, theme, onToggleTheme, onNavigateTab }) {
+export default function HeaderBar({ activeTab, onOpenAuthModal, onNavigateTab }) {
   const { user, isAuthenticated, logout } = useAuth();
   const health = useSystemStatus();
 
@@ -87,17 +87,6 @@ export default function HeaderBar({ activeTab, onOpenAuthModal, theme, onToggleT
               : 'Đang kiểm tra...'}
           </span>
         </span>
-
-        {/* Theme Switcher Button */}
-        <button
-          type="button"
-          onClick={onToggleTheme}
-          className="icon-button"
-          title={theme === 'dark' ? 'Chuyển sang Giao diện sáng' : 'Chuyển sang Giao diện tối'}
-          aria-label="Đổi giao diện"
-        >
-          <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={18} />
-        </button>
 
         {/* User Account / Login State */}
         {isAuthenticated ? (

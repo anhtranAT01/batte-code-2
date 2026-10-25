@@ -19,6 +19,11 @@ separate existing process and also consumes capacity on that service.
 This queue is local to an API instance. Multi-instance execution and very large
 numbers of concurrent matches need a shared scheduler/worker deployment and a
 production load test; these changes do not establish an unlimited player count.
+On the current single Render API instance this admits at most 17 simultaneous
+match requests (one running and 16 waiting); this is a match limit, not a limit
+on spectators or WebSocket connections. Online-count broadcasts are coalesced
+for 500 ms during connection bursts, and per-socket lifecycle logs are disabled
+unless `SOCKET_VERBOSE_LOGS=true`.
 Uploaded Python bots still start an isolated process each turn, preserving the
 existing stdin/stdout protocol, timeout and fresh-process behavior. Output is
 limited to 128 KB per turn so a noisy bot cannot grow server buffers indefinitely.
