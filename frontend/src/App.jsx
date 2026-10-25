@@ -120,6 +120,7 @@ export default function App() {
               <PvPBotArenaView
                 onSelectReplay={handleOpenReplay}
                 preselectedOpponent={challengedOpponent}
+                onOpenBots={() => setActiveTab('bots')}
               />
             )}
 

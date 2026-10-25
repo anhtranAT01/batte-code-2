@@ -8,7 +8,7 @@ const botService = require('./bot.service');
 
 async function uploadBot(req, res, next) {
   try {
-    const { name, tactic } = req.body;
+    const { name } = req.body;
     const userId = req.user.id;
     const file = req.file;
 
@@ -16,7 +16,6 @@ async function uploadBot(req, res, next) {
       userId,
       botName: name,
       file,
-      tactic,
     });
 
     return res.status(201).json({
@@ -115,14 +114,13 @@ async function removeBot(req, res, next) {
 
 async function createBot(req, res, next) {
   try {
-    const { name, code, tactic = 'FLAG_RUSHER' } = req.body;
+    const { name, code } = req.body;
     const userId = req.user.id;
 
     const bot = await botService.createCodeBot({
       userId,
       botName: name,
       code,
-      tactic,
     });
 
     return res.status(201).json({
@@ -136,19 +134,13 @@ async function createBot(req, res, next) {
 }
 
 async function changeTactic(req, res, next) {
-  try {
-    const { id } = req.params;
-    const { tactic } = req.body;
-    const bot = await botService.updateBotTactic(id, req.user.id, tactic);
+  return res.status(400).json({success:false,
+    message:'Bot chạy nguyên mã nguồn bạn nộp. Để đổi thuật toán, hãy sửa mã nguồn và nộp bot mới.'});
+}
 
-    return res.status(200).json({
-      success: true,
-      message: `Đã cập nhật chiến thuật thành công: ${bot.tactic}`,
-      data: bot,
-    });
-  } catch (err) {
-    next(err);
-  }
+async function listPlayers(req, res, next) {
+  try { return res.json({success:true,data:await botService.getPlayers()}); }
+  catch (error) { next(error); }
 }
 
 async function getTemplates(req, res, next) {
@@ -226,4 +218,5 @@ module.exports = {
   activateBot,
   getTemplates,
   listCommunityBots,
+  listPlayers,
 };

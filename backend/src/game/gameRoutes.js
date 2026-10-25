@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const gameController = require('./gameController');
+const { authenticateJWT } = require('../auth/auth.middleware');
 
 // Optional auth token parser (if present, attaches req.user, otherwise allows guest)
 const jwt = require('jsonwebtoken');
@@ -62,5 +63,6 @@ router.get('/leaderboard', gameController.getLeaderboard);
  * @access  Public / Authenticated
  */
 router.post('/bot-vs-bot', optionalAuth, gameController.runAutomatedDuel);
+router.post('/pvp', authenticateJWT, gameController.runPvPDuel);
 
 module.exports = router;

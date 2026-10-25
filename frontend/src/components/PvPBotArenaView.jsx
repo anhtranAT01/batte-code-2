@@ -2,74 +2,55 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import GameBoard from './GameBoard';
 
-export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = null }) {
+export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = null, onOpenBots }) {
   const { user, getAuthHeaders } = useAuth();
 
-  // Selected duelists
-  const [myBots, setMyBots] = useState([]);
-  const [selectedMyBotId, setSelectedMyBotId] = useState('template_flag_rusher');
-  
-  const [communityBots, setCommunityBots] = useState([]);
-  const [selectedOpponentBotId, setSelectedOpponentBotId] = useState('');
-
+  const [players, setPlayers] = useState([]);
+  const [selectedOpponentId, setSelectedOpponentId] = useState(preselectedOpponent?.id || '');
   const [boardSize, setBoardSize] = useState(9);
   const [loading, setLoading] = useState(false);
   const [botsLoading, setBotsLoading] = useState(true);
   const [selectionError, setSelectionError] = useState('');
-
-  // Match execution & Replay states
   const [autoMatchData, setAutoMatchData] = useState(null);
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [playSpeed, setPlaySpeed] = useState(1);
   const timerRef = useRef(null);
 
-  // Fetch my bots and community student bots
-  useEffect(() => {
-    let cancelled = false;
+  const loadPlayers = async (isCancelled = () => false) => {
     setBotsLoading(true);
     setSelectionError('');
-    fetch('/api/bots/community')
-      .then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Không tải được danh sách đối thủ.');
-        return data;
-      })
-      .then((data) => {
-        if (cancelled) return;
-        const list = (data.data || []).filter((bot) => bot.user_id !== user?.id && bot.is_available !== false);
-        setCommunityBots(list);
-        setSelectedOpponentBotId((current) => list.some((bot) => bot.id === current) ? current : (list[0]?.id || ''));
-      })
-      .catch((error) => { if (!cancelled) setSelectionError(error.message); })
-      .finally(() => { if (!cancelled) setBotsLoading(false); });
-
-    if (user) {
-      fetch('/api/bots/my-bots', { headers: getAuthHeaders() })
-        .then((res) => (res.ok ? res.json() : { data: [] }))
-        .then((data) => {
-          if (cancelled) return;
-          const list = data.data || [];
-          setMyBots(list);
-          const active = list.find((b) => b.is_active);
-          setSelectedMyBotId((current) => list.some((bot) => bot.id === current) || current.startsWith('template_')
-            ? current : (active?.id || list[0]?.id || 'template_flag_rusher'));
-        })
-        .catch(console.warn);
+    try {
+      const response = await fetch('/api/bots/players');
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Không tải được danh sách người chơi.');
+      if (isCancelled()) return;
+      const list = data.data || [];
+      setPlayers(list);
+      setSelectedOpponentId(current => list.some(player => player.id === current && player.id !== user?.id)
+        ? current : list.find(player => player.id !== user?.id)?.id || '');
+    } catch (error) {
+      if (!isCancelled()) setSelectionError(error.message);
+    } finally {
+      if (!isCancelled()) setBotsLoading(false);
     }
+  };
+  useEffect(() => {
+    let cancelled = false;
+    loadPlayers(() => cancelled);
     return () => { cancelled = true; };
   }, [user?.id]);
-
   useEffect(() => {
-    if (!preselectedOpponent) return;
-    const match = communityBots.find((bot) => bot.user_id === preselectedOpponent.id
-      || bot.owner_name === preselectedOpponent.username);
-    if (match) setSelectedOpponentBotId(match.id);
-  }, [communityBots, preselectedOpponent?.id, preselectedOpponent?.username]);
+    if (preselectedOpponent?.id && preselectedOpponent.id !== user?.id) setSelectedOpponentId(preselectedOpponent.id);
+  }, [preselectedOpponent?.id, user?.id]);
 
-  // Autoplay step timer
   const replaySteps = autoMatchData?.replay?.steps || [];
   const totalSteps = replaySteps.length;
+  const opponents = players.filter(player => player.id !== user?.id);
+  const selectedOpponent = opponents.find(player => player.id === selectedOpponentId);
+  const ownProfile = players.find(player => player.id === user?.id);
+  const canStart = Boolean(user && ownProfile?.ready && selectedOpponent?.ready);
+  // Autoplay step timer
 
   useEffect(() => {
     if (autoMatchData && isPlaying && totalSteps > 0) {
@@ -92,77 +73,30 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
     };
   }, [autoMatchData, isPlaying, playSpeed, totalSteps]);
 
-  // Pick random opponent
   const handlePickRandomOpponent = () => {
-    const currentOwner = communityBots.find((bot) => bot.id === selectedOpponentBotId)?.user_id;
-    const others = communityBots.filter((b) => b.user_id !== user?.id && b.user_id !== currentOwner);
-    if (others.length > 0) {
-      const rand = others[Math.floor(Math.random() * others.length)];
-      setSelectedOpponentBotId(rand.id);
-    }
+    const others = opponents.filter(player => player.id !== selectedOpponentId);
+    if (others.length) setSelectedOpponentId(others[Math.floor(Math.random()*others.length)].id);
   };
-
-  // Launch PvP Duel
   const handleStartPvPDuel = async () => {
-    if (!selectedMyBotId) {
-      alert('Vui lòng chọn Bot của bạn ở Phe Xanh.');
-      return;
-    }
-    if (!selectedOpponentBotId) {
-      alert('Vui lòng chọn Bot của Sinh viên đối thủ ở Phe Đỏ.');
-      return;
-    }
-
+    if (!canStart) return;
     setLoading(true);
+    setSelectionError('');
     setAutoMatchData(null);
     setCurrentStepIdx(0);
     setIsPlaying(true);
-
     try {
-      const res = await fetch('/api/game/bot-vs-bot', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders(),
-        },
-        body: JSON.stringify({
-          bot1Id: selectedMyBotId,
-          bot2Id: selectedOpponentBotId,
-          boardSize,
-          difficulty: 'medium',
-        }),
+      const response = await fetch('/api/game/pvp', {
+        method:'POST',
+        headers:{'Content-Type':'application/json',...getAuthHeaders()},
+        body:JSON.stringify({opponentUserId:selectedOpponentId,boardSize}),
       });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Không thể tạo trận đấu PvP.');
-
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Không thể tạo trận đấu PvP.');
       setAutoMatchData(data.data);
-    } catch (err) {
-      alert(`Lỗi khởi tranh trận đấu PvP: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
+    } catch (error) {
+      setSelectionError(error.message);
+    } finally { setLoading(false); }
   };
-
-  const selectedOpponentBot = communityBots.find((b) => b.id === selectedOpponentBotId);
-  const selectedMyBot = myBots.find((b) => b.id === selectedMyBotId);
-  const hasOtherOpponent = communityBots.some((bot) => bot.user_id !== selectedOpponentBot?.user_id);
-
-  const getTacticBadge = (tactic) => {
-    switch (tactic) {
-      case 'FLAG_RUSHER':
-        return { label: 'Cướp cờ thần tốc', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' };
-      case 'FLAG_DEFENDER':
-        return { label: 'Thủ căn cứ & bẫy quân', color: 'bg-blue-500/20 text-blue-300 border-blue-500/30' };
-      case 'COMBAT_HUNTER':
-        return { label: 'Săn lùng & diệt địch', color: 'bg-purple-500/20 text-purple-300 border-purple-500/30' };
-      case 'POTION_COLLECTOR':
-        return { label: 'Thu thập vật phẩm', color: 'bg-amber-500/20 text-amber-300 border-amber-500/30' };
-      default:
-        return { label: 'A* Cướp cờ', color: 'bg-slate-700/50 text-slate-300 border-slate-600/30' };
-    }
-  };
-
   const currentStep = replaySteps[currentStepIdx] || null;
   const currentGrid =
     currentStep?.boardSnapshot ||
@@ -185,7 +119,7 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
-            Chế độ độc lập hoàn toàn giữa 2 sinh viên thật. Chọn Bot của bạn (Phe Xanh) và Bot của đối thủ (Phe Đỏ) để 2 thuật toán Python trực tiếp so tài theo luật Kéo - Búa - Bao & Cướp Cờ!
+            Chế độ độc lập hoàn toàn giữa 2 sinh viên thật. Chọn người chơi đối thủ. Hai bên tự động dùng bot chính do chính chủ kích hoạt để so tài theo luật Kéo - Búa - Bao & Cướp Cờ!
           </p>
         </div>
 
@@ -231,35 +165,13 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
                 </div>
               </div>
 
-              {/* Bot Selector for P1 */}
-              <div className="pt-2 space-y-1.5">
-                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                  Chọn Bot Python Của Bạn
-                </label>
-                <select
-                  value={selectedMyBotId}
-                  onChange={(e) => setSelectedMyBotId(e.target.value)}
-                  className="w-full py-2.5 px-3 rounded-xl bg-[#090d18] border border-blue-500/20 text-white text-xs font-semibold focus:outline-none focus:border-blue-400"
-                >
-                  {myBots.map((bot) => (
-                    <option key={bot.id} value={bot.id} disabled={bot.is_available === false}>
-                      {bot.name} {bot.is_available === false ? '(Cần tải lại file)' : bot.is_active ? '(Chính thức)' : ''}
-                    </option>
-                  ))}
-                  <option value="template_flag_rusher">Bot mẫu: A* Flag Rusher</option>
-                  <option value="template_alphabeta">Bot mẫu: Minimax Alpha-Beta</option>
-                </select>
-
-                {selectedMyBot && (
-                  <div className="flex items-center gap-2 pt-1">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${getTacticBadge(selectedMyBot.tactic).color}`}>
-                      {getTacticBadge(selectedMyBot.tactic).label}
-                    </span>
-                  </div>
-                )}
+              <div className="pt-2 space-y-2">
+                <p className="text-[11px] font-bold text-slate-400 uppercase">Bot chính của bạn</p>
+                <p className="text-sm font-semibold text-white">{ownProfile?.bot?.name || 'Chưa chọn bot chính'}</p>
+                <p className="text-xs text-slate-400">{ownProfile?.ready ? 'Chạy nguyên mã nguồn bạn đã nộp.' : ownProfile?.reason || 'Vào Kho bot để nộp và kích hoạt bot của bạn.'}</p>
+                <button type="button" onClick={onOpenBots} className="text-xs text-cyan-300 underline">Vào Kho bot chọn bot chính</button>
               </div>
             </div>
-
             {/* VS Divider */}
             <div className="lg:col-span-1 flex flex-col items-center justify-center py-2">
               <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-amber-500 to-red-500 flex items-center justify-center text-slate-950 font-black text-sm shadow-xl shadow-red-500/20 ring-4 ring-[#080b14]">
@@ -275,18 +187,18 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
                   PHE ĐỎ (CĂN CỨ {boardSize-1},{boardSize-1})
                 </span>
                 <span className="text-xs font-mono font-bold text-slate-400">
-                  {selectedOpponentBot?.owner_elo || 1400} Elo
+                  {selectedOpponent?.elo_rating ?? '—'} Elo
                 </span>
               </div>
 
               <div className="flex items-center justify-between pt-1">
                 <div className="flex items-center gap-3.5">
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-red-600 to-orange-500 flex items-center justify-center text-xl font-black text-white shadow-lg shadow-red-500/30">
-                    {selectedOpponentBot?.owner_name ? selectedOpponentBot.owner_name.charAt(0).toUpperCase() : 'O'}
+                    {selectedOpponent?.username ? selectedOpponent.username.charAt(0).toUpperCase() : 'O'}
                   </div>
                   <div>
                     <div className="font-extrabold text-white text-base">
-                      {selectedOpponentBot?.owner_name || 'Sinh Viên Đối Thủ'}
+                      {selectedOpponent?.username || 'Sinh Viên Đối Thủ'}
                     </div>
                     <div className="text-[11px] text-red-300 font-semibold mt-0.5">
                       Kỳ Thủ Phe Đỏ
@@ -297,53 +209,29 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
                 <button
                   type="button"
                   onClick={handlePickRandomOpponent}
-                  disabled={!hasOtherOpponent || botsLoading}
-                  title={hasOtherOpponent ? 'Chọn một người khác' : 'Chưa có người khác có bot để đổi'}
+                  disabled={opponents.length < 2 || botsLoading}
+                  title={opponents.length > 1 ? 'Chọn một người khác' : 'Chưa có người chơi khác để đổi'}
                   className="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-[11px] font-semibold border border-white/5 transition-all flex items-center gap-1"
                 >
                   <span>Đổi ngẫu nhiên</span>
                 </button>
               </div>
 
-              {/* Bot Selector for P2 */}
-              <div className="pt-2 space-y-1.5">
-                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                  Chọn Sinh Viên & Bot Đối Thủ
-                </label>
-                <select
-                  value={selectedOpponentBotId}
-                  onChange={(e) => setSelectedOpponentBotId(e.target.value)}
-                  className="w-full py-2.5 px-3 rounded-xl bg-[#090d18] border border-red-500/20 text-white text-xs font-semibold focus:outline-none focus:border-red-400"
-                >
-                  <option value="" disabled>{botsLoading ? 'Đang tải đối thủ...' : 'Chọn đối thủ'}</option>
-                  {communityBots
-                    .filter((b) => b.user_id !== user?.id)
-                    .map((bot) => (
-                      <option key={bot.id} value={bot.id}>
-                        {bot.owner_name} ({bot.owner_elo} Elo) — {bot.name}
-                      </option>
-                    ))}
+              <div className="pt-2 space-y-2">
+                <label className="block text-[11px] font-bold text-slate-400 uppercase">Chọn người chơi đối thủ</label>
+                <select aria-label="Người chơi đối thủ" value={selectedOpponentId}
+                  onChange={event => setSelectedOpponentId(event.target.value)}
+                  className="w-full py-2.5 px-3 rounded-xl bg-[#090d18] border border-red-500/20 text-white text-xs font-semibold">
+                  <option value="" disabled>{botsLoading ? 'Đang tải người chơi...' : 'Chọn người chơi'}</option>
+                  {opponents.map(player => <option key={player.id} value={player.id}>{player.username} ({player.elo_rating} Elo){player.ready ? '' : ' — Chưa sẵn sàng'}</option>)}
                 </select>
-                {!botsLoading && !hasOtherOpponent && (
-                  <p className="text-[11px] text-slate-400">
-                    {communityBots.length ? 'Hiện chỉ có một người khác có bot. Chưa có thêm đối thủ để đổi.' : 'Chưa có người chơi khác có bot. Bạn có thể vào Luyện tập đấu với Boss.'}
-                  </p>
-                )}
-
-                {selectedOpponentBot && (
-                  <div className="flex items-center gap-2 pt-1">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${getTacticBadge(selectedOpponentBot.tactic).color}`}>
-                      {getTacticBadge(selectedOpponentBot.tactic).label}
-                    </span>
-                    <span className="text-[10px] text-slate-400">
-                      Tác giả: <strong className="text-white">{selectedOpponentBot.owner_name}</strong>
-                    </span>
-                  </div>
-                )}
+                <p className="text-xs text-slate-300">Bot chính: <strong>{selectedOpponent?.bot?.name || 'Chưa chọn'}</strong></p>
+                <p className="text-xs text-slate-400">{selectedOpponent?.ready ? 'Bot do chính người chơi này kích hoạt. Bạn không thể đổi bot hộ họ.' : selectedOpponent?.reason || 'Chọn người chơi để xem bot chính của họ.'}</p>
+                <button type="button" onClick={() => loadPlayers()} disabled={botsLoading} className="text-xs text-cyan-300 underline">Làm mới danh sách và bot chính</button>
+                {!botsLoading && !opponents.length && <p className="text-xs text-slate-400">Chưa có người chơi khác đăng ký.</p>}
               </div>
             </div>
           </div>
-
           {/* Match Settings & Launch Button */}
           <div className="p-6 rounded-2xl bg-[#0e1322]/80 border border-white/5 backdrop-blur-md grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
             <div>
@@ -380,7 +268,7 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
             <div>
               <button
                 onClick={handleStartPvPDuel}
-                disabled={loading || botsLoading || !selectedMyBotId || !selectedOpponentBotId}
+                disabled={loading || botsLoading || !canStart}
                 className="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 disabled:opacity-50 text-white font-black text-sm shadow-xl shadow-cyan-950/50 transition-all flex items-center justify-center gap-2 tracking-wide"
               >
                 <span>{loading ? 'Đang Khởi Chạy 2 Bot Python...' : 'KHỞI TRANH ĐẤU BOT 2 NGƯỜI (PvP)'}</span>

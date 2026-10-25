@@ -1,13 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
-const TACTIC_OPTIONS = [
-  { id: 'FLAG_RUSHER', label: 'Cướp Cờ Thần Tốc (A* Flag Rusher)', desc: 'Tính đường đi ngắn nhất đâm thẳng vào Căn cứ Cờ đối phương để thắng chớp nhoáng' },
-  { id: 'FLAG_DEFENDER', label: 'Thủ Căn Cứ & Bẫy Quân (Flag Defender)', desc: 'Bố trí chốt chặn cửa ngõ căn cứ nhà, bọc lót theo bộ 3 Kéo-Búa-Bao' },
-  { id: 'COMBAT_HUNTER', label: 'Săn Lùng & Diệt Địch (Minimax Combat)', desc: 'Dự đoán nước đi 3-4 bước, săn lùng ăn quân đối phương để giành ưu thế áp đảo' },
-  { id: 'POTION_COLLECTOR', label: 'Thu Thập Vật Phẩm (Potion Hunter)', desc: 'Ưu tiên nhặt vật phẩm tăng tốc và đồng hóa trước khi giao tranh' },
-];
-
 export default function BotVaultView() {
   const { user, getAuthHeaders } = useAuth();
 
@@ -21,7 +14,6 @@ export default function BotVaultView() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [gitUrl, setGitUrl] = useState('');
   const [codeContent, setCodeContent] = useState('');
-  const [selectedTactic, setSelectedTactic] = useState('FLAG_RUSHER');
   const [uploadMode, setUploadMode] = useState('code'); // 'code' | 'file' | 'git'
   const [uploading, setUploading] = useState(false);
   const [alertMsg, setAlertMsg] = useState(null);
@@ -79,23 +71,6 @@ export default function BotVaultView() {
     }
   };
 
-  // Change tactic
-  const handleChangeTactic = async (botId, newTactic) => {
-    try {
-      const res = await fetch(`/api/bots/${botId}/tactic`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ tactic: newTactic }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
-      setAlertMsg({ type: 'success', text: `Đã đổi chiến thuật thành công: ${newTactic}` });
-      fetchMyBots();
-    } catch (err) {
-      setAlertMsg({ type: 'error', text: err.message });
-    }
-  };
-
   // Delete bot
   const handleDeleteBot = async (botId, name) => {
     if (!confirm(`Bạn có chắc muốn xóa bot "${name}"?`)) return;
@@ -138,7 +113,6 @@ export default function BotVaultView() {
           body: JSON.stringify({
             name: botName.trim(),
             code: codeContent.trim(),
-            tactic: selectedTactic,
           }),
         });
         const data = await res.json();
@@ -151,7 +125,6 @@ export default function BotVaultView() {
         const formData = new FormData();
         formData.append('name', botName.trim());
         formData.append('file', selectedFile);
-        formData.append('tactic', selectedTactic);
 
         const res = await fetch('/api/bots/upload', {
           method: 'POST',
@@ -194,7 +167,6 @@ export default function BotVaultView() {
   const handleUseTemplate = (tpl) => {
     setBotName(`${tpl.id}_custom`);
     setCodeContent(tpl.code);
-    setSelectedTactic(tpl.id.includes('flag') ? 'FLAG_RUSHER' : 'COMBAT_HUNTER');
     setUploadMode('code');
     setActiveSubTab('upload');
   };
@@ -345,25 +317,7 @@ export default function BotVaultView() {
 
                     <h3 className="font-bold text-white text-base mt-3">{bot.name}</h3>
 
-                    {/* Tactic Selector */}
-                    <div className="mt-3 p-2.5 rounded-xl bg-[#090d18] border border-white/5 space-y-1">
-                      <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        <span>Chiến Thuật Thi Đấu:</span>
-                        <span className="text-indigo-400">Tùy biến</span>
-                      </div>
-                      <select
-                        value={bot.tactic || 'FLAG_RUSHER'}
-                        onChange={(e) => handleChangeTactic(bot.id, e.target.value)}
-                        className="w-full bg-[#0c101d] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white font-medium focus:ring-1 focus:ring-indigo-500"
-                      >
-                        {TACTIC_OPTIONS.map((opt) => (
-                          <option key={opt.id} value={opt.id}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
+<p className="mt-3 text-xs text-slate-400">Thuật toán nằm trong mã nguồn bạn đã nộp. Muốn đổi cách chơi, hãy sửa code và nộp bot mới.</p>
                     <div className="mt-3 text-xs text-slate-400 space-y-1">
                       <div className="flex justify-between">
                         <span>Nguồn:</span>
@@ -592,22 +546,7 @@ export default function BotVaultView() {
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-                  Chiến Thuật Chủ Đạo
-                </label>
-                <select
-                  value={selectedTactic}
-                  onChange={(e) => setSelectedTactic(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#090d18] border border-white/10 text-white text-xs focus:outline-none focus:border-indigo-500 font-medium"
-                >
-                  {TACTIC_OPTIONS.map((opt) => (
-                    <option key={opt.id} value={opt.id}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+<div className="text-xs text-slate-400 self-center">Bot sẽ chạy nguyên mã nguồn Python bạn nộp. Chọn “Bot chính” trong kho để dùng bot này khi thi đấu PvP.</div>
             </div>
 
             {uploadMode === 'code' && (

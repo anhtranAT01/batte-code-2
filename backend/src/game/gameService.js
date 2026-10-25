@@ -298,6 +298,29 @@ async function getLeaderboard(limit = 50) {
 const { resolveBotPath } = require('../bot/botStorage');
 const { getTemplateBot, playBotTurn } = require('./botDuel');
 
+async function runPvPDuel({userId,userName,opponentUserId,boardSize = 9}) {
+  const fail = (message,statusCode = 400) => { const error = new Error(message); error.statusCode = statusCode; throw error; };
+  if (!userId) fail('Bạn cần đăng nhập để thi đấu PvP.',401);
+  if (!opponentUserId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(opponentUserId)) {
+    fail('Vui lòng chọn người chơi đối thủ.');
+  }
+  if (opponentUserId === userId) fail('Hãy chọn một người chơi khác.');
+  const {rows} = await query(`
+    SELECT DISTINCT ON (user_id) * FROM "Bots"
+    WHERE user_id IN ($1,$2) AND is_active = true AND status = 'active'
+    ORDER BY user_id, updated_at DESC, id
+  `,[userId,opponentUserId]);
+  const own = rows.find(bot => bot.user_id === userId);
+  const opponent = rows.find(bot => bot.user_id === opponentUserId);
+  if (!own) fail('Bạn chưa chọn bot chính. Vào Kho bot, chọn bot bạn đã nộp làm bot chính.',422);
+  if (!opponent) fail('Đối thủ chưa chọn bot chính. Hãy chọn người khác hoặc chờ họ kích hoạt bot.',422);
+  // Snapshot each owner's choice at match start. No bot IDs come from the challenger.
+  resolveBotPath(own);
+  resolveBotPath(opponent);
+  return runAutomatedBotDuel({userId,userName,bot1Id:own.id,bot2Id:opponent.id,
+    boardSize,difficulty:'medium'});
+}
+
 /**
  * Execute a complete automated match between Bot 1 and Bot 2 (AI Boss or Python Bot)
  */
@@ -320,7 +343,7 @@ async function runAutomatedBotDuel({
   let bot1RecordId = null;
 
   if (!template1) {
-    const bRes = await query('SELECT * FROM "Bots" WHERE id = $1', [bot1Id]);
+    const bRes = await query('SELECT * FROM "Bots" WHERE id = $1 AND user_id = $2', [bot1Id,userId]);
     if (bRes.rows.length > 0) {
       const b = bRes.rows[0];
       bot1ScriptPath = resolveBotPath(b);
@@ -446,4 +469,5 @@ module.exports = {
   getRecentMatches,
   getLeaderboard,
   runAutomatedBotDuel,
+  runPvPDuel,
 };

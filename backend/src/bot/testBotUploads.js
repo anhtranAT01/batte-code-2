@@ -39,14 +39,12 @@ async function main() {
     const body = new FormData();
     body.append('name','My uploaded bot');
     body.append('file',new File([source],'MyBot.PY'));
-    body.append('tactic','POTION_COLLECTOR');
     const response = await fetch(`${url}/api/bots/upload`,{method:'POST',body});
     const data = await response.json();
     assert.equal(response.status,201,JSON.stringify(data));
-    assert.equal(data.data.tactic,'POTION_COLLECTOR');
     assert.equal(records[0].source_code,source);
     assert.equal(fs.readFileSync(records[0].file_path_or_git_url,'utf8'),source);
-    console.log('PASS: real multipart upload accepts .PY, stores selected file/tactic and backs up source');
+    console.log('PASS: real multipart upload accepts .PY and backs up the submitted source unchanged');
 
     fs.unlinkSync(records[0].file_path_or_git_url);
     assert.ok(isBotAvailable(records[0]));

@@ -220,15 +220,39 @@ async function activateBot(botId, userId) {
     throw error;
   }
 
-  // Deactivate all bots for user
-  await query('UPDATE "Bots" SET is_active = false WHERE user_id = $1', [userId]);
-
-  // Activate chosen bot
+  if (!isBotAvailable(bot)) {
+    const error = new Error('File bot không còn trên máy chủ. Hãy nộp lại file trước khi chọn làm bot chính.');
+    error.statusCode = 422;
+    throw error;
+  }
+  // One statement changes the owner's official bot; callers cannot activate
+  // another player's bot or leave multiple choices through a partial update.
   const res = await query(
-    'UPDATE "Bots" SET is_active = true WHERE id = $1 RETURNING *',
-    [botId]
+    'UPDATE "Bots" SET is_active = (id = $1), updated_at = NOW() WHERE user_id = $2 RETURNING *',
+    [botId, userId]
   );
-  return res.rows[0];
+  const {source_code, ...selected} = res.rows.find(row => row.id === botId);
+  return selected;
+}
+
+/** List players independently of bot readiness so a missing bot never hides a person. */
+async function getPlayers() {
+  const result = await query(`
+    SELECT u.id, u.username, u.elo_rating, b.id AS bot_id, b.name AS bot_name,
+           b.user_id, b.source_type, b.file_path_or_git_url, b.source_code
+    FROM "Users" u
+    LEFT JOIN LATERAL (
+      SELECT * FROM "Bots" WHERE user_id = u.id AND is_active = true AND status = 'active'
+      ORDER BY updated_at DESC, id LIMIT 1
+    ) b ON true
+    ORDER BY u.elo_rating DESC, u.username, u.id
+  `);
+  return result.rows.map(row => {
+    const ready = Boolean(row.bot_id && isBotAvailable({...row,id:row.bot_id}));
+    return {id:row.id,username:row.username,elo_rating:row.elo_rating,
+      bot:row.bot_id ? {id:row.bot_id,name:row.bot_name} : null,
+      ready, reason:ready ? null : row.bot_id ? 'Bot chính cần tải lại file.' : 'Người chơi chưa chọn bot chính.'};
+  });
 }
 
 /**
@@ -273,27 +297,6 @@ async function createCodeBot({ userId, botName, code, tactic = 'FLAG_RUSHER' }) 
 }
 
 /**
- * Update bot tactic (Chiến thuật)
- */
-async function updateBotTactic(botId, userId, tactic) {
-  const bot = await getBotById(botId, userId);
-  if (!bot) {
-    const error = new Error('Không tìm thấy Bot của bạn.');
-    error.statusCode = 404;
-    throw error;
-  }
-
-  const validTactics = ['FLAG_RUSHER', 'FLAG_DEFENDER', 'COMBAT_HUNTER', 'POTION_COLLECTOR'];
-  const assignedTactic = validTactics.includes(tactic) ? tactic : 'FLAG_RUSHER';
-
-  const res = await query(
-    'UPDATE "Bots" SET tactic = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
-    [assignedTactic, botId]
-  );
-  return res.rows[0];
-}
-
-/**
  * Get all active student bots across the community for PvP challenges
  */
 async function getCommunityBots() {
@@ -316,11 +319,11 @@ module.exports = {
   saveUploadedBot,
   saveGitBot,
   createCodeBot,
-  updateBotTactic,
   getUserBots,
   getBotById,
   deleteBot,
   activateBot,
   validatePythonSyntax,
   getCommunityBots,
+  getPlayers,
 };

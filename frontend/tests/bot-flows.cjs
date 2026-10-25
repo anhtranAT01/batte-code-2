@@ -30,44 +30,48 @@ const button = (tree,label) => tree.root.findAllByType('button').find(node => te
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return {promise,resolve}; };
 
 async function main() {
-  const opponents = [
-    {id:'self',user_id:'me',owner_name:'Me'},
-    {id:'b1',user_id:'one',owner_name:'One'},
-    {id:'b2',user_id:'two',owner_name:'Two'},
-    {id:'b3',user_id:'two',owner_name:'Two'},
+  const players = [
+    {id:'me',username:'Me',ready:true,bot:{id:'mine',name:'My uploaded algorithm'}},
+    {id:'one',username:'One',ready:true,bot:{id:'official-one',name:'Official One'}},
+    {id:'two',username:'Two',ready:true,bot:{id:'official-two',name:'Official Two'}},
+    {id:'three',username:'Three',ready:false,bot:null,reason:'Người chơi chưa chọn bot chính.'},
+    {id:'lost',username:'Lost',ready:false,bot:{id:'missing',name:'Missing file'},reason:'Bot chính cần tải lại file.'},
   ];
   const calls = [];
   global.fetch = async (url,init) => {
     calls.push({url,init});
-    return response(url.includes('community') ? opponents : url.includes('my-bots') ? [] : {replay:{steps:[]}});
+    return response(url.includes('/players') ? [...players] : {replay:{steps:[]}});
   };
   let tree;
   await act(async () => { tree = create(React.createElement(PvP)); });
-  assert.equal(tree.root.findAllByType('select')[0].props.value,'template_flag_rusher');
-  assert.equal(tree.root.findAllByType('select')[1].props.value,'b1');
+  assert.equal(tree.root.findAllByType('select').length,1,'Only the player can be selected, never their bot');
+  assert.equal(tree.root.findByType('select').props.value,'one');
+  assert.equal(tree.root.findByType('select').findAllByType('option').length,5,'Unready and missing-file players stay visible');
   await act(async () => { button(tree,'Đổi ngẫu nhiên').props.onClick(); });
-  assert.ok(['b2','b3'].includes(tree.root.findAllByType('select')[1].props.value));
-  await act(async () => { button(tree,'Đổi ngẫu nhiên').props.onClick(); });
-  assert.equal(tree.root.findAllByType('select')[1].props.value,'b1');
-  await act(async () => { tree.root.findAllByType('select')[1].props.onChange({target:{value:'b2'}}); });
+  assert.notEqual(tree.root.findByType('select').props.value,'one');
+  await act(async () => { tree.root.findByType('select').props.onChange({target:{value:'three'}}); });
+  assert.equal(tree.root.findByType('select').props.value,'three');
+  assert.equal(button(tree,'KHỞI TRANH').props.disabled,true);
+  await act(async () => { tree.root.findByType('select').props.onChange({target:{value:'two'}}); });
   auth = {...auth,user:{...auth.user,elo_rating:1300}};
   await act(async () => { tree.update(React.createElement(PvP)); });
-  assert.equal(tree.root.findAllByType('select')[1].props.value,'b2');
+  assert.equal(tree.root.findByType('select').props.value,'two');
+  players[2] = {...players[2],bot:{id:'new-official',name:'New Official Two'}};
+  await act(async () => { button(tree,'Làm mới').props.onClick(); });
+  assert.ok(tree.root.findAllByType('strong').some(node => text(node.props.children) === 'New Official Two'));
   await act(async () => { button(tree,'KHỞI TRANH').props.onClick(); });
-  const duel = calls.find(call => call.url.includes('bot-vs-bot'));
-  assert.deepEqual(JSON.parse(duel.init.body),{
-    bot1Id:'template_flag_rusher',bot2Id:'b2',boardSize:9,difficulty:'medium',
-  });
+  const duel = calls.find(call => call.url === '/api/game/pvp');
+  assert.deepEqual(JSON.parse(duel.init.body),{opponentUserId:'two',boardSize:9});
   assert.deepEqual(alerts,[]);
   act(() => tree.unmount());
-  console.log('PASS: visible default can start PvP; random changes owner; profile refresh preserves opponent');
+  console.log('PASS: all players are selectable, unready players explain readiness, official bots are read-only, PvP sends only the player ID');
 
-  global.fetch = async url => response(url.includes('community') ? [opponents[1]] : []);
-  await act(async () => { tree = create(React.createElement(PvP)); });
+  global.fetch = async () => response(players.slice(0,2));
+  await act(async () => { tree = create(React.createElement(PvP,{preselectedOpponent:{id:'one',username:'One'}})); });
+  assert.equal(tree.root.findByType('select').props.value,'one');
   assert.equal(button(tree,'Đổi ngẫu nhiên').props.disabled,true);
   act(() => tree.unmount());
-  console.log('PASS: one available opponent does not offer a misleading random change');
-
+  console.log('PASS: leaderboard challenges resolve by player ID; a single opponent cannot be randomly changed');
   const pending = deferred();
   let practiceBody;
   global.fetch = async (url,init) => {
@@ -91,7 +95,9 @@ async function main() {
     return response([]);
   };
   await act(async () => { tree = create(React.createElement(Vault)); });
+  assert.equal(tree.root.findAllByType('select').length,0,'Vault has no tactic override');
   await act(async () => { button(tree,'+ Nộp').props.onClick(); });
+  assert.equal(tree.root.findAllByType('select').length,0,'Upload form has no tactic override');
   await act(async () => { button(tree,'Tải lên file').props.onClick(); });
   const file = new File(['print("{}")'],'MyBot.PY',{type:'text/x-python'});
   await act(async () => { tree.root.findByProps({type:'file'}).props.onChange({target:{files:[file]}}); });
@@ -105,7 +111,7 @@ async function main() {
   assert.equal(uploaded.get('file').name,'MyBot.PY');
   assert.equal(await uploaded.get('file').text(),'print("{}")');
   assert.equal(uploaded.get('name'),'MyBot');
-  assert.equal(uploaded.get('tactic'),'FLAG_RUSHER');
+  assert.equal(uploaded.get('tactic'),null);
   act(() => tree.unmount());
   console.log('PASS: file survives mode changes/cancel and multipart submission contains the selected Python file');
 }

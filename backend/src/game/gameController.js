@@ -117,6 +117,8 @@ async function getLeaderboard(req, res, next) {
 
 async function runAutomatedDuel(req, res, next) {
   try {
+    if (req.body.bot2Id) return res.status(400).json({success:false,
+      message:'Đấu PvP phải chọn người chơi; hệ thống sẽ dùng bot chính do họ kích hoạt.'});
     const { bot1Id, bot2Level = 'MEDIUM', bot2Id, boardSize = 9, difficulty = 'medium' } = req.body;
     const userId = req.user?.id || null;
     const userName = req.user?.username || 'Kỳ Thủ Khách';
@@ -141,6 +143,18 @@ async function runAutomatedDuel(req, res, next) {
   }
 }
 
+async function runPvPDuel(req, res, next) {
+  try {
+    if (req.body.bot1Id || req.body.bot2Id) return res.status(400).json({success:false,
+      message:'Không chọn bot hộ người chơi. Trận PvP dùng bot chính của mỗi người.'});
+    const data = await gameService.runPvPDuel({
+      userId:req.user.id,userName:req.user.username,opponentUserId:req.body.opponentUserId,
+      boardSize:Number(req.body.boardSize || 9),
+    });
+    return res.json({success:true,data});
+  } catch (error) { next(error); }
+}
+
 module.exports = {
   createPractice,
   makeMove,
@@ -149,4 +163,5 @@ module.exports = {
   getRecentMatches,
   getLeaderboard,
   runAutomatedDuel,
+  runPvPDuel,
 };

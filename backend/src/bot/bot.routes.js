@@ -69,6 +69,7 @@ router.get('/templates', botController.getTemplates);
  * @access  Public
  */
 router.get('/community', botController.listCommunityBots);
+router.get('/players', botController.listPlayers);
 
 /**
  * @route   GET /api/bots/:id
