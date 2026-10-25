@@ -11,6 +11,7 @@ dotenv.config();
 const path = require('path');
 
 const { pool, checkDbConnection } = require('./config/db');
+const { createOnlineCountBroadcaster } = require('./realtime/onlineCount');
 const authRoutes = require('./auth/auth.routes');
 
 const app = express();
@@ -90,8 +91,10 @@ app.get('/api/health', async (req, res) => {
 });
 
 // Real-time WebSocket connection handling
+const onlineCount = createOnlineCountBroadcaster(io);
+const logSocketLifecycle = process.env.SOCKET_VERBOSE_LOGS === 'true';
 io.on('connection', (socket) => {
-  console.log(`[Socket.io] Client connected: ${socket.id}`);
+  if (logSocketLifecycle) console.log(`[Socket.io] Client connected: ${socket.id}`);
 
   // Heartbeat ping from client
   socket.on('cf:ping', () => {
@@ -116,13 +119,13 @@ io.on('connection', (socket) => {
   });
 
   // Broadcast online user count
-  io.emit('online:count', { count: io.engine.clientsCount });
+  onlineCount.schedule();
 
   // Questions use authenticated, owner-scoped REST routes; no public message broadcast.
 
   socket.on('disconnect', (reason) => {
-    console.log(`[Socket.io] Client disconnected: ${socket.id} (Reason: ${reason})`);
-    io.emit('online:count', { count: io.engine.clientsCount });
+    if (logSocketLifecycle) console.log(`[Socket.io] Client disconnected: ${socket.id} (Reason: ${reason})`);
+    onlineCount.schedule();
   });
 });
 
@@ -173,6 +176,7 @@ server.listen(PORT, async () => {
 
 // Graceful Shutdown
 function handleShutdown(signal) {
+  onlineCount.close();
   console.log(`\n[Process] Received ${signal}. Gracefully closing server and database pool...`);
   require('./game/duelExecutor').shutdown().catch(console.error);
   require('./support/submissionQueue').stop();

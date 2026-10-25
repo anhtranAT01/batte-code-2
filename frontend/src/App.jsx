@@ -116,8 +116,6 @@ export default function App() {
         <HeaderBar
           activeTab={activeTab}
           onOpenAuthModal={handleOpenAuthModal}
-          theme={theme}
-          onToggleTheme={toggleTheme}
           onNavigateTab={handleSelectTab}
         />
 
@@ -133,7 +131,7 @@ export default function App() {
                 onNavigateTab={handleSelectTab}
               />
             )}
-            {activeTab === 'status' && <SystemStatus />}
+            {activeTab === 'status' && <SystemStatus theme={theme} onToggleTheme={toggleTheme} />}
 
             {activeTab === 'pvp' && (
               <PvPBotArenaView
