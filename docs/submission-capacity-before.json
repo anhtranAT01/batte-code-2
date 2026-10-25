@@ -1,0 +1,99 @@
+{
+  "measuredAt": "2026-10-25T16:33:00.497Z",
+  "environment": {
+    "type": "local HTTP + in-memory PGlite; not Render capacity",
+    "platform": "win32",
+    "cpus": 16,
+    "node": "v18.20.8"
+  },
+  "ingestion": [
+    {
+      "users": 50,
+      "concurrentRequests": 10,
+      "sourceBytes": 20480,
+      "statuses": {
+        "202": 50
+      },
+      "elapsedMs": 397.3,
+      "p50Ms": 71.6,
+      "p95Ms": 107.2,
+      "p99Ms": 109.9,
+      "attemptedUsersPerSecond": 125.9,
+      "confirmedUsersPerSecond": 125.8
+    },
+    {
+      "users": 200,
+      "concurrentRequests": 50,
+      "sourceBytes": 20480,
+      "statuses": {
+        "202": 200
+      },
+      "elapsedMs": 1450.5,
+      "p50Ms": 345.4,
+      "p95Ms": 472,
+      "p99Ms": 474.8,
+      "attemptedUsersPerSecond": 137.9,
+      "confirmedUsersPerSecond": 137.9
+    },
+    {
+      "users": 500,
+      "concurrentRequests": 100,
+      "sourceBytes": 20480,
+      "statuses": {
+        "202": 500
+      },
+      "elapsedMs": 3290.7,
+      "p50Ms": 629.2,
+      "p95Ms": 880.2,
+      "p99Ms": 964.1,
+      "attemptedUsersPerSecond": 151.9,
+      "confirmedUsersPerSecond": 151.9
+    },
+    {
+      "users": 1000,
+      "concurrentRequests": 200,
+      "sourceBytes": 20480,
+      "statuses": {
+        "202": 1000
+      },
+      "elapsedMs": 6586.9,
+      "p50Ms": 1231.6,
+      "p95Ms": 1993,
+      "p99Ms": 2329.7,
+      "attemptedUsersPerSecond": 151.8,
+      "confirmedUsersPerSecond": 151.8
+    },
+    {
+      "users": 10,
+      "concurrentRequests": 10,
+      "sourceBytes": 2097152,
+      "statuses": {
+        "202": 10
+      },
+      "elapsedMs": 727.1,
+      "p50Ms": 680.1,
+      "p95Ms": 724.1,
+      "p99Ms": 724.1,
+      "attemptedUsersPerSecond": 13.8,
+      "confirmedUsersPerSecond": 13.8
+    }
+  ],
+  "boundaries": {
+    "pendingPerAccount": 20,
+    "rejectedOverQuota": 20,
+    "duplicateRetries": 100,
+    "storedCopies": 1,
+    "oversizedAsciiStatus": 400,
+    "oversizedUtf8Status": 413,
+    "anonymousStatus": 401
+  },
+  "judge": {
+    "submissions": 8,
+    "elapsedMs": 14647.6,
+    "submissionsPerMinute": 32.8,
+    "pingP95Ms": 4.7,
+    "statuses": {
+      "accepted": 8
+    }
+  }
+}

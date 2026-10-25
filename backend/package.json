@@ -5,6 +5,7 @@
   "main": "src/server.js",
   "scripts": {
     "test:resilience": "node src/support/testSupport.js",
+    "test:submission-capacity": "node src/support/testSubmissionCapacity.js",
     "test:realtime": "node src/realtime/testOnlineCount.js",
     "test:recovery-email": "node src/auth/testRecoveryEmailProviders.js",
     "test:tournament-teams": "node src/tournament/testTournamentTeam.js",

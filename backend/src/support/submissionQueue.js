@@ -2,7 +2,7 @@ const {Worker}=require('worker_threads');
 const path=require('path');
 const {query}=require('../config/db');
 const {createCodeBot}=require('../bot/bot.service');
-let busy=false,timer,worker;
+let busy=false,running=false,timer,worker;
 const state={checkedAt:null,available:null,paused:false};
 function validate(source) {
   return new Promise((resolve,reject)=>{
@@ -15,16 +15,16 @@ function validate(source) {
   });
 }
 async function tick() {
-  if(busy)return;busy=true;
+  if(busy)return false;busy=true;
   try {
     const settings=(await query(`SELECT value FROM "SystemSettings" WHERE key='judge'`)).rows[0]?.value;
     state.paused=Boolean(settings?.paused);
-    if(state.paused)return;
+    if(state.paused)return false;
     // Atomic lease permits multiple API instances, including recovery after a crash.
     const job=(await query(`UPDATE "Submissions" SET status='processing',locked_until=NOW()+INTERVAL '45 seconds',attempts=attempts+1
       WHERE id=(SELECT id FROM "Submissions" WHERE (status='pending' AND retry_at<=NOW()) OR (status='processing' AND locked_until<NOW())
       ORDER BY received_at FOR UPDATE SKIP LOCKED LIMIT 1) RETURNING *`)).rows[0];
-    if(!job)return;
+    if(!job)return false;
     try {
       const existing=(await query('SELECT id FROM "Bots" WHERE id=$1 AND user_id=$2',[job.bot_id,job.user_id])).rows[0];
       if(!existing){
@@ -38,9 +38,16 @@ async function tick() {
       await query(`UPDATE "Submissions" SET status=$2,message=$3,locked_until=NULL,retry_at=NOW()+($4*INTERVAL '1 second'),completed_at=CASE WHEN $2='rejected' THEN NOW() ELSE NULL END WHERE id=$1`,
         [job.id,invalid?'rejected':'pending',invalid?error.message:'Máy chấm tạm gián đoạn; bài vẫn được lưu và sẽ thử lại.',Math.min(60,2**Math.min(job.attempts,6))]);
     }
-  } catch(error) {console.error('[Submission queue]',error.message);}
+    return true;
+  } catch(error) {console.error('[Submission queue]',error.message);return false;}
   finally{busy=false;}
 }
-function start(){timer=setInterval(tick,2000);timer.unref();tick();}
-function stop(){clearInterval(timer);worker?.terminate();}
+async function poll(){
+  if(!running)return;
+  const processed=await tick();
+  // Drain ready work immediately. Idle, paused and unavailable queues still back off.
+  if(running){timer=setTimeout(poll,processed?0:2000);timer.unref();}
+}
+function start(){if(running)return;running=true;poll();}
+function stop(){running=false;clearTimeout(timer);worker?.terminate();}
 module.exports={start,stop,tick,state};

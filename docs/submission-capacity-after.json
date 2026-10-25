@@ -1,0 +1,180 @@
+{
+  "measuredAt": "2026-10-25T16:41:16.384Z",
+  "environment": {
+    "type": "local HTTP + in-memory PGlite; not Render capacity",
+    "platform": "win32",
+    "cpus": 16,
+    "node": "v18.20.8"
+  },
+  "ingestion": [
+    {
+      "users": 50,
+      "concurrentRequests": 10,
+      "sourceBytes": 20480,
+      "statuses": {
+        "202": 50
+      },
+      "initialFailures": 0,
+      "initialFailureCodes": [],
+      "elapsedMs": 478.2,
+      "p50Ms": 90.2,
+      "p95Ms": 132.7,
+      "p99Ms": 134.7,
+      "storedAfterBurst": 50,
+      "unconfirmedAfterOneRetry": 0,
+      "storedAfterRecovery": 50,
+      "attemptedUsersPerSecond": 104.6,
+      "confirmedUsersPerSecond": 104.6
+    },
+    {
+      "users": 200,
+      "concurrentRequests": 50,
+      "sourceBytes": 20480,
+      "statuses": {
+        "202": 200
+      },
+      "initialFailures": 0,
+      "initialFailureCodes": [],
+      "elapsedMs": 1254.1,
+      "p50Ms": 297.8,
+      "p95Ms": 438.5,
+      "p99Ms": 441.1,
+      "storedAfterBurst": 200,
+      "unconfirmedAfterOneRetry": 0,
+      "storedAfterRecovery": 200,
+      "attemptedUsersPerSecond": 159.5,
+      "confirmedUsersPerSecond": 159.5
+    },
+    {
+      "users": 500,
+      "concurrentRequests": 100,
+      "sourceBytes": 20480,
+      "statuses": {
+        "202": 500
+      },
+      "initialFailures": 0,
+      "initialFailureCodes": [],
+      "elapsedMs": 3727.4,
+      "p50Ms": 592,
+      "p95Ms": 1159.4,
+      "p99Ms": 1162.9,
+      "storedAfterBurst": 500,
+      "unconfirmedAfterOneRetry": 0,
+      "storedAfterRecovery": 500,
+      "attemptedUsersPerSecond": 134.1,
+      "confirmedUsersPerSecond": 134.1
+    },
+    {
+      "users": 1000,
+      "concurrentRequests": 200,
+      "sourceBytes": 20480,
+      "statuses": {
+        "202": 1000
+      },
+      "initialFailures": 15,
+      "initialFailureCodes": [
+        "ECONNRESET"
+      ],
+      "elapsedMs": 13876.8,
+      "p50Ms": 2564.4,
+      "p95Ms": 4095.1,
+      "p99Ms": 4741.2,
+      "storedAfterBurst": 1000,
+      "unconfirmedAfterOneRetry": 0,
+      "storedAfterRecovery": 1000,
+      "attemptedUsersPerSecond": 72.1,
+      "confirmedUsersPerSecond": 72.1
+    },
+    {
+      "users": 1000,
+      "concurrentRequests": 500,
+      "sourceBytes": 20480,
+      "statuses": {
+        "0": 9,
+        "202": 991
+      },
+      "initialFailures": 107,
+      "initialFailureCodes": [
+        "ECONNRESET",
+        "ECONNREFUSED"
+      ],
+      "elapsedMs": 13411.1,
+      "p50Ms": 4476.4,
+      "p95Ms": 11327.3,
+      "p99Ms": 11743.1,
+      "storedAfterBurst": 991,
+      "unconfirmedAfterOneRetry": 9,
+      "recoveryElapsedMs": 2144.8,
+      "storedAfterRecovery": 1000,
+      "attemptedUsersPerSecond": 74.6,
+      "confirmedUsersPerSecond": 73.9
+    },
+    {
+      "users": 1000,
+      "concurrentRequests": 1000,
+      "sourceBytes": 20480,
+      "statuses": {
+        "0": 535,
+        "202": 465
+      },
+      "initialFailures": 664,
+      "initialFailureCodes": [
+        "ECONNRESET",
+        "ECONNREFUSED"
+      ],
+      "elapsedMs": 8079.7,
+      "p50Ms": 3725.5,
+      "p95Ms": 7348.7,
+      "p99Ms": 7705.7,
+      "storedAfterBurst": 465,
+      "unconfirmedAfterOneRetry": 535,
+      "recoveryElapsedMs": 9383.9,
+      "storedAfterRecovery": 1000,
+      "attemptedUsersPerSecond": 123.8,
+      "confirmedUsersPerSecond": 57.6
+    },
+    {
+      "users": 10,
+      "concurrentRequests": 10,
+      "sourceBytes": 2097152,
+      "statuses": {
+        "202": 10
+      },
+      "initialFailures": 0,
+      "initialFailureCodes": [],
+      "elapsedMs": 1617.9,
+      "p50Ms": 1535.4,
+      "p95Ms": 1609,
+      "p99Ms": 1609,
+      "storedAfterBurst": 10,
+      "unconfirmedAfterOneRetry": 0,
+      "storedAfterRecovery": 10,
+      "attemptedUsersPerSecond": 6.2,
+      "confirmedUsersPerSecond": 6.2
+    }
+  ],
+  "boundaries": {
+    "pendingPerAccount": 20,
+    "rejectedOverQuota": 20,
+    "duplicateRetries": 100,
+    "storedCopies": 1,
+    "oversizedAsciiStatus": 400,
+    "oversizedUtf8Status": 413,
+    "anonymousStatus": 401
+  },
+  "judge": {
+    "submissions": 100,
+    "elapsedMs": 48385.2,
+    "submissionsPerMinute": 124,
+    "pingP95Ms": 5.9,
+    "statuses": {
+      "accepted": 100
+    }
+  },
+  "scheduler": {
+    "pausePreservesPending": true,
+    "stopCancelsPolling": true,
+    "repeatedStartProcessesExactlyOnce": true
+  },
+  "completed": true
+}

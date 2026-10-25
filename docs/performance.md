@@ -65,3 +65,8 @@ npm run build
 ```
 
 Admin account/password management is described in `backend/src/admin/README.md`.
+
+Submission ingestion and Python validation have a separate measured report in
+[`submission-capacity.md`](submission-capacity.md). The submission scheduler now
+drains ready jobs without a fixed two-second gap, retaining one worker and the
+existing retry/pause behavior. This does not change the PvP match queue limit.
