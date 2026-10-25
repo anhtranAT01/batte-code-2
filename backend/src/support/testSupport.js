@@ -72,11 +72,11 @@ async function main(){
     assert.equal((await sql('SELECT elo_rating FROM "Users" WHERE id=$1',[one])).rows[0].elo_rating,1216);
     assert.equal((await sql('SELECT elo_rating FROM "Users" WHERE id=$1',[two])).rows[0].elo_rating,1184);
     console.log('PASS: database failure rolls back match and both Elo updates; retry records exactly once');
-    delete process.env.SMTP_HOST;
+    delete process.env.SMTP_HOST;delete process.env.SMTP_FROM;delete process.env.RESEND_API_KEY;delete process.env.EMAIL_FROM;
     assert.equal((await request(null,'/auth/forgot-password','POST',{email:'test@example.com'})).status,503);
     console.log('PASS: recovery reports unavailable without SMTP, never pretends an email was sent');
     const mailer=require('nodemailer'),originalTransport=mailer.createTransport;let mail;
-    mailer.createTransport=()=>({sendMail:async message=>{mail=message;}});
+    mailer.createTransport=()=>({sendMail:async message=>{mail=message;},close(){}});
     process.env.SMTP_HOST='smtp.test.invalid';process.env.SMTP_FROM='noreply@example.test';process.env.PASSWORD_RESET_URL='https://example.test/';
     await sql('UPDATE "Users" SET email=$1 WHERE id=$2',['student@example.test',one]);
     assert.equal((await request(null,'/auth/forgot-password','POST',{email:'student@example.test'})).status,200);
@@ -88,7 +88,19 @@ async function main(){
     assert.equal((await request(null,'/auth/reset-password','POST',{token,password:'different-password'})).status,400);
     assert.equal((await request(null,'/auth/login','POST',{username:'student@example.test',password:'new-test-password'})).status,200);
     mailer.createTransport=originalTransport;
-    console.log('PASS: reset token is hashed, single-use and omitted from URL query; password changes revoke old sessions; email login works');
+    const originalFetch=global.fetch;let apiMail,apiHeaders;
+    global.fetch=async(url,options)=>{
+      if(String(url)==='https://api.resend.com/emails'){apiHeaders=options.headers;apiMail=JSON.parse(options.body);return {ok:true,json:async()=>({id:'email-test-id'})};}
+      return originalFetch(url,options);
+    };
+    process.env.SMTP_HOST='';process.env.RESEND_API_KEY='re_test_only';process.env.EMAIL_FROM='BattleCode <noreply@example.test>';
+    assert.equal((await request(null,'/auth/recovery-status')).available,true);
+    assert.equal((await request(null,'/auth/forgot-password','POST',{email:'student@example.test'})).status,200);
+    assert.equal(apiHeaders.Authorization,'Bearer re_test_only');assert.equal(apiMail.from,process.env.EMAIL_FROM);assert.deepEqual(apiMail.to,['student@example.test']);assert.match(apiMail.html,/Đặt lại mật khẩu/);
+    const apiResetUrl=new URL(apiMail.text.split('15 phút: ')[1].split('\n')[0]),apiToken=new URLSearchParams(apiResetUrl.hash.slice(1)).get('reset_token');
+    assert.equal((await request(null,'/auth/reset-password','POST',{token:apiToken,password:'resend-reset-password'})).status,200);
+    global.fetch=originalFetch;
+    console.log('PASS: SMTP and Resend HTTPS both send the one-time reset link; token is hashed, expires, and revokes old sessions');
   }finally{
     if(server)await new Promise(resolve=>{server.close(resolve);server.closeAllConnections?.();});
     await db.close();await pg.pool.end();fs.rmSync(temp,{recursive:true,force:true});

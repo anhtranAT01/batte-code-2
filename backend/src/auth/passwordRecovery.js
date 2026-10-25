@@ -3,15 +3,16 @@ const {createHash,randomBytes}=require('crypto');
 const bcrypt=require('bcryptjs');
 const {query,pool}=require('../config/db');
 const {z}=require('zod');
+const {recoveryEmailEnabled,sendRecoveryEmail}=require('./recoveryEmail');
 const router=express.Router();
 const digest=value=>createHash('sha256').update(value).digest('hex');
 const safeMessage='Nếu email đã đăng ký, hướng dẫn khôi phục sẽ được gửi. Kiểm tra cả thư rác.';
-router.get('/recovery-status',(req,res)=>res.json({available:Boolean(process.env.SMTP_HOST&&process.env.SMTP_FROM&&process.env.PASSWORD_RESET_URL)}));
+router.get('/recovery-status',(req,res)=>res.json({available:recoveryEmailEnabled()}));
 router.post('/forgot-password',async(req,res,next)=>{
   try{
     const parsed=z.string().trim().toLowerCase().email().max(254).safeParse(req.body.email);
     if(!parsed.success)return res.status(400).json({message:'Email không hợp lệ.'});
-    if(!process.env.SMTP_HOST||!process.env.SMTP_FROM||!process.env.PASSWORD_RESET_URL)return res.status(503).json({message:'Chưa bật gửi email khôi phục. Hãy liên hệ Admin trong Hỏi đáp.'});
+    if(!recoveryEmailEnabled())return res.status(503).json({message:'Chưa cấu hình dịch vụ gửi email khôi phục. Admin cần hoàn tất cấu hình email trên Render.'});
     const user=(await query('SELECT id,email FROM "Users" WHERE lower(email)=$1',[parsed.data])).rows[0];
     if(user){
       const token=randomBytes(32).toString('hex');
@@ -19,9 +20,8 @@ router.post('/forgot-password',async(req,res,next)=>{
         SELECT $1,$2,NOW()+INTERVAL '15 minutes' WHERE NOT EXISTS (SELECT 1 FROM "PasswordResets" WHERE user_id=$2 AND created_at>NOW()-INTERVAL '1 minute') RETURNING token_hash`,[digest(token),user.id]);
       if(inserted.rows.length){
         try{
-          const transport=require('nodemailer').createTransport({host:process.env.SMTP_HOST,port:Number(process.env.SMTP_PORT||587),secure:process.env.SMTP_SECURE==='true',auth:process.env.SMTP_USER?{user:process.env.SMTP_USER,pass:process.env.SMTP_PASSWORD}:undefined,connectionTimeout:5000,socketTimeout:8000});
           const url=new URL(process.env.PASSWORD_RESET_URL);url.hash=new URLSearchParams({reset_token:token}).toString();
-          await transport.sendMail({from:process.env.SMTP_FROM,to:user.email,subject:'Khôi phục mật khẩu BattleCode',text:`Liên kết dùng một lần, hết hạn sau 15 phút: ${url.toString()}\nNếu không yêu cầu, bạn có thể bỏ qua thư này.`});
+          await sendRecoveryEmail({to:user.email,url:url.toString()});
         }catch{await query('DELETE FROM "PasswordResets" WHERE token_hash=$1',[digest(token)]);return res.status(503).json({message:'Chưa gửi được email. Hãy thử lại hoặc liên hệ Admin.'});}
       }
     }

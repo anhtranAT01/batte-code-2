@@ -28,21 +28,21 @@ Vai trò giáo viên cần `TEACHER_REGISTRATION_SECRET`, admin cần `ADMIN_REG
 
 Đăng ký mới có MSSV, tên đội, email duy nhất không phân biệt hoa thường và đồng ý xử lý dữ liệu. Tài khoản cũ giữ tên đăng nhập; có thể cần Admin hỗ trợ bổ sung email trước khi khôi phục qua mail.
 
-## Email khôi phục (chưa bật khi thiếu cấu hình)
+## Email khôi phục mật khẩu
 
-Thiết lập bí mật trên Render, không commit vào Git:
+Backend hỗ trợ Resend qua HTTPS (khuyên dùng trên Render) và SMTP. Tạo tài khoản Resend, thêm tên miền gửi mà bạn quản lý, xác minh bản ghi DNS do Resend cung cấp trong Cloudflare, rồi tạo API key chỉ có quyền gửi thư. Địa chỉ người gửi phải thuộc tên miền đã xác minh. Resend chỉ cho gửi bằng địa chỉ thử nghiệm tới hộp thư kiểm tra của chính họ; muốn gửi cho người chơi cần xác minh tên miền gửi.
+
+Trong Render, đặt các biến kín sau; không commit API key hoặc gửi nó trong chat:
 
 ```
-SMTP_HOST=smtp.your-provider.example
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=...
-SMTP_PASSWORD=...
-SMTP_FROM=BattleCode <noreply@your-domain.example>
-PASSWORD_RESET_URL=https://your-frontend.pages.dev/
+RESEND_API_KEY=re_...
+EMAIL_FROM=BattleCode <noreply@ten-mien-cua-ban.vn>
+PASSWORD_RESET_URL=https://batte-code-2.pages.dev/
 ```
 
-Chỉ đặt `SMTP_SECURE=true` khi nhà cung cấp yêu cầu TLS ngay khi kết nối (thường cổng 465). Link khôi phục dùng token ngẫu nhiên 15 phút, database chỉ lưu hash, dùng một lần; đổi mật khẩu hủy các phiên trước đó. Token nằm trong fragment để không gửi lên access log theo query. Không cấu hình SMTP thì giao diện báo chưa bật, không thông báo giả đã gửi mail. Kiểm thử mail dùng transport giả, không gửi thư thật.
+Blueprint đã khai báo sẵn ba biến này. Nếu dùng tên miền Cloudflare Pages khác, cập nhật `PASSWORD_RESET_URL` thành URL trang thật. Gửi API qua HTTPS cũng hoạt động trên Render Free; Render chặn SMTP outbound ở cổng 25/465/587 đối với dịch vụ Free. Có thể dùng SMTP bằng cách bỏ `RESEND_API_KEY` và cấu hình `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` (SMTP cần dịch vụ Render cho phép cổng đó).
+
+Sau khi deploy backend, kiểm tra `https://<URL-Render>/api/auth/recovery-status`; trường `available` phải là `true`. Sau đó thử “Quên mật khẩu” bằng email đã gắn với tài khoản, kiểm tra cả Spam, mở liên kết trong 15 phút và đặt mật khẩu mới. Link dùng token một lần; database chỉ lưu hash, token nằm trong fragment để không lọt vào access log theo query, và đổi mật khẩu sẽ thu hồi các phiên cũ. Kiểm thử gửi thư dùng API/transport giả, không gửi mail thật.
 
 ## Kiểm tra
 

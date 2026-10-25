@@ -16,6 +16,12 @@ services:
         generateValue: true
       - key: JWT_EXPIRES_IN
         value: 7d
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: PASSWORD_RESET_URL
+        value: https://batte-code-2.pages.dev/
       - key: CORS_ORIGIN
         sync: false
       - key: BOT_STORAGE_ROOT
