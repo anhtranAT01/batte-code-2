@@ -308,6 +308,7 @@ export default function BossArenaView({ onSelectReplay }) {
             {/* Visual Board */}
             <GameBoard
               grid={currentGrid}
+              lastMove={currentStep?.move}
               board={currentGrid}
               validMoves={[]}
               readOnly={true}
