@@ -19,12 +19,14 @@ const DataExplorerView = lazy(() => import('./components/DataExplorerView'));
 const ReplayViewer = lazy(() => import('./components/ReplayViewer'));
 const WorldChatModal = lazy(() => import('./components/WorldChatModal'));
 const AdminDashboardView = lazy(() => import('./components/AdminDashboardView'));
+const AlgorithmTrainingView = lazy(() => import('./components/AlgorithmTrainingView'));
 
 export default function App() {
   const { theme, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState('leaderboard');
   const [previousTab, setPreviousTab] = useState('leaderboard');
   const [selectedReplay, setSelectedReplay] = useState(null);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login');
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -104,12 +106,20 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={handleSelectTab}
         onlineCount={onlineCount}
+        isCollapsed={isSidebarCollapsed}
+        setIsCollapsed={setIsSidebarCollapsed}
       />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* Top Header Bar */}
-        <HeaderBar activeTab={activeTab} onOpenAuthModal={handleOpenAuthModal} theme={theme} onToggleTheme={toggleTheme} />
+        <HeaderBar
+          activeTab={activeTab}
+          onOpenAuthModal={handleOpenAuthModal}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onNavigateTab={handleSelectTab}
+        />
 
         {/* Dynamic Page Views Container */}
         <main className="app-main flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 scrollbar-thin">
@@ -120,6 +130,7 @@ export default function App() {
                 onSelectReplay={handleOpenReplay}
                 onChallengePlayer={handleChallengePlayer}
                 onExploreData={() => setActiveTab('database')}
+                onNavigateTab={handleSelectTab}
               />
             )}
             {activeTab === 'status' && <SystemStatus />}
@@ -137,7 +148,11 @@ export default function App() {
             )}
 
             {activeTab === 'tournament' && (
-              <TournamentBracketsView />
+              <TournamentBracketsView onSelectReplay={handleOpenReplay} />
+            )}
+
+            {activeTab === 'training' && (
+              <AlgorithmTrainingView onGoToBots={() => setActiveTab('bots')} />
             )}
 
             {activeTab === 'rules' && (

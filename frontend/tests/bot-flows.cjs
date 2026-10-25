@@ -28,7 +28,7 @@ function component(name) {
   new Function('require','module','exports',js)((id) => {
     if (id === '../context/AuthContext') return {useAuth:() => auth};
     if (id === './GameBoard') return {__esModule:true,default:() => null};
-    if (['./DeviceSafety','./OfflineLab','./PasswordRecovery'].includes(id)) return {__esModule:true,default:()=>null};
+    if (['./DeviceSafety','./OfflineLab','./PasswordRecovery','./Icons'].includes(id)) return {__esModule:true,default:()=>null};
     if(id==='../lib/deviceStore')return {readDraft:async()=>null,writeDraft:async()=>{}};
     if(id==='../lib/outbox')return {outbox:{enqueue:async(...args)=>{queued=args;}}};
     if (id.startsWith('../lib/')) return helper(path.resolve(path.dirname(filename),`${id}.js`));
