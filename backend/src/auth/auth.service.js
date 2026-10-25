@@ -70,6 +70,7 @@ async function loginUser({ username, password }) {
     id: user.id,
     username: user.username,
     role: user.role,
+    team_name: user.team_name || null,
     elo_rating: user.elo_rating,
     created_at: user.created_at,
     auth_version:user.auth_version||0,
@@ -97,6 +98,7 @@ async function getUserProfile(userId) {
           id: true,
           username: true,
           role: true,
+          team_name: true,
           elo_rating: true,
           created_at: true,
           _count: {
@@ -116,7 +118,7 @@ async function getUserProfile(userId) {
 
   if (!user) {
     const userRes = await query(
-      'SELECT id, username, role, elo_rating, created_at FROM "Users" WHERE id = $1 LIMIT 1',
+      'SELECT id, username, role, team_name, student_id, elo_rating, created_at FROM "Users" WHERE id = $1 LIMIT 1',
       [userId]
     );
     if (!userRes.rows[0]) {

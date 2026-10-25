@@ -9,6 +9,7 @@
     "test:match-labels": "node tests/match-labels.cjs",
     "test:performance": "node tests/duel-stream.cjs && node tests/leaderboard-loading.cjs && node tests/admin-accounts.cjs",
     "test:bot-flows": "node tests/bot-flows.cjs",
+    "test:tournament": "node tests/tournament-flow.cjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"

@@ -35,16 +35,45 @@ async function createTournament(req, res, next) {
 async function register(req, res, next) {
   try {
     const { id } = req.params;
-    const { botId } = req.body;
+    const { botId, teamName } = req.body;
     const userId = req.user.id;
 
     const result = await tournamentService.registerStudent({
       tournamentId: id,
       userId,
       botId,
+      teamName,
     });
 
     return res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function updateTeam(req, res, next) {
+  try {
+    const userId = req.user.id;
+    const { teamName, tournamentId } = req.body;
+    const result = await tournamentService.updateUserTeam({
+      userId,
+      teamName,
+      tournamentId,
+    });
+    return res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function getTeams(req, res, next) {
+  try {
+    const { tournamentId } = req.query;
+    const teams = await tournamentService.getTournamentTeams(tournamentId);
+    return res.status(200).json({
+      success: true,
+      data: teams,
+    });
   } catch (err) {
     next(err);
   }
@@ -187,4 +216,6 @@ module.exports = {
   updateSchedule,
   updateBrackets,
   getTournaments,
+  updateTeam,
+  getTeams,
 };

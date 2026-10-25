@@ -53,6 +53,7 @@ async function generateTournamentExcel(tournament, standings = []) {
   const headers = [
     { header: 'Hạng', key: 'rank', width: 8 },
     { header: 'Tài Khoản', key: 'username', width: 22 },
+    { header: 'Đội / Team', key: 'teamName', width: 20 },
     { header: 'Tên Bot AI', key: 'botName', width: 22 },
     { header: 'Điểm Giải Đấu', key: 'points', width: 15 },
     { header: 'Điểm Elo', key: 'elo', width: 12 },
@@ -93,6 +94,7 @@ async function generateTournamentExcel(tournament, standings = []) {
     const row = worksheet.addRow([
       idx + 1,
       st.username,
+      st.teamName || '—',
       st.botName || 'Chưa nộp Bot',
       st.points,
       st.elo,
@@ -165,6 +167,7 @@ function generateTournamentCSV(tournament, standings = []) {
   const headers = [
     'Hạng',
     'Tên Tài Khoản',
+    'Đội / Team',
     'Tên Bot AI',
     'Điểm Giải Đấu',
     'Điểm Elo',
@@ -183,6 +186,7 @@ function generateTournamentCSV(tournament, standings = []) {
   const rows = standings.map((st, idx) => [
     idx + 1,
     `"${st.username}"`,
+    `"${st.teamName || '—'}"`,
     `"${st.botName || 'Chưa nộp Bot'}"`,
     st.points,
     st.elo,

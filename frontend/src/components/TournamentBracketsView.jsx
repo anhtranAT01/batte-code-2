@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { apiUrl } from '../lib/api';
-import {outbox} from '../lib/outbox';
+import {outbox, subscribeOutbox} from '../lib/outbox';
 import DeviceSafety from './DeviceSafety';
 
 export default function TournamentBracketsView({ onSelectReplay }) {
-  const { user, getAuthHeaders } = useAuth();
+  const { user, token, getAuthHeaders, refreshProfile } = useAuth();
 
   // 2 Core Tournament Modes: 'ALL_IN' | 'BRANCHES'
   const [tournamentMode, setTournamentMode] = useState('ALL_IN');
@@ -19,6 +19,12 @@ export default function TournamentBracketsView({ onSelectReplay }) {
   const selectedTournament = tournaments.find(tournament => tournament.id === selectedTourneyId);
   const [loading, setLoading] = useState(false);
   const [actionMsg, setActionMsg] = useState(null);
+
+  // Team management state
+  const [teamInput, setTeamInput] = useState(user?.team_name || '');
+  const [availableTeams, setAvailableTeams] = useState([]);
+  const [showTeamDropdown, setShowTeamDropdown] = useState(false);
+  const [standingsFilter, setStandingsFilter] = useState('');
 
   // Admin schedule state
   const [scheduleTimeInput, setScheduleTimeInput] = useState('');
@@ -49,6 +55,41 @@ export default function TournamentBracketsView({ onSelectReplay }) {
         .catch(console.warn);
     }
   }, [user]);
+
+  // Keep team input synced if user profile loads or changes
+  useEffect(() => {
+    if (user?.team_name) {
+      setTeamInput(user.team_name);
+    }
+  }, [user?.team_name]);
+
+  // Fetch available teams for autocomplete / search
+  const fetchAvailableTeams = async () => {
+    try {
+      const res = await fetch('/api/tournaments/teams');
+      if (res.ok) {
+        const d = await res.json();
+        setAvailableTeams(d.data || []);
+      }
+    } catch (e) {
+      console.warn('[Tournament] Cannot fetch teams:', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchAvailableTeams();
+  }, []);
+
+  // Listen to outbox sync: automatically re-fetch standings when tournament registration is accepted
+  useEffect(() => {
+    const unsub = subscribeOutbox(() => {
+      if (selectedTourneyId) {
+        fetchStandings(selectedTourneyId);
+        fetchAvailableTeams();
+      }
+    });
+    return unsub;
+  }, [selectedTourneyId]);
 
   // Load standings on tournament change
   useEffect(() => {
@@ -134,7 +175,7 @@ export default function TournamentBracketsView({ onSelectReplay }) {
     }
   };
 
-  // Register student bot into current tournament
+  // Register student bot & team into current tournament
   const handleRegister = async () => {
     if (!user) {
       alert('Vui lòng đăng nhập để đăng ký giải đấu!');
@@ -145,9 +186,54 @@ export default function TournamentBracketsView({ onSelectReplay }) {
     setLoading(true);
     setActionMsg(null);
     try {
-      if(!selectedBotId)throw new Error('Hãy chọn bot đã được máy chủ kiểm tra.');
-      await outbox.enqueue(user.id,'tournament',{tournamentId:selectedTourneyId,botId:selectedBotId});
-      setActionMsg({ type: 'success', text:'Đã lưu yêu cầu đăng ký trên máy. Chỉ hoàn tất khi Trạng thái bài nộp báo máy chủ đã nhận.' });
+      if (!selectedBotId) throw new Error('Hãy chọn bot đã được máy chủ kiểm tra.');
+      const chosenTeam = teamInput.trim();
+      await outbox.enqueue(user.id, 'tournament', {
+        tournamentId: selectedTourneyId,
+        botId: selectedBotId,
+        teamName: chosenTeam || undefined,
+      });
+      setActionMsg({
+        type: 'success',
+        text: 'Đã lưu yêu cầu tham gia giải đấu trên máy. Hệ thống đang đồng bộ với máy chủ...',
+      });
+      if (token && window.navigator?.onLine !== false) {
+        outbox.flush(() => ({ userId: user.id, token })).then(() => {
+          setTimeout(() => {
+            fetchStandings(selectedTourneyId);
+            fetchAvailableTeams();
+            if (refreshProfile) refreshProfile();
+          }, 600);
+        });
+      }
+    } catch (err) {
+      setActionMsg({ type: 'error', text: err.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // User renames / updates their team directly
+  const handleUpdateTeamOnly = async () => {
+    if (!user) {
+      alert('Vui lòng đăng nhập để đổi tên đội!');
+      return;
+    }
+    const chosenTeam = teamInput.trim();
+    setLoading(true);
+    setActionMsg(null);
+    try {
+      const res = await fetch('/api/tournaments/team', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ teamName: chosenTeam, tournamentId: selectedTourneyId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Cập nhật tên đội thất bại.');
+      setActionMsg({ type: 'success', text: data.message });
+      if (refreshProfile) refreshProfile();
+      if (selectedTourneyId) fetchStandings(selectedTourneyId);
+      fetchAvailableTeams();
     } catch (err) {
       setActionMsg({ type: 'error', text: err.message });
     } finally {
@@ -248,6 +334,17 @@ export default function TournamentBracketsView({ onSelectReplay }) {
   const tourney = standingsData?.tournament;
   const rawStandings = standingsData?.standings || [];
   const brackets = standingsData?.tournament?.brackets || [];
+  const myParticipant = rawStandings.find((p) => p.userId === user?.id);
+
+  const filteredStandings = rawStandings.filter((p) => {
+    if (!standingsFilter.trim()) return true;
+    const term = standingsFilter.toLowerCase();
+    return (
+      (p.username && p.username.toLowerCase().includes(term)) ||
+      (p.teamName && p.teamName.toLowerCase().includes(term)) ||
+      (p.botName && p.botName.toLowerCase().includes(term))
+    );
+  });
 
   return (
     <div className="view-shell animate-fadeIn max-w-7xl mx-auto">
@@ -447,16 +544,29 @@ export default function TournamentBracketsView({ onSelectReplay }) {
         </div>
 
         {/* Student Bot Registration Card */}
-        <div className="p-5 rounded-2xl bg-[#0e1322]/80 border border-white/5 backdrop-blur-md flex flex-col justify-between">
+        {/* Student Bot Registration & Team Choice Card */}
+        <div className="p-5 rounded-2xl bg-[#0e1322]/80 border border-white/5 backdrop-blur-md flex flex-col justify-between space-y-4">
           <div>
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-              {tournamentMode === 'ALL_IN' ? 'Đăng Ký Làm Bài / Nộp Bot' : 'Đăng Ký Vào Nhánh Đấu'}
-            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+                {tournamentMode === 'ALL_IN' ? 'Đăng Ký Làm Bài / Nộp Bot' : 'Đăng Ký Vào Nhánh Đấu'}
+              </span>
+              {myParticipant && (
+                <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold">
+                  ✓ Đã ghi danh
+                </span>
+              )}
+            </div>
+
             <p className="text-xs text-slate-300 mt-1">
-              Chọn Bot của bản thân để hệ thống tự động ghi danh và giao tranh:
+              Chọn Bot và Đội thi đấu của bạn để hệ thống tự động ghi danh:
             </p>
 
-            <div className="mt-2.5">
+            {/* Bot select */}
+            <div className="mt-3">
+              <label className="text-[11px] font-semibold text-slate-400 block mb-1">
+                Chiến binh Bot thi đấu:
+              </label>
               <select
                 value={selectedBotId}
                 title={selectedBot?.name || 'Chọn bot'}
@@ -470,7 +580,112 @@ export default function TournamentBracketsView({ onSelectReplay }) {
                   </option>
                 ))}
               </select>
-              {selectedBot && <p className="selection-summary">Đã chọn: <strong>{selectedBot.name}</strong></p>}
+              {selectedBot && <p className="selection-summary mt-1">Đã chọn: <strong>{selectedBot.name}</strong></p>}
+            </div>
+
+            {/* Team management section */}
+            <div className="mt-3 relative">
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[11px] font-semibold text-slate-400 block">
+                  Đội thi đấu (Team):
+                </label>
+                {teamInput && (
+                  <button
+                    type="button"
+                    onClick={() => setTeamInput('')}
+                    className="text-[10px] text-slate-400 hover:text-rose-400 transition-colors"
+                  >
+                    Xóa / Thi đấu cá nhân
+                  </button>
+                )}
+              </div>
+
+              <div className="relative">
+                <input
+                  type="text"
+                  value={teamInput}
+                  onChange={(e) => {
+                    setTeamInput(e.target.value);
+                    setShowTeamDropdown(true);
+                  }}
+                  onFocus={() => setShowTeamDropdown(true)}
+                  placeholder="Nhập tên đội hoặc tìm bên dưới..."
+                  className="w-full py-2 px-3 pr-20 rounded-xl bg-[#090d18] border border-white/10 text-white text-xs font-semibold focus:outline-none focus:border-indigo-500"
+                />
+
+                {user && (
+                  <button
+                    type="button"
+                    onClick={handleUpdateTeamOnly}
+                    disabled={loading}
+                    title="Chỉ đổi tên đội hiện tại cho tài khoản"
+                    className="absolute right-1.5 top-1.5 bottom-1.5 px-2.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600 text-indigo-200 hover:text-white text-[10px] font-bold border border-indigo-500/30 transition-all flex items-center gap-1"
+                  >
+                    <span>Đổi Tên</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Autocomplete / Suggested Teams dropdown */}
+              {showTeamDropdown && availableTeams.length > 0 && (
+                <div
+                  className="absolute z-20 left-0 right-0 mt-1 max-h-40 overflow-y-auto rounded-xl bg-[#0b0f19] border border-white/10 shadow-2xl p-1.5 text-xs space-y-1"
+                  onMouseLeave={() => setShowTeamDropdown(false)}
+                >
+                  <div className="text-[10px] font-bold text-slate-400 px-2 py-1 uppercase tracking-wider flex items-center justify-between">
+                    <span>Gợi ý đội hiện có ({availableTeams.length})</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowTeamDropdown(false)}
+                      className="text-slate-400 hover:text-white"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  {availableTeams
+                    .filter(t => !teamInput || t.name.toLowerCase().includes(teamInput.toLowerCase()))
+                    .slice(0, 8)
+                    .map((t) => (
+                      <button
+                        key={t.name}
+                        type="button"
+                        onClick={() => {
+                          setTeamInput(t.name);
+                          setShowTeamDropdown(false);
+                        }}
+                        className={`w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-indigo-600/20 text-slate-200 hover:text-white flex items-center justify-between transition-colors ${
+                          teamInput === t.name ? 'bg-indigo-600/30 text-indigo-300 font-bold' : ''
+                        }`}
+                      >
+                        <span className="truncate">{t.name}</span>
+                        <span className="text-[10px] text-slate-400 shrink-0 font-mono">
+                          {t.memberCount} thành viên
+                        </span>
+                      </button>
+                    ))}
+                </div>
+              )}
+
+              {/* Active team chips */}
+              {availableTeams.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  <span className="text-[10px] text-slate-400 self-center">Chọn nhanh:</span>
+                  {availableTeams.slice(0, 4).map((t) => (
+                    <button
+                      key={t.name}
+                      type="button"
+                      onClick={() => setTeamInput(t.name)}
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all ${
+                        teamInput === t.name
+                          ? 'bg-indigo-500/20 border-indigo-400 text-indigo-200'
+                          : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
+                      }`}
+                    >
+                      {t.name}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -479,7 +694,11 @@ export default function TournamentBracketsView({ onSelectReplay }) {
             disabled={loading || !selectedTourneyId}
             className="w-full mt-3 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2"
           >
-            <span>{tournamentMode === 'ALL_IN' ? 'Xác Nhận Nộp Bài / Tham Gia' : 'Ghi Danh Vào Nhánh Đấu'}</span>
+            <span>
+              {tournamentMode === 'ALL_IN'
+                ? (myParticipant ? 'Cập Nhật Bot & Đội Tham Gia' : 'Xác Nhận Nộp Bài / Tham Gia')
+                : (myParticipant ? 'Cập Nhật Nhánh & Đội' : 'Ghi Danh Vào Nhánh Đấu')}
+            </span>
           </button>
         </div>
       </div>
@@ -489,14 +708,37 @@ export default function TournamentBracketsView({ onSelectReplay }) {
       {/* ========================================================= */}
       {tournamentMode === 'ALL_IN' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-black text-white flex items-center gap-2">
-                <span>Bảng Điểm & Xếp Hạng Sinh Viên Toàn Thể ({rawStandings.length} Thí Sinh)</span>
+                <span>Bảng Điểm & Xếp Hạng Sinh Viên Toàn Thể ({filteredStandings.length} Thí Sinh)</span>
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
                 Điểm số được tính tự động từ các ván đấu cướp cờ và đối kháng thuật toán giữa các sinh viên
               </p>
+            </div>
+
+            {/* Standings search filter */}
+            <div className="relative min-w-[220px]">
+              <input
+                type="text"
+                value={standingsFilter}
+                onChange={(e) => setStandingsFilter(e.target.value)}
+                placeholder="Tìm sinh viên, đội, bot..."
+                className="w-full py-1.5 px-3 pl-8 rounded-xl bg-[#090d18] border border-white/10 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
+              />
+              <svg className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              {standingsFilter && (
+                <button
+                  type="button"
+                  onClick={() => setStandingsFilter('')}
+                  className="absolute right-2.5 top-2 text-slate-400 hover:text-white text-xs"
+                >
+                  ✕
+                </button>
+              )}
             </div>
           </div>
 
@@ -507,6 +749,7 @@ export default function TournamentBracketsView({ onSelectReplay }) {
                   <tr>
                     <th className="py-3.5 px-5">HẠNG</th>
                     <th className="py-3.5 px-5">SINH VIÊN</th>
+                    <th className="py-3.5 px-5">ĐỘI / TEAM</th>
                     <th className="py-3.5 px-5">CHIẾN BINH BOT</th>
                     <th className="py-3.5 px-5 text-center">ĐIỂM SỐ</th>
                     <th className="py-3.5 px-5 text-center">THẮNG - THUA</th>
@@ -515,21 +758,49 @@ export default function TournamentBracketsView({ onSelectReplay }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 font-medium">
-                  {rawStandings.length === 0 ? (
+                  {filteredStandings.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="py-12 text-center text-slate-500 italic">
-                        Chưa có sinh viên nào đăng ký tham gia giải đấu này.
+                      <td colSpan={8} className="py-12 text-center text-slate-500 italic">
+                        {rawStandings.length === 0
+                          ? 'Chưa có sinh viên nào đăng ký tham gia giải đấu này.'
+                          : 'Không tìm thấy thí sinh nào khớp với từ khóa tìm kiếm.'}
                       </td>
                     </tr>
                   ) : (
-                    rawStandings.map((p, idx) => (
-                      <tr key={p.id || idx} className="hover:bg-white/[0.02] transition-colors">
+                    filteredStandings.map((p, idx) => (
+                      <tr
+                        key={p.id || idx}
+                        className={`transition-colors ${
+                          p.userId === user?.id
+                            ? 'bg-indigo-500/10 hover:bg-indigo-500/15'
+                            : 'hover:bg-white/[0.02]'
+                        }`}
+                      >
                         <td className="py-3.5 px-5 font-bold">
                           {idx < 3 ? `${idx + 1}` : `#${idx + 1}`}
                         </td>
                         <td className="py-3.5 px-5">
-                          <div className="font-bold text-white">{p.username}</div>
+                          <div className="font-bold text-white flex items-center gap-1.5">
+                            <span>{p.username}</span>
+                            {p.userId === user?.id && (
+                              <span className="px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 text-[9px] font-black border border-indigo-500/30">
+                                BẠN
+                              </span>
+                            )}
+                          </div>
                           <div className="text-[10px] text-slate-400">Sinh Viên Đại Học</div>
+                        </td>
+                        <td className="py-3.5 px-5">
+                          {p.teamName ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 font-bold text-[11px]">
+                              <svg className="w-3 h-3 text-indigo-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
+                              </svg>
+                              <span>{p.teamName}</span>
+                            </span>
+                          ) : (
+                            <span className="text-slate-500 italic text-[11px]">— Cá nhân —</span>
+                          )}
                         </td>
                         <td className="py-3.5 px-5">
                           <span className="font-mono text-indigo-300 font-semibold">{p.botName || 'Custom Bot'}</span>

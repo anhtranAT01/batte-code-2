@@ -28,7 +28,7 @@ export function createOutbox({store=deviceStore,fetcher=(...args)=>fetch(...args
         if(!(await store.list()).some(x=>x.id===entry.id))continue;
         try {
           const url=entry.kind==='bot'?'/api/support/submissions':entry.kind==='question'?'/api/support/questions':`/api/tournaments/${encodeURIComponent(entry.payload.tournamentId)}/register`;
-          const body=entry.kind==='bot'?{id:entry.id,...entry.payload}:entry.kind==='question'?{id:entry.id,...entry.payload}:{botId:entry.payload.botId};
+          const body=entry.kind==='bot'?{id:entry.id,...entry.payload}:entry.kind==='question'?{id:entry.id,...entry.payload}:{botId:entry.payload.botId,teamName:entry.payload.teamName};
           const response=await timedFetch(url,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${identity.token}`},body:JSON.stringify(body)});
           if(response.status===401||response.status===403)break;
           let data={};try{data=await response.json();}catch{}

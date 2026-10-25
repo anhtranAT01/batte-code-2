@@ -11,6 +11,20 @@ const { authenticateJWT, requireRole } = require('../auth/auth.middleware');
 router.post('/', authenticateJWT, requireRole('ADMIN', 'TEACHER'), tournamentController.createTournament);
 
 /**
+ * @route   GET /api/tournaments/teams
+ * @desc    Get list of unique active teams for search / suggestions
+ * @access  Public
+ */
+router.get('/teams', tournamentController.getTeams);
+
+/**
+ * @route   PUT /api/tournaments/team
+ * @desc    User updates / renames their team
+ * @access  Private (Bearer JWT)
+ */
+router.put('/team', authenticateJWT, tournamentController.updateTeam);
+
+/**
  * @route   POST /api/tournaments/:id/register
  * @desc    Student registers for a tournament
  * @access  Private (Bearer JWT)

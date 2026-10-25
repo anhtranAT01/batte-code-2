@@ -33,7 +33,10 @@ async function createTournament({ name, maxParticipants = 1000, settings = {} })
 /**
  * Register a student and their bot to a tournament
  */
-async function registerStudent({tournamentId,userId,botId=null}) {
+/**
+ * Register a student and their bot to a tournament (supports choosing/updating team)
+ */
+async function registerStudent({tournamentId,userId,botId=null,teamName=null}) {
   const client=await pool.connect();
   const fail=(message,statusCode=400)=>{throw Object.assign(new Error(message),{statusCode});};
   try {
@@ -41,24 +44,83 @@ async function registerStudent({tournamentId,userId,botId=null}) {
     const tourney=(await client.query('SELECT * FROM "Tournaments" WHERE id=$1 FOR UPDATE',[tournamentId])).rows[0];
     if(!tourney)fail('Không tìm thấy giải đấu.',404);
     const settings=tourney.settings_json||{},participants=settings.participants||[];
-    const existing=participants.find(p=>p.userId===userId);
-    // A lost successful response can be retried even after the tournament starts.
-    if(existing){
-      if(existing.botId!==botId)fail('Bạn đã đăng ký với bot khác. Liên hệ ban tổ chức để đổi bot.',409);
-      await client.query('COMMIT');return {success:true,message:'Máy chủ đã ghi nhận đăng ký trước đó.',totalParticipants:participants.length};
+    const existingIndex=participants.findIndex(p=>p.userId===userId);
+
+    // Only reject if tournament has completed or cancelled
+    if(tourney.status==='COMPLETED'||tourney.status==='CANCELLED') {
+      fail('Giải đấu đã kết thúc hoặc đã hủy. Không nhận thêm đăng ký.');
     }
-    if(tourney.status!=='UPCOMING')fail('Giải đấu đã bắt đầu hoặc kết thúc. Chưa nhận thêm đăng ký.');
-    if(tourney.scheduled_start_at&&new Date(tourney.scheduled_start_at)<=new Date())fail('Đã đến giờ bắt đầu. Liên hệ ban tổ chức nếu cần gia hạn.');
-    if(participants.length>=tourney.max_participants)fail('Giải đấu đã đủ số lượng đăng ký.');
-    const user=(await client.query('SELECT username,elo_rating FROM "Users" WHERE id=$1',[userId])).rows[0];
-    const bot=(await client.query(`SELECT name,file_path_or_git_url FROM "Bots" WHERE id=$1 AND user_id=$2 AND status='active'`,[botId,userId])).rows[0];
-    if(!user||!bot)fail('Hãy chọn bot của bạn đã được máy chủ kiểm tra.');
-    participants.push({id:userId,userId,botId,botName:bot.name,botPath:bot.file_path_or_git_url,username:user.username,elo:user.elo_rating,initialElo:user.elo_rating,points:0,registeredAt:new Date().toISOString()});
-    settings.participants=participants;
+    if(participants.length>=tourney.max_participants && existingIndex===-1) {
+      fail('Giải đấu đã đủ số lượng đăng ký.');
+    }
+
+    const user=(await client.query('SELECT username,elo_rating,team_name FROM "Users" WHERE id=$1',[userId])).rows[0];
+    if(!user)fail('Không tìm thấy tài khoản người dùng.',404);
+
+    const cleanTeamName = (teamName !== undefined && teamName !== null && String(teamName).trim() !== '')
+      ? String(teamName).trim().slice(0, 100)
+      : (user.team_name || null);
+
+    if (cleanTeamName && cleanTeamName !== user.team_name) {
+      await client.query('UPDATE "Users" SET team_name=$1 WHERE id=$2', [cleanTeamName, userId]);
+    }
+
+    let bot = null;
+    if (botId) {
+      bot=(await client.query(`SELECT name,file_path_or_git_url FROM "Bots" WHERE id=$1 AND user_id=$2 AND status='active'`,[botId,userId])).rows[0];
+    }
+
+    if (existingIndex !== -1) {
+      const existing = participants[existingIndex];
+      if (bot) {
+        existing.botId = botId;
+        existing.botName = bot.name;
+        existing.botPath = bot.file_path_or_git_url;
+      }
+      if (cleanTeamName !== undefined) {
+        existing.teamName = cleanTeamName;
+      }
+      settings.participants = participants;
+      await client.query('UPDATE "Tournaments" SET settings_json=$1 WHERE id=$2',[JSON.stringify(settings),tournamentId]);
+      await client.query('COMMIT');
+      return {
+        success: true,
+        message: 'Máy chủ đã ghi nhận và cập nhật thông tin tham gia giải đấu.',
+        totalParticipants: participants.length,
+        teamName: cleanTeamName
+      };
+    }
+
+    if (!bot) fail('Hãy chọn bot của bạn đã được máy chủ kiểm tra.');
+
+    participants.push({
+      id: userId,
+      userId,
+      botId,
+      botName: bot.name,
+      botPath: bot.file_path_or_git_url,
+      username: user.username,
+      teamName: cleanTeamName,
+      elo: user.elo_rating,
+      initialElo: user.elo_rating,
+      points: 0,
+      registeredAt: new Date().toISOString()
+    });
+    settings.participants = participants;
     await client.query('UPDATE "Tournaments" SET settings_json=$1 WHERE id=$2',[JSON.stringify(settings),tournamentId]);
     await client.query('COMMIT');
-    return {success:true,message:'Máy chủ đã nhận đăng ký giải đấu.',totalParticipants:participants.length};
-  } catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
+    return {
+      success: true,
+      message: 'Máy chủ đã nhận đăng ký giải đấu.',
+      totalParticipants: participants.length,
+      teamName: cleanTeamName
+    };
+  } catch(error){
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 /**
@@ -233,6 +295,7 @@ async function getTournamentStandings(tournamentId) {
     return {
       userId: p.userId,
       username: p.username,
+      teamName: p.teamName || p.team_name || null,
       botName: p.botName || 'Chưa nộp Bot',
       botStatus: infiniteLoopErrors > 0 ? 'error' : 'active',
       points: calculatedPoints,
@@ -297,9 +360,90 @@ async function updateTournamentBrackets(tournamentId, bracketsData) {
 /**
  * List all tournaments
  */
+/**
+ * List all tournaments
+ */
 async function listTournaments() {
   const res = await query('SELECT * FROM "Tournaments" ORDER BY created_at DESC');
   return res.rows;
+}
+
+/**
+ * Update/rename team for a user across profile and tournaments
+ */
+async function updateUserTeam({ userId, teamName, tournamentId = null }) {
+  const client = await pool.connect();
+  const fail = (message, statusCode = 400) => { throw Object.assign(new Error(message), { statusCode }); };
+  try {
+    await client.query('BEGIN');
+    const cleanTeamName = (teamName && String(teamName).trim()) ? String(teamName).trim().slice(0, 100) : null;
+
+    // 1. Update Users table
+    await client.query('UPDATE "Users" SET team_name = $1 WHERE id = $2', [cleanTeamName, userId]);
+
+    // 2. Update Tournaments where this user is participating
+    const tourneysQuery = tournamentId 
+      ? await client.query('SELECT id, settings_json FROM "Tournaments" WHERE id = $1 FOR UPDATE', [tournamentId])
+      : await client.query('SELECT id, settings_json FROM "Tournaments" WHERE status != \'COMPLETED\' FOR UPDATE');
+
+    for (const row of tourneysQuery.rows) {
+      const settings = row.settings_json || {};
+      const participants = settings.participants || [];
+      const userPart = participants.find(p => p.userId === userId);
+      if (userPart) {
+        userPart.teamName = cleanTeamName;
+        settings.participants = participants;
+        await client.query('UPDATE "Tournaments" SET settings_json = $1 WHERE id = $2', [JSON.stringify(settings), row.id]);
+      }
+    }
+
+    await client.query('COMMIT');
+    return {
+      success: true,
+      message: cleanTeamName ? `Đã cập nhật tên đội thành "${cleanTeamName}".` : 'Đã chuyển sang thi đấu cá nhân.',
+      teamName: cleanTeamName,
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Retrieve unique list of active teams for suggestions & search
+ */
+async function getTournamentTeams(tournamentId = null) {
+  const teamsMap = new Map();
+
+  // 1. From Users table
+  const usersRes = await query('SELECT team_name, COUNT(*)::int AS member_count FROM "Users" WHERE team_name IS NOT NULL AND TRIM(team_name) != \'\' GROUP BY team_name');
+  for (const row of usersRes.rows) {
+    const name = row.team_name.trim();
+    teamsMap.set(name, { name, memberCount: row.member_count });
+  }
+
+  // 2. From Tournaments participants
+  const tourneysQuery = tournamentId
+    ? await query('SELECT settings_json FROM "Tournaments" WHERE id = $1', [tournamentId])
+    : await query('SELECT settings_json FROM "Tournaments" WHERE status != \'COMPLETED\'');
+
+  for (const row of tourneysQuery.rows) {
+    const participants = row.settings_json?.participants || [];
+    for (const p of participants) {
+      const tName = p.teamName || p.team_name;
+      if (tName && String(tName).trim()) {
+        const name = String(tName).trim();
+        if (!teamsMap.has(name)) {
+          teamsMap.set(name, { name, memberCount: 1 });
+        }
+      }
+    }
+  }
+
+  const teams = Array.from(teamsMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+  return teams;
 }
 
 module.exports = {
@@ -310,4 +454,6 @@ module.exports = {
   updateTournamentSchedule,
   updateTournamentBrackets,
   listTournaments,
+  updateUserTeam,
+  getTournamentTeams,
 };
