@@ -249,6 +249,7 @@ export default function BossArenaView({ onSelectReplay }) {
                   <option value="template_alphabeta">Minimax Alpha-Beta Pruning Bot</option>
                   <option value="template_astar">A* Flag Rusher Bot</option>
                   <option value="template_heuristic">Heuristic Starter Bot</option>
+                  <option value="template_speed">Sát Thủ Tốc Độ</option>
                 </optgroup>
                 {myBots.length > 0 && (
                   <optgroup label="Kho Bot Học Sinh Của Bạn">
@@ -261,7 +262,7 @@ export default function BossArenaView({ onSelectReplay }) {
                 )}
               </select>
               <p className="text-[11px] text-slate-400 mt-1.5">
-                Bot sẽ tự động tính toán và đưa ra từng nước đi trong ván đấu.
+                Mỗi lượt chọn một quân theo thuật toán. Nhật ký hiển thị thuật toán và mục tiêu của nước đi.
               </p>
             </div>
 
@@ -424,6 +425,18 @@ export default function BossArenaView({ onSelectReplay }) {
                     <div className="mt-1 font-semibold">
                       Di chuyển ({step.move.fromRow}, {step.move.fromCol}) → ({step.move.toRow}, {step.move.toCol})
                     </div>
+                    {step.botDecision && (
+                      <div className="mt-1 text-[11px] text-slate-400 space-y-1">
+                        <div className="text-indigo-300 font-semibold">{step.botDecision.algorithm}</div>
+                        <div>{step.botDecision.reason}</div>
+                        {step.botDecision.searchedNodes != null && (
+                          <div>Độ sâu: {step.botDecision.searchDepth} lượt · Đã xét {step.botDecision.searchedNodes} trạng thái</div>
+                        )}
+                        {step.botDecision.pathCost != null && (
+                          <div>Chi phí đường tới cờ: {step.botDecision.pathCost} (gồm rủi ro giao tranh)</div>
+                        )}
+                      </div>
+                    )}
                     {step.combat && (
                       <div className="text-[11px] mt-1 text-amber-300">
                         Giao tranh: {step.combat.attacker?.type} vs {step.combat.defender?.type} → {step.combat.outcome}

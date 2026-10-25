@@ -6,6 +6,38 @@ const SPEED_STEPS = [...STEPS,[-2,0],[2,0],[0,-2],[0,2],[-1,-1],[-1,1],[1,-1],[1
 const flagFor = (game, player) => player === 1 ? [game.rows-1, game.cols-1] : [0,0];
 const distance = (r,c,flag) => Math.abs(r-flag[0])+Math.abs(c-flag[1]);
 
+// Terrain distances guide goals beyond the immediate neighborhood. Pieces are
+// dynamic; only fixed obstacles belong in this reusable distance field.
+function terrainDistances(game, r, c) {
+  const distances = Array.from({length:game.rows}, () => Array(game.cols).fill(Infinity));
+  const queue = [[r,c]];
+  distances[r][c] = 0;
+  for (let i = 0; i < queue.length; i++) {
+    const [row,col] = queue[i];
+    for (const [dr,dc] of STEPS) {
+      const nr = row+dr, nc = col+dc;
+      if (!game.isInside(nr,nc) || game.grid[nr][nc].item === ITEM_TYPES.OBSTACLE
+        || distances[nr][nc] !== Infinity) continue;
+      distances[nr][nc] = distances[row][col]+1;
+      queue.push([nr,nc]);
+    }
+  }
+  return distances;
+}
+
+function potionGoals(game) {
+  const goals = [];
+  for (let r = 0; r < game.rows; r++) {
+    for (let c = 0; c < game.cols; c++) {
+      const item = game.grid[r][c].item;
+      if (item && item !== ITEM_TYPES.OBSTACLE) {
+        goals.push({r,c,item,distances:terrainDistances(game,r,c)});
+      }
+    }
+  }
+  return goals;
+}
+
 function canReach(game,piece,r,c) {
   const dr = r-piece.row, dc = c-piece.col;
   if (!(piece.hasSpeedBuff ? SPEED_STEPS : STEPS).some(([a,b]) => a === dr && b === dc)) return false;
@@ -51,12 +83,23 @@ class PracticeBot {
     score += (distance(move.fromRow,move.fromCol,flag)-distance(move.toRow,move.toCol,flag))*3;
     return score;
   }
+  explainMove(game,move) {
+    const cell = game.grid[move.toRow][move.toCol];
+    const piece = game.getPieceAt(move.fromRow,move.fromCol);
+    if (distance(move.toRow,move.toCol,flagFor(game,this.playerNum)) === 0
+      && (!cell.piece || piece.evaluateCombat(cell.piece) === 'WIN')) return 'Chiếm cờ đối phương';
+    if (cell.piece) return 'Chọn giao tranh theo tương khắc Kéo–Búa–Bao';
+    if (cell.item) return `Thu thập ${cell.item}`;
+    return 'Cải thiện vị trí để tiếp cận cờ và vật phẩm';
+  }
 }
 class EasyPracticeBot extends PracticeBot {
   constructor(playerNum = 2) { super(BOT_LEVELS.EASY,playerNum); }
   chooseMove(game) {
     const start = Date.now();
-    return {move:this.rankedMoves(game)[0]?.move || null,calculationTimeMs:Date.now()-start};
+    const move = this.rankedMoves(game)[0]?.move || null;
+    return {move,algorithm:'GREEDY_HEURISTIC',reason:move ? this.explainMove(game,move) : 'Không còn nước đi',
+      calculationTimeMs:Date.now()-start};
   }
 }
 class MediumPracticeBot extends PracticeBot {
@@ -66,6 +109,18 @@ class MediumPracticeBot extends PracticeBot {
     if (Math.abs(score) >= 1000) return score;
     const piece = game.getPieceAt(move.fromRow,move.fromCol);
     if (game.grid[move.toRow][move.toCol].item === ITEM_TYPES.POTION_SPEED) score += 110;
+    // Pursue speed potions several turns away, using routes around walls.
+    if (!piece.hasSpeedBuff) {
+      let approach = 0;
+      for (const goal of this.speedGoals || []) {
+        const before = goal.distances[move.fromRow][move.fromCol];
+        const after = goal.distances[move.toRow][move.toCol];
+        if (Number.isFinite(before) && Number.isFinite(after)) {
+          approach = Math.max(approach, 90/(after+1)-90/(before+1));
+        }
+      }
+      score += approach;
+    }
     if (Math.abs(move.toRow-move.fromRow)+Math.abs(move.toCol-move.fromCol) === 2) score += 12;
     for (const enemy of game.getPiecesForPlayer(player === 1 ? 2 : 1)) {
       if (enemy.row === move.toRow && enemy.col === move.toCol) continue;
@@ -74,8 +129,12 @@ class MediumPracticeBot extends PracticeBot {
     return score;
   }
   chooseMove(game) {
-    const start = Date.now(), best = this.rankedMoves(game)[0];
-    return {move:best?.move || null,score:best?.score,calculationTimeMs:Date.now()-start};
+    const start = Date.now();
+    this.speedGoals = potionGoals(game).filter(goal => goal.item === ITEM_TYPES.POTION_SPEED);
+    const best = this.rankedMoves(game)[0];
+    return {move:best?.move || null,score:best?.score,algorithm:'SPEED_TACTICS',
+      reason:best ? `${this.explainMove(game,best.move)}; ưu tiên lộ trình lấy Tăng Tốc và đột kích an toàn` : 'Không còn nước đi',
+      calculationTimeMs:Date.now()-start};
   }
 }
 class HardPracticeBot extends PracticeBot {
@@ -87,13 +146,24 @@ class HardPracticeBot extends PracticeBot {
     }
     let score = 0;
     for (const player of [this.playerNum,this.opponentNum]) {
+      const sign = player === this.playerNum ? 1 : -1;
+      const pieces = game.getPiecesForPlayer(player);
       let nearest = game.rows+game.cols;
-      for (const piece of game.getPiecesForPlayer(player)) {
+      for (const piece of pieces) {
         nearest = Math.min(nearest,distance(piece.row,piece.col,flagFor(game,player)));
         const value = 100+(piece.hasSpeedBuff ? 30 : 0)+(piece.hasInfectionBuff ? 40 : 0);
         score += player === this.playerNum ? value : -value;
       }
       score += (player === this.playerNum ? -1 : 1)*nearest*12;
+      // Item control must matter before a potion can be collected within three
+      // plies, otherwise all quiet opening advances receive identical scores.
+      for (const goal of this.goals || []) {
+        if (game.grid[goal.r][goal.c].item !== goal.item) continue;
+        let closest = Infinity;
+        for (const piece of pieces) closest = Math.min(closest,goal.distances[piece.row][piece.col]);
+        const value = ({POTION_CLONE:65,POTION_INFECTION:45,POTION_SPEED:40})[goal.item];
+        score += sign*value/(closest+1);
+      }
     }
     return score;
   }
@@ -116,21 +186,33 @@ class HardPracticeBot extends PracticeBot {
   chooseMove(game) {
     const start = Date.now();
     this.nodes = 0;
+    this.goals = potionGoals(game);
     let bestMove = null, bestScore = -Infinity;
     for (const {move} of this.rankedMoves(game)) {
       // Three real plies: our move, enemy response, our continuation.
       const score = this.search(simulate(game,move),2,bestScore,Infinity);
       if (score > bestScore) { bestScore = score; bestMove = move; }
     }
-    return {move:bestMove,score:bestScore,searchedNodes:this.nodes,calculationTimeMs:Date.now()-start};
+    return {move:bestMove,score:bestScore,searchedNodes:this.nodes,searchDepth:3,
+      algorithm:'MINIMAX_ALPHA_BETA',
+      reason:'Minimax 3 lượt (mình–địch–mình), tỉa Alpha-Beta; cân nhắc cờ, quân số, buff và quyền tiếp cận vật phẩm',
+      calculationTimeMs:Date.now()-start};
   }
 }
 class FlagRusherPracticeBot extends PracticeBot {
   constructor(playerNum = 2) { super(BOT_LEVELS.GRANDMASTER,playerNum); }
   findPath(game,piece) {
     const flag = flagFor(game,this.playerNum);
-    const key = node => `${node.r},${node.c},${Number(node.speed)}`;
-    const start = {r:piece.row,c:piece.col,speed:piece.hasSpeedBuff,cost:0,first:null};
+    const potions = new Map();
+    for (let r = 0; r < game.rows; r++) {
+      for (let c = 0; c < game.cols; c++) {
+        if (game.grid[r][c].item === ITEM_TYPES.POTION_SPEED) {
+          potions.set(`${r},${c}`,1n << BigInt(potions.size));
+        }
+      }
+    }
+    const key = node => `${node.r},${node.c},${Number(node.speed)},${node.collected}`;
+    const start = {r:piece.row,c:piece.col,speed:piece.hasSpeedBuff,collected:0n,cost:0,first:null};
     const open = [start], costs = new Map([[key(start),0]]);
     const heuristic = node => distance(node.r,node.c,flag)/2;
     const enemies = game.getPiecesForPlayer(this.opponentNum);
@@ -154,14 +236,15 @@ class FlagRusherPracticeBot extends PracticeBot {
           if (canReach(game,enemy,r,c)) danger += 3;
         }
         const longMove = Math.abs(dr)+Math.abs(dc) === 2;
-        const next = {r,c,speed:!longMove && (node.speed || cell.item === ITEM_TYPES.POTION_SPEED),
+        const potionBit = potions.get(`${r},${c}`) || 0n;
+        const picksUpSpeed = potionBit !== 0n && (node.collected & potionBit) === 0n;
+        const next = {r,c,speed:!longMove && (node.speed || picksUpSpeed),
+          collected:node.collected | potionBit,
           cost:node.cost+1+danger, first:node.first || {
             fromRow:piece.row,fromCol:piece.col,toRow:r,toCol:c,
           }};
-        // Prevent cycles and revisiting consumed potions along the proposed route.
-        if (node.visited?.has(`${r},${c}`) || (r === piece.row && c === piece.col)) continue;
-        next.visited = new Set(node.visited || [`${piece.row},${piece.col}`]);
-        next.visited.add(`${r},${c}`);
+        // Consumed potions are part of the graph state: revisiting a square
+        // cannot regenerate a speed buff. Positive costs eliminate useless cycles.
         if (next.cost >= (costs.get(key(next)) ?? Infinity)) continue;
         costs.set(key(next),next.cost);
         open.push(next);
@@ -172,13 +255,17 @@ class FlagRusherPracticeBot extends PracticeBot {
   chooseMove(game) {
     const start = Date.now();
     const immediate = this.rankedMoves(game)[0];
-    if (immediate?.score >= 100000) return {move:immediate.move,calculationTimeMs:Date.now()-start};
+    if (immediate?.score >= 100000) return {move:immediate.move,algorithm:'ASTAR',
+      reason:'Chiếm cờ ngay trong lượt này',calculationTimeMs:Date.now()-start};
     let best = null;
     for (const piece of game.getPiecesForPlayer(this.playerNum)) {
       const route = this.findPath(game,piece);
       if (route?.first && (!best || route.cost < best.cost)) best = route;
     }
     return {move:best?.first || immediate?.move || null,
+      algorithm:'ASTAR',target:flagFor(game,this.playerNum),
+      reason:best ? 'Đi bước đầu của đường A* tới cờ, tính vật cản, Tăng Tốc và nguy cơ bị khắc chế'
+        : 'Chưa tìm được đường cướp cờ; chọn nước chiến thuật để mở đường',
       pathCost:best?.cost,calculationTimeMs:Date.now()-start};
   }
 }

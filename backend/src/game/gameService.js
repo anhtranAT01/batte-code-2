@@ -295,9 +295,8 @@ async function getLeaderboard(limit = 50) {
   }
 }
 
-const path = require('path');
 const fs = require('fs');
-const { executePythonBot } = require('./pythonRunner');
+const { getTemplateBot, playBotTurn } = require('./botDuel');
 
 /**
  * Execute a complete automated match between Bot 1 and Bot 2 (AI Boss or Python Bot)
@@ -314,30 +313,23 @@ async function runAutomatedBotDuel({
   const matchId = crypto.randomUUID();
   const validSize = boardSize === 8 ? 8 : 9;
 
-  // Resolve Bot 1 script path
-  const sampleBotsDir = path.join(__dirname, '../../../sample-bots');
-  let bot1ScriptPath = path.join(sampleBotsDir, 'student_bot_template.py');
-  let bot1Name = 'Bot Bản Mẫu';
+  // Built-in templates and bosses share the same strategy implementations.
+  const template1 = getTemplateBot(!bot1Id || bot1Id === 'MANUAL' ? 'template_heuristic' : bot1Id, 1);
+  let bot1ScriptPath = null;
+  let bot1Name = template1?.name;
   let bot1RecordId = null;
 
-  if (bot1Id === 'template_alphabeta') {
-    bot1ScriptPath = path.join(sampleBotsDir, 'minimax_alphabeta_bot.py');
-    bot1Name = 'Minimax Alpha-Beta Bot';
-  } else if (bot1Id === 'template_astar' || bot1Id === 'template_flag_rusher') {
-    bot1ScriptPath = path.join(sampleBotsDir, 'flag_rusher_strategy_bot.py');
-    bot1Name = 'Chiến Thuật Cướp Cờ (Flag Rusher)';
-  } else if (bot1Id && bot1Id !== 'MANUAL') {
-    try {
-      const bRes = await query('SELECT * FROM "Bots" WHERE id = $1', [bot1Id]);
-      if (bRes.rows.length > 0) {
-        const b = bRes.rows[0];
-        if (fs.existsSync(b.file_path_or_git_url)) {
-          bot1ScriptPath = b.file_path_or_git_url;
-          bot1Name = b.name;
-          bot1RecordId = b.id;
-        }
+  if (!template1) {
+    const bRes = await query('SELECT * FROM "Bots" WHERE id = $1', [bot1Id]);
+    if (bRes.rows.length > 0) {
+      const b = bRes.rows[0];
+      if (fs.existsSync(b.file_path_or_git_url)) {
+        bot1ScriptPath = b.file_path_or_git_url;
+        bot1Name = b.name;
+        bot1RecordId = b.id;
       }
-    } catch {}
+    }
+    if (!bot1ScriptPath) throw new Error('Không tìm thấy file bot đã chọn cho P1.');
   }
 
   // Resolve Bot 2 (System Boss or Student Bot)
@@ -349,24 +341,23 @@ async function runAutomatedBotDuel({
   let player2Username = null;
 
   if (bot2Id) {
-    try {
-      const bRes = await query(`
+    const bRes = await query(`
         SELECT b.*, u.id AS owner_id, u.username AS owner_name 
         FROM "Bots" b 
         JOIN "Users" u ON u.id = b.user_id 
         WHERE b.id = $1
       `, [bot2Id]);
-      if (bRes.rows.length > 0) {
-        const b = bRes.rows[0];
-        if (fs.existsSync(b.file_path_or_git_url)) {
-          bot2ScriptPath = b.file_path_or_git_url;
-          bot2Name = b.name;
-          bot2RecordId = b.id;
-          player2UserId = b.owner_id;
-          player2Username = b.owner_name;
-        }
+    if (bRes.rows.length > 0) {
+      const b = bRes.rows[0];
+      if (fs.existsSync(b.file_path_or_git_url)) {
+        bot2ScriptPath = b.file_path_or_git_url;
+        bot2Name = b.name;
+        bot2RecordId = b.id;
+        player2UserId = b.owner_id;
+        player2Username = b.owner_name;
       }
-    } catch {}
+    }
+    if (!bot2ScriptPath) throw new Error('Không tìm thấy file bot đã chọn cho P2.');
   }
 
   if (!bot2ScriptPath) {
@@ -380,101 +371,16 @@ async function runAutomatedBotDuel({
     difficulty,
     maxTurns: 150,
   });
+  game.allowFallback = false;
 
   const startTime = Date.now();
-  let turnsCount = 0;
-
-  // Run match simulation turn-by-turn until game over
-  while (!game.isGameOver && turnsCount < 150) {
-    turnsCount++;
-
-    if (game.currentTurnPlayer === 1) {
-      // Player 1's Turn (Python Bot)
-      const inputPayload = {
-        player_id: 1,
-        board_size: validSize,
-        grid: game.getBoardSnapshot(),
-        turn: game.turnCount,
-        my_flag: [0, 0],
-        enemy_flag: [validSize - 1, validSize - 1],
-        target_flag: [validSize - 1, validSize - 1],
-      };
-
-      const p1Result = await executePythonBot({
-        botScriptPath: bot1ScriptPath,
-        inputPayload,
-        timeoutMs: 1000,
-      });
-
-      let p1Move = p1Result.move;
-      if (!p1Result.success || !p1Move) {
-        const legalMoves = game.getValidMovesForPlayer(1);
-        if (legalMoves.length > 0) {
-          p1Move = legalMoves[0];
-        } else {
-          game.isGameOver = true;
-          game.winner = 2;
-          game.winReason = 'ELIMINATION';
-          break;
-        }
-      }
-
-      const moveRes = game.executeMove(1, p1Move, p1Result.durationMs || 50);
-      if (!moveRes.success) {
-        break;
-      }
-    } else {
-      // Player 2's Turn
-      if (bot2ScriptPath) {
-        // Player 2 is Python Bot
-        const inputPayload = {
-          player_id: 2,
-          board_size: validSize,
-          grid: game.getBoardSnapshot(),
-          turn: game.turnCount,
-          my_flag: [validSize - 1, validSize - 1],
-          enemy_flag: [0, 0],
-          target_flag: [0, 0],
-        };
-
-        const p2Result = await executePythonBot({
-          botScriptPath: bot2ScriptPath,
-          inputPayload,
-          timeoutMs: 1000,
-        });
-
-        let p2Move = p2Result.move;
-        if (!p2Result.success || !p2Move) {
-          const legalMoves = game.getValidMovesForPlayer(2);
-          if (legalMoves.length > 0) {
-            p2Move = legalMoves[0];
-          } else {
-            game.isGameOver = true;
-            game.winner = 1;
-            game.winReason = 'ELIMINATION';
-            break;
-          }
-        }
-
-        const moveRes = game.executeMove(2, p2Move, p2Result.durationMs || 50);
-        if (!moveRes.success) {
-          break;
-        }
-      } else {
-        // Player 2 is System Practice Bot
-        const botDecision = systemBot2.chooseMove(game);
-        if (botDecision && botDecision.move) {
-          game.executeMove(2, botDecision.move, botDecision.calculationTimeMs);
-        } else {
-          game.isGameOver = true;
-          game.winner = 1;
-          game.winReason = 'ELIMINATION';
-          break;
-        }
-      }
-    }
+  const participants = {
+    1: { name: bot1Name, bot: template1?.bot, scriptPath: bot1ScriptPath },
+    2: { name: bot2Name, bot: systemBot2, scriptPath: bot2ScriptPath },
+  };
+  while (!game.isGameOver && game.turnCount < game.maxTurns) {
+    await playBotTurn(game, participants[game.currentTurnPlayer]);
   }
-
   const durationMs = Date.now() - startTime;
   const replayJson = game.getReplayJson();
 
