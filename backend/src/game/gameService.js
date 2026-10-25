@@ -295,7 +295,7 @@ async function getLeaderboard(limit = 50) {
   }
 }
 
-const fs = require('fs');
+const { resolveBotPath } = require('../bot/botStorage');
 const { getTemplateBot, playBotTurn } = require('./botDuel');
 
 /**
@@ -323,11 +323,9 @@ async function runAutomatedBotDuel({
     const bRes = await query('SELECT * FROM "Bots" WHERE id = $1', [bot1Id]);
     if (bRes.rows.length > 0) {
       const b = bRes.rows[0];
-      if (fs.existsSync(b.file_path_or_git_url)) {
-        bot1ScriptPath = b.file_path_or_git_url;
-        bot1Name = b.name;
-        bot1RecordId = b.id;
-      }
+      bot1ScriptPath = resolveBotPath(b);
+      bot1Name = b.name;
+      bot1RecordId = b.id;
     }
     if (!bot1ScriptPath) throw new Error('Không tìm thấy file bot đã chọn cho P1.');
   }
@@ -349,13 +347,11 @@ async function runAutomatedBotDuel({
       `, [bot2Id]);
     if (bRes.rows.length > 0) {
       const b = bRes.rows[0];
-      if (fs.existsSync(b.file_path_or_git_url)) {
-        bot2ScriptPath = b.file_path_or_git_url;
-        bot2Name = b.name;
-        bot2RecordId = b.id;
-        player2UserId = b.owner_id;
-        player2Username = b.owner_name;
-      }
+      bot2ScriptPath = resolveBotPath(b);
+      bot2Name = b.name;
+      bot2RecordId = b.id;
+      player2UserId = b.owner_id;
+      player2Username = b.owner_name;
     }
     if (!bot2ScriptPath) throw new Error('Không tìm thấy file bot đã chọn cho P2.');
   }

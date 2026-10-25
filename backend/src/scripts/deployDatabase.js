@@ -10,6 +10,7 @@ async function deployDatabase() {
   await pool.query(schemaAndMaps);
   await pool.query(`
     ALTER TABLE "Bots" ADD COLUMN IF NOT EXISTS "is_active" BOOLEAN NOT NULL DEFAULT false;
+    ALTER TABLE "Bots" ADD COLUMN IF NOT EXISTS "source_code" TEXT;
     ALTER TABLE "Bots" ADD COLUMN IF NOT EXISTS "tactic" VARCHAR(50) DEFAULT 'FLAG_RUSHER';
     ALTER TABLE "Tournaments" ADD COLUMN IF NOT EXISTS "scheduled_start_at" TIMESTAMPTZ;
     ALTER TABLE "Tournaments" ADD COLUMN IF NOT EXISTS "brackets_json" JSONB NOT NULL DEFAULT '[]'::jsonb;

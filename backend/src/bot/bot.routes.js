@@ -13,7 +13,7 @@ const upload = multer({
     fileSize: 2 * 1024 * 1024, // Max 2MB per Python file
   },
   fileFilter: (req, file, cb) => {
-    if (file.originalname.endsWith('.py')) {
+    if (file.originalname.toLowerCase().endsWith('.py')) {
       cb(null, true);
     } else {
       cb(new Error('Chỉ chấp nhận file mã nguồn Python (.py).'));

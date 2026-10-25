@@ -6,10 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 const { query } = require('../config/db');
-
-const STORAGE_ROOT = process.env.BOT_STORAGE_ROOT
-  ? path.resolve(process.env.BOT_STORAGE_ROOT)
-  : path.resolve(__dirname, '../../../storage/bots');
+const { STORAGE_ROOT, isBotAvailable } = require('./botStorage');
 
 /**
  * Ensure storage directory exists
@@ -44,7 +41,7 @@ function validatePythonSyntax(filePath) {
 /**
  * Save an uploaded Python bot file
  */
-async function saveUploadedBot({ userId, botName, file }) {
+async function saveUploadedBot({ userId, botName, file, tactic = 'FLAG_RUSHER' }) {
   if (!file) {
     const error = new Error('Vui lòng chọn file Python (.py) để tải lên.');
     error.statusCode = 400;
@@ -75,11 +72,12 @@ async function saveUploadedBot({ userId, botName, file }) {
 
   // Insert into Bots table
   const insertSql = `
-    INSERT INTO "Bots" (user_id, name, source_type, file_path_or_git_url, status, error_count)
-    VALUES ($1, $2, 'file', $3, 'active', 0)
-    RETURNING id, user_id, name, source_type, file_path_or_git_url, status, error_count, created_at;
+    INSERT INTO "Bots" (user_id, name, source_type, file_path_or_git_url, status, error_count, source_code, is_active, tactic)
+    VALUES ($1, $2, 'file', $3, 'active', 0, $4,
+      NOT EXISTS (SELECT 1 FROM "Bots" WHERE user_id = $1 AND is_active = true), $5)
+    RETURNING id, user_id, name, source_type, file_path_or_git_url, status, error_count, is_active, tactic, created_at;
   `;
-  const res = await query(insertSql, [userId, botName || file.originalname, targetPath]);
+  const res = await query(insertSql, [userId, botName || file.originalname, targetPath, fs.readFileSync(targetPath,'utf8'), tactic]);
   return res.rows[0];
 }
 
@@ -174,7 +172,7 @@ async function getUserBots(userId) {
     ORDER BY b.created_at DESC;
   `;
   const res = await query(sql, [userId]);
-  return res.rows;
+  return res.rows.map(({ source_code, ...bot }) => ({ ...bot, is_available:isBotAvailable({...bot,source_code}) }));
 }
 
 /**
@@ -266,11 +264,11 @@ async function createCodeBot({ userId, botName, code, tactic = 'FLAG_RUSHER' }) 
   const shouldBeActive = existingBots.rows.length === 0;
 
   const insertSql = `
-    INSERT INTO "Bots" (user_id, name, source_type, file_path_or_git_url, status, error_count, is_active, tactic)
-    VALUES ($1, $2, 'file', $3, 'active', 0, $4, $5)
+    INSERT INTO "Bots" (user_id, name, source_type, file_path_or_git_url, status, error_count, is_active, tactic, source_code)
+    VALUES ($1, $2, 'file', $3, 'active', 0, $4, $5, $6)
     RETURNING id, user_id, name, source_type, file_path_or_git_url, status, error_count, is_active, tactic, created_at;
   `;
-  const res = await query(insertSql, [userId, botName || 'Bot Chiến Thuật', targetPath, shouldBeActive, tactic]);
+  const res = await query(insertSql, [userId, botName || 'Bot Chiến Thuật', targetPath, shouldBeActive, tactic, code]);
   return res.rows[0];
 }
 
@@ -301,6 +299,7 @@ async function updateBotTactic(botId, userId, tactic) {
 async function getCommunityBots() {
   const sql = `
     SELECT b.id, b.user_id, b.name, b.tactic, b.source_type, b.status, b.is_active, b.created_at,
+           b.file_path_or_git_url, b.source_code,
            u.username AS owner_name, u.elo_rating AS owner_elo
     FROM "Bots" b
     JOIN "Users" u ON u.id = b.user_id
@@ -308,7 +307,9 @@ async function getCommunityBots() {
     ORDER BY u.elo_rating DESC, b.created_at DESC;
   `;
   const res = await query(sql);
-  return res.rows;
+  return res.rows.map(({source_code,file_path_or_git_url,...bot}) => ({...bot,
+    is_available:isBotAvailable({...bot,source_code,file_path_or_git_url}),
+  }));
 }
 
 module.exports = {

@@ -8,7 +8,7 @@ const botService = require('./bot.service');
 
 async function uploadBot(req, res, next) {
   try {
-    const { name } = req.body;
+    const { name, tactic } = req.body;
     const userId = req.user.id;
     const file = req.file;
 
@@ -16,6 +16,7 @@ async function uploadBot(req, res, next) {
       userId,
       botName: name,
       file,
+      tactic,
     });
 
     return res.status(201).json({

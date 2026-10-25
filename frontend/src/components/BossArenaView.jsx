@@ -53,6 +53,7 @@ export default function BossArenaView({ onSelectReplay }) {
   const [myBots, setMyBots] = useState([]);
   const [selectedBotId, setSelectedBotId] = useState('template_alphabeta');
   const [loading, setLoading] = useState(false);
+  const [matchError, setMatchError] = useState('');
 
   // Auto match execution states
   const [autoMatchData, setAutoMatchData] = useState(null);
@@ -63,18 +64,21 @@ export default function BossArenaView({ onSelectReplay }) {
 
   // Fetch student bots
   useEffect(() => {
+    let cancelled = false;
     if (user) {
       fetch('/api/bots/my-bots', { headers: getAuthHeaders() })
         .then((res) => (res.ok ? res.json() : { data: [] }))
         .then((data) => {
+          if (cancelled) return;
           const list = data.data || [];
           setMyBots(list);
-          const active = list.find((b) => b.is_active);
-          if (active) setSelectedBotId(active.id);
+          setSelectedBotId((current) => current.startsWith('template_') || list.some((bot) => bot.id === current)
+            ? current : 'template_alphabeta');
         })
         .catch(console.warn);
     }
-  }, [user]);
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   // Autoplay step timer
   const replaySteps = autoMatchData?.replay?.steps || [];
@@ -104,6 +108,7 @@ export default function BossArenaView({ onSelectReplay }) {
   // Start Automated Bot Duel
   const handleStartAutoDuel = async () => {
     setLoading(true);
+    setMatchError('');
     setAutoMatchData(null);
     setCurrentStepIdx(0);
     setIsPlaying(true);
@@ -128,7 +133,7 @@ export default function BossArenaView({ onSelectReplay }) {
 
       setAutoMatchData(data.data);
     } catch (err) {
-      alert(`Lỗi khởi tạo trận đấu tự động: ${err.message}`);
+      setMatchError(`Không thể bắt đầu trận: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -173,6 +178,7 @@ export default function BossArenaView({ onSelectReplay }) {
       {!autoMatchData ? (
         /* Setup & Selection View */
         <div className="space-y-6">
+          {matchError && <p role="alert" className="rounded-xl border border-red-500/30 p-3 text-sm text-red-300">{matchError}</p>}
           {/* Boss Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {bosses.map((boss) => {
@@ -254,8 +260,8 @@ export default function BossArenaView({ onSelectReplay }) {
                 {myBots.length > 0 && (
                   <optgroup label="Kho Bot Học Sinh Của Bạn">
                     {myBots.map((bot) => (
-                      <option key={bot.id} value={bot.id}>
-                        {bot.name} {bot.is_active ? '(Chính thức)' : ''}
+                      <option key={bot.id} value={bot.id} disabled={bot.is_available === false}>
+                        {bot.name} {bot.is_available === false ? '(Cần tải lại file)' : bot.is_active ? '(Chính thức)' : ''}
                       </option>
                     ))}
                   </optgroup>

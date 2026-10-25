@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS "Bots" (
     "name" VARCHAR(100) NOT NULL,
     "source_type" VARCHAR(20) NOT NULL DEFAULT 'file', -- 'file', 'git'
     "file_path_or_git_url" TEXT NOT NULL,
+    "source_code" TEXT,
     "status" VARCHAR(30) NOT NULL DEFAULT 'active', -- 'active', 'inactive', 'compiling', 'error'
     "error_count" INT NOT NULL DEFAULT 0,
     "is_active" BOOLEAN NOT NULL DEFAULT false,

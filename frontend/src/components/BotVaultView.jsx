@@ -151,6 +151,7 @@ export default function BotVaultView() {
         const formData = new FormData();
         formData.append('name', botName.trim());
         formData.append('file', selectedFile);
+        formData.append('tactic', selectedTactic);
 
         const res = await fetch('/api/bots/upload', {
           method: 'POST',
@@ -647,10 +648,27 @@ export default function BotVaultView() {
                 <input
                   type="file"
                   accept=".py"
-                  onChange={(e) => setSelectedFile(e.target.files[0] || null)}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (!file.name.toLowerCase().endsWith('.py')) {
+                      setAlertMsg({type:'error',text:'Chỉ chấp nhận file Python (.py).'});
+                      e.target.value = '';
+                      return;
+                    }
+                    if (file.size > 2 * 1024 * 1024) {
+                      setAlertMsg({type:'error',text:'File Python không được vượt quá 2 MB.'});
+                      e.target.value = '';
+                      return;
+                    }
+                    setSelectedFile(file);
+                    setAlertMsg(null);
+                    setBotName((current) => current || file.name.replace(/\.py$/i,''));
+                  }}
                   className="w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 cursor-pointer"
-                  required
+                  required={!selectedFile}
                 />
+                {selectedFile && <p role="status" className="mt-2 text-xs text-emerald-300">Đã chọn: {selectedFile.name}</p>}
               </div>
             )}
 

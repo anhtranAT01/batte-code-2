@@ -14,6 +14,7 @@ RUN cd backend && npm ci \
 COPY backend ./backend
 COPY judge-worker ./judge-worker
 COPY scripts ./scripts
+COPY sample-bots ./sample-bots
 
 RUN cd backend && npx prisma generate
 

@@ -7,13 +7,15 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
 
   // Selected duelists
   const [myBots, setMyBots] = useState([]);
-  const [selectedMyBotId, setSelectedMyBotId] = useState('');
+  const [selectedMyBotId, setSelectedMyBotId] = useState('template_flag_rusher');
   
   const [communityBots, setCommunityBots] = useState([]);
   const [selectedOpponentBotId, setSelectedOpponentBotId] = useState('');
 
   const [boardSize, setBoardSize] = useState(9);
   const [loading, setLoading] = useState(false);
+  const [botsLoading, setBotsLoading] = useState(true);
+  const [selectionError, setSelectionError] = useState('');
 
   // Match execution & Replay states
   const [autoMatchData, setAutoMatchData] = useState(null);
@@ -24,36 +26,46 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
 
   // Fetch my bots and community student bots
   useEffect(() => {
+    let cancelled = false;
+    setBotsLoading(true);
+    setSelectionError('');
     fetch('/api/bots/community')
-      .then((res) => (res.ok ? res.json() : { data: [] }))
-      .then((data) => {
-        const list = data.data || [];
-        setCommunityBots(list);
-        if (preselectedOpponent) {
-          const match = list.find((b) => b.user_id === preselectedOpponent.id || b.owner_name === preselectedOpponent.username);
-          if (match) setSelectedOpponentBotId(match.id);
-          else if (list.length > 0) setSelectedOpponentBotId(list[0].id);
-        } else if (list.length > 0) {
-          // Default to first opponent that is not the current user
-          const other = list.find((b) => b.user_id !== user?.id);
-          setSelectedOpponentBotId(other ? other.id : list[0].id);
-        }
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Không tải được danh sách đối thủ.');
+        return data;
       })
-      .catch(console.warn);
+      .then((data) => {
+        if (cancelled) return;
+        const list = (data.data || []).filter((bot) => bot.user_id !== user?.id && bot.is_available !== false);
+        setCommunityBots(list);
+        setSelectedOpponentBotId((current) => list.some((bot) => bot.id === current) ? current : (list[0]?.id || ''));
+      })
+      .catch((error) => { if (!cancelled) setSelectionError(error.message); })
+      .finally(() => { if (!cancelled) setBotsLoading(false); });
 
     if (user) {
       fetch('/api/bots/my-bots', { headers: getAuthHeaders() })
         .then((res) => (res.ok ? res.json() : { data: [] }))
         .then((data) => {
+          if (cancelled) return;
           const list = data.data || [];
           setMyBots(list);
           const active = list.find((b) => b.is_active);
-          if (active) setSelectedMyBotId(active.id);
-          else if (list.length > 0) setSelectedMyBotId(list[0].id);
+          setSelectedMyBotId((current) => list.some((bot) => bot.id === current) || current.startsWith('template_')
+            ? current : (active?.id || list[0]?.id || 'template_flag_rusher'));
         })
         .catch(console.warn);
     }
-  }, [user, preselectedOpponent]);
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!preselectedOpponent) return;
+    const match = communityBots.find((bot) => bot.user_id === preselectedOpponent.id
+      || bot.owner_name === preselectedOpponent.username);
+    if (match) setSelectedOpponentBotId(match.id);
+  }, [communityBots, preselectedOpponent?.id, preselectedOpponent?.username]);
 
   // Autoplay step timer
   const replaySteps = autoMatchData?.replay?.steps || [];
@@ -82,7 +94,8 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
 
   // Pick random opponent
   const handlePickRandomOpponent = () => {
-    const others = communityBots.filter((b) => b.user_id !== user?.id);
+    const currentOwner = communityBots.find((bot) => bot.id === selectedOpponentBotId)?.user_id;
+    const others = communityBots.filter((b) => b.user_id !== user?.id && b.user_id !== currentOwner);
     if (others.length > 0) {
       const rand = others[Math.floor(Math.random() * others.length)];
       setSelectedOpponentBotId(rand.id);
@@ -133,6 +146,7 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
 
   const selectedOpponentBot = communityBots.find((b) => b.id === selectedOpponentBotId);
   const selectedMyBot = myBots.find((b) => b.id === selectedMyBotId);
+  const hasOtherOpponent = communityBots.some((bot) => bot.user_id !== selectedOpponentBot?.user_id);
 
   const getTacticBadge = (tactic) => {
     switch (tactic) {
@@ -188,6 +202,7 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
       {!autoMatchData ? (
         /* Setup PvP Match */
         <div className="space-y-6">
+          {selectionError && <p role="alert" className="text-sm text-red-300">{selectionError}</p>}
           {/* Duelists Cards: Player 1 VS Player 2 */}
           <div className="grid grid-cols-1 lg:grid-cols-11 gap-4 items-center">
             {/* Player 1 Card (Blue Team) */}
@@ -227,8 +242,8 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
                   className="w-full py-2.5 px-3 rounded-xl bg-[#090d18] border border-blue-500/20 text-white text-xs font-semibold focus:outline-none focus:border-blue-400"
                 >
                   {myBots.map((bot) => (
-                    <option key={bot.id} value={bot.id}>
-                      {bot.name} {bot.is_active ? '(Chính thức)' : ''}
+                    <option key={bot.id} value={bot.id} disabled={bot.is_available === false}>
+                      {bot.name} {bot.is_available === false ? '(Cần tải lại file)' : bot.is_active ? '(Chính thức)' : ''}
                     </option>
                   ))}
                   <option value="template_flag_rusher">Bot mẫu: A* Flag Rusher</option>
@@ -257,7 +272,7 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black uppercase tracking-wider text-red-400 flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
-                  PHE ĐỎ (CĂN CỨ 8,8)
+                  PHE ĐỎ (CĂN CỨ {boardSize-1},{boardSize-1})
                 </span>
                 <span className="text-xs font-mono font-bold text-slate-400">
                   {selectedOpponentBot?.owner_elo || 1400} Elo
@@ -282,6 +297,8 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
                 <button
                   type="button"
                   onClick={handlePickRandomOpponent}
+                  disabled={!hasOtherOpponent || botsLoading}
+                  title={hasOtherOpponent ? 'Chọn một người khác' : 'Chưa có người khác có bot để đổi'}
                   className="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-[11px] font-semibold border border-white/5 transition-all flex items-center gap-1"
                 >
                   <span>Đổi ngẫu nhiên</span>
@@ -298,6 +315,7 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
                   onChange={(e) => setSelectedOpponentBotId(e.target.value)}
                   className="w-full py-2.5 px-3 rounded-xl bg-[#090d18] border border-red-500/20 text-white text-xs font-semibold focus:outline-none focus:border-red-400"
                 >
+                  <option value="" disabled>{botsLoading ? 'Đang tải đối thủ...' : 'Chọn đối thủ'}</option>
                   {communityBots
                     .filter((b) => b.user_id !== user?.id)
                     .map((bot) => (
@@ -306,6 +324,11 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
                       </option>
                     ))}
                 </select>
+                {!botsLoading && !hasOtherOpponent && (
+                  <p className="text-[11px] text-slate-400">
+                    {communityBots.length ? 'Hiện chỉ có một người khác có bot. Chưa có thêm đối thủ để đổi.' : 'Chưa có người chơi khác có bot. Bạn có thể vào Luyện tập đấu với Boss.'}
+                  </p>
+                )}
 
                 {selectedOpponentBot && (
                   <div className="flex items-center gap-2 pt-1">
@@ -357,7 +380,7 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
             <div>
               <button
                 onClick={handleStartPvPDuel}
-                disabled={loading}
+                disabled={loading || botsLoading || !selectedMyBotId || !selectedOpponentBotId}
                 className="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 disabled:opacity-50 text-white font-black text-sm shadow-xl shadow-cyan-950/50 transition-all flex items-center justify-center gap-2 tracking-wide"
               >
                 <span>{loading ? 'Đang Khởi Chạy 2 Bot Python...' : 'KHỞI TRANH ĐẤU BOT 2 NGƯỜI (PvP)'}</span>
