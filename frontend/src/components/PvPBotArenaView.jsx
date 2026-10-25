@@ -137,6 +137,26 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
         /* Setup PvP Match */
         <div className="space-y-6">
           {selectionError && <p role="alert" className="text-sm text-red-300">{selectionError}</p>}
+          <div className="rounded-2xl border border-blue-500/30 bg-[#0e1322]/80 p-5 space-y-3">
+            <label htmlFor="pvp-opponent" className="block text-sm font-bold text-blue-300">Bạn (phe Xanh) chọn đối thủ</label>
+            <div className="flex flex-wrap items-center gap-3">
+              <select id="pvp-opponent" aria-label="Người chơi đối thủ" value={selectedOpponentId}
+                onChange={event => setSelectedOpponentId(event.target.value)}
+                className="min-w-0 flex-1 py-2.5 px-3 rounded-xl bg-[#090d18] border border-blue-500/20 text-white text-xs font-semibold">
+                <option value="" disabled>{botsLoading ? 'Đang tải người chơi...' : 'Chọn người chơi'}</option>
+                {opponents.map(player => <option key={player.id} value={player.id}>{player.username} ({player.elo_rating} Elo){player.ready ? '' : ' — Chưa sẵn sàng'}</option>)}
+              </select>
+              <button type="button" onClick={handlePickRandomOpponent}
+                disabled={opponents.length < 2 || botsLoading}
+                title={opponents.length > 1 ? 'Chọn một người khác' : 'Chưa có người chơi khác để đổi'}
+                className="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold border border-white/5">
+                Đổi ngẫu nhiên
+              </button>
+              <button type="button" onClick={() => loadPlayers()} disabled={botsLoading} className="text-xs text-cyan-300 underline">Làm mới danh sách và bot chính</button>
+            </div>
+            <p className="text-xs text-slate-400">Người bạn chọn sẽ xuất hiện ở phe Đỏ bên dưới, cùng bot chính do họ kích hoạt.</p>
+            {!botsLoading && !opponents.length && <p className="text-xs text-slate-400">Chưa có người chơi khác đăng ký.</p>}
+          </div>
           {/* Duelists Cards: Player 1 VS Player 2 */}
           <div className="grid grid-cols-1 lg:grid-cols-11 gap-4 items-center">
             {/* Player 1 Card (Blue Team) */}
@@ -160,7 +180,7 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
                     {user?.username || 'Bạn (Sinh Viên 1)'}
                   </div>
                   <div className="text-[11px] text-blue-300 font-semibold mt-0.5">
-                    Kỳ Thủ Phe Xanh
+                    Bạn — người thách đấu
                   </div>
                 </div>
               </div>
@@ -201,34 +221,16 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
                       {selectedOpponent?.username || 'Sinh Viên Đối Thủ'}
                     </div>
                     <div className="text-[11px] text-red-300 font-semibold mt-0.5">
-                      Kỳ Thủ Phe Đỏ
+                      Đối thủ bạn đã chọn
                     </div>
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handlePickRandomOpponent}
-                  disabled={opponents.length < 2 || botsLoading}
-                  title={opponents.length > 1 ? 'Chọn một người khác' : 'Chưa có người chơi khác để đổi'}
-                  className="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-[11px] font-semibold border border-white/5 transition-all flex items-center gap-1"
-                >
-                  <span>Đổi ngẫu nhiên</span>
-                </button>
               </div>
 
               <div className="pt-2 space-y-2">
-                <label className="block text-[11px] font-bold text-slate-400 uppercase">Chọn người chơi đối thủ</label>
-                <select aria-label="Người chơi đối thủ" value={selectedOpponentId}
-                  onChange={event => setSelectedOpponentId(event.target.value)}
-                  className="w-full py-2.5 px-3 rounded-xl bg-[#090d18] border border-red-500/20 text-white text-xs font-semibold">
-                  <option value="" disabled>{botsLoading ? 'Đang tải người chơi...' : 'Chọn người chơi'}</option>
-                  {opponents.map(player => <option key={player.id} value={player.id}>{player.username} ({player.elo_rating} Elo){player.ready ? '' : ' — Chưa sẵn sàng'}</option>)}
-                </select>
                 <p className="text-xs text-slate-300">Bot chính: <strong>{selectedOpponent?.bot?.name || 'Chưa chọn'}</strong></p>
                 <p className="text-xs text-slate-400">{selectedOpponent?.ready ? 'Bot do chính người chơi này kích hoạt. Bạn không thể đổi bot hộ họ.' : selectedOpponent?.reason || 'Chọn người chơi để xem bot chính của họ.'}</p>
-                <button type="button" onClick={() => loadPlayers()} disabled={botsLoading} className="text-xs text-cyan-300 underline">Làm mới danh sách và bot chính</button>
-                {!botsLoading && !opponents.length && <p className="text-xs text-slate-400">Chưa có người chơi khác đăng ký.</p>}
               </div>
             </div>
           </div>
