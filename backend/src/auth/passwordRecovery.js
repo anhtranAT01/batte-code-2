@@ -3,7 +3,7 @@ const {createHash,randomBytes}=require('crypto');
 const bcrypt=require('bcryptjs');
 const {query,pool}=require('../config/db');
 const {z}=require('zod');
-const {recoveryEmailEnabled,sendRecoveryEmail}=require('./recoveryEmail');
+const {recoveryEmailEnabled,sendRecoveryEmail,publicProviderError}=require('./recoveryEmail');
 const router=express.Router();
 const digest=value=>createHash('sha256').update(value).digest('hex');
 const safeMessage='Nếu email đã đăng ký, hướng dẫn khôi phục sẽ được gửi. Kiểm tra cả thư rác.';
@@ -22,7 +22,11 @@ router.post('/forgot-password',async(req,res,next)=>{
         try{
           const url=new URL(process.env.PASSWORD_RESET_URL);url.hash=new URLSearchParams({reset_token:token}).toString();
           await sendRecoveryEmail({to:user.email,url:url.toString()});
-        }catch{await query('DELETE FROM "PasswordResets" WHERE token_hash=$1',[digest(token)]);return res.status(503).json({message:'Chưa gửi được email. Hãy thử lại hoặc liên hệ Admin.'});}
+        }catch(error){
+          console.error('[PasswordRecovery] Email delivery failed',publicProviderError(error));
+          await query('DELETE FROM "PasswordResets" WHERE token_hash=$1',[digest(token)]);
+          return res.status(503).json({message:'Chưa gửi được email. Hãy thử lại hoặc liên hệ Admin.'});
+        }
       }
     }
     res.json({success:true,message:safeMessage});

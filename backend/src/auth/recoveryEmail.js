@@ -8,6 +8,17 @@ function recoveryEmailEnabled(){
   return Boolean(process.env.RESEND_API_KEY||process.env.SMTP_HOST);
 }
 function escapeHtml(value){return String(value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));}
+function publicProviderError(error){
+  const status=Number(error?.statusCode||error?.status||error?.responseCode)||undefined;
+  const code=typeof error?.code==='string'?error.code:undefined;
+  const message=String(error?.providerMessage||error?.message||'Email provider rejected the request.')
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,'[email]')
+    .replace(/\b[a-f0-9]{64}\b/gi,'[token]')
+    .replace(/\bre_[A-Za-z0-9_-]+\b/g,'[api-key]')
+    .replace(/https?:\/\/\S+/gi,'[url]')
+    .slice(0,240);
+  return {provider:process.env.RESEND_API_KEY?'resend':'smtp',...(status?{status}:{}),...(code?{code}:{}),...(typeof error?.command==='string'?{command:error.command}:{}),message};
+}
 
 async function sendRecoveryEmail({to,url}){
   const from=sender();
@@ -19,7 +30,12 @@ async function sendRecoveryEmail({to,url}){
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);
     try{
       const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:`Bearer ${process.env.RESEND_API_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({from,to:[to],subject,text,html}),signal:controller.signal});
-      if(!response.ok)throw new Error('Email provider rejected the request.');
+      if(!response.ok){
+        const details=await response.json().catch(()=>({}));
+        const error=new Error(details.message||'Email provider rejected the request.');
+        error.status=response.status;error.code=details.name||details.code;error.providerMessage=details.message;
+        throw error;
+      }
       return await response.json();
     }finally{clearTimeout(timer);}
   }
@@ -29,4 +45,4 @@ async function sendRecoveryEmail({to,url}){
   finally{transport.close();}
 }
 
-module.exports={recoveryEmailEnabled,sendRecoveryEmail};
+module.exports={recoveryEmailEnabled,sendRecoveryEmail,publicProviderError};
