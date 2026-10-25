@@ -13,8 +13,17 @@ let auth = {
 };
 
 let queued = null;
+let lastScrolledId = null;
 global.window = { addEventListener() {}, removeEventListener() {} };
-global.document = { addEventListener() {}, removeEventListener() {} };
+global.document = {
+  addEventListener() {},
+  removeEventListener() {},
+  getElementById: (id) => ({
+    scrollIntoView: () => {
+      lastScrolledId = id;
+    },
+  }),
+};
 
 function component(name) {
   const filename = path.resolve(__dirname, `../src/components/${name}.jsx`);
@@ -49,6 +58,7 @@ async function run() {
   console.log('Testing Frontend TournamentBracketsView Team Management & Registration...');
 
   // Mock API calls
+  let branchJoinBody = null;
   global.fetch = async (url, init) => {
     if (url === '/api/tournaments') {
       return {
@@ -63,7 +73,24 @@ async function run() {
               mode: 'ALL_IN',
               max_participants: 100,
             },
+            {
+              id: 't-2',
+              name: 'Nhánh Tứ Kết Cúp',
+              status: 'UPCOMING',
+              mode: 'BRANCHES',
+              max_participants: 16,
+            },
           ],
+        }),
+      };
+    }
+    if (url.includes('/brackets/join')) {
+      branchJoinBody = JSON.parse(init.body);
+      return {
+        ok: true,
+        json: async () => ({
+          success: true,
+          message: 'Ghi danh nhánh đấu thành công',
         }),
       };
     }
@@ -91,12 +118,33 @@ async function run() {
       };
     }
     if (url.includes('/standings')) {
+      if (url.includes('t-2')) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: {
+              tournament: {
+                id: 't-2',
+                name: 'Nhánh Tứ Kết Cúp',
+                status: 'UPCOMING',
+                mode: 'BRANCHES',
+                brackets: [
+                  { id: 'qf-1', round: 1, title: 'Tứ Kết 1', status: 'PENDING', p1: null, p2: null },
+                  { id: 'qf-2', round: 1, title: 'Tứ Kết 2', status: 'PENDING', p1: null, p2: null },
+                ],
+              },
+              standings: [],
+            },
+          }),
+        };
+      }
       return {
         ok: true,
         json: async () => ({
           success: true,
           data: {
-            tournament: { id: 't-1', name: 'Vô Địch Arena', status: 'ONGOING' },
+            tournament: { id: 't-1', name: 'Vô Địch Arena', status: 'ONGOING', mode: 'ALL_IN' },
             standings: [
               {
                 userId: 'u1',
@@ -184,8 +232,72 @@ async function run() {
   assert.ok(text(filteredRows[0].props.children).includes('RivalUser'));
   console.log('✓ Filter by team name accurately filters the standings list');
 
+  // TEST BRANCHES MODE & INTERACTIVE BRACKET JUMPING
+  console.log('Testing BRANCHES Mode & Interactive Bracket Jumping...');
+
+  // 1. Click switch to Mục 2: Nhánh Đấu
+  const branchModeBtn = tree.root.findAllByType('button').find((b) =>
+    text(b.props.children).includes('Mục 2: Các Giải Đấu Riêng Lẻ & Nhánh Đấu')
+  );
+  assert.ok(branchModeBtn, 'Branch mode button must exist');
+  await act(async () => {
+    branchModeBtn.props.onClick();
+  });
+
+  // 2. Select tournament t-2
+  const tourneySelect = tree.root.findAllByType('select').find((s) =>
+    s.props['aria-label'] === 'Giải đấu đã chọn'
+  );
+  assert.ok(tourneySelect, 'Tournament selector must exist');
+  await act(async () => {
+    tourneySelect.props.onChange({ target: { value: 't-2' } });
+  });
+
+  // 3. Verify Quick Branch Chip buttons rendered (Nhánh 1, Nhánh 2)
+  const branchChip2 = tree.root.findAllByType('button').find((b) =>
+    text(b.props.children).includes('Nhánh 2')
+  );
+  assert.ok(branchChip2, 'Quick branch chip "Nhánh 2" must be rendered');
+
+  // Click Nhánh 2 quick chip -> should trigger smooth scroll down to bracket-match-qf-2
+  await act(async () => {
+    branchChip2.props.onClick();
+    await new Promise((r) => setTimeout(r, 120));
+  });
+
+  assert.equal(lastScrolledId, 'bracket-match-qf-2', 'Selecting Nhánh 2 must scroll down to bracket-match-qf-2');
+  console.log('✓ Selecting Nhánh 2 immediately triggered smooth scroll down to bracket-match-qf-2');
+
+  // 4. Select Slot 2 button
+  const slot2Btn = tree.root.findAllByType('button').find((b) =>
+    text(b.props.children).includes('Vị trí 2 (Slot 2)')
+  );
+  assert.ok(slot2Btn, 'Slot 2 button must exist');
+  await act(async () => {
+    slot2Btn.props.onClick();
+    await new Promise((r) => setTimeout(r, 120));
+  });
+
+  // 5. Click Register / Join Bracket button
+  const joinBtn = tree.root.findAllByType('button').find((b) =>
+    text(b.props.children).includes('Ghi Danh Vào Nhánh Đấu') || text(b.props.children).includes('Cập Nhật Nhánh')
+  );
+  assert.ok(joinBtn, 'Join bracket button must exist');
+
+  await act(async () => {
+    joinBtn.props.onClick();
+    await new Promise((r) => setTimeout(r, 120));
+  });
+
+  assert.ok(branchJoinBody, 'POST /brackets/join must be sent');
+  assert.equal(branchJoinBody.bracketMatchId, 'qf-2', 'Bracket match ID must be qf-2');
+  assert.equal(branchJoinBody.slot, 'p2', 'Slot must be p2');
+  assert.equal(branchJoinBody.botId, 'b-1', 'Bot ID must match selected bot b-1');
+  assert.equal(branchJoinBody.teamName, 'Robo Force', 'Team name must match Robo Force');
+  console.log('✓ Successfully joined bracket slot qf-2 (Slot 2) with team and bot');
+
   act(() => tree.unmount());
-  console.log('\nALL FRONTEND TOURNAMENT TEAM TESTS PASSED! 🎉');
+  console.log('\nALL FRONTEND TOURNAMENT TEAM & BRANCH JUMPING TESTS PASSED! 🎉');
 }
 
 run().catch((err) => {

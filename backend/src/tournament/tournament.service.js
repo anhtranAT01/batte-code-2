@@ -358,6 +358,105 @@ async function updateTournamentBrackets(tournamentId, bracketsData) {
 }
 
 /**
+ * Student joins or assigns themselves into a specific bracket slot
+ */
+async function joinBracketSlot({ tournamentId, userId, bracketMatchId, slot = 'p1', botId = null, teamName = null }) {
+  const client = await pool.connect();
+  const fail = (message, statusCode = 400) => { throw Object.assign(new Error(message), { statusCode }); };
+  try {
+    await client.query('BEGIN');
+    const tourney = (await client.query('SELECT * FROM "Tournaments" WHERE id = $1 FOR UPDATE', [tournamentId])).rows[0];
+    if (!tourney) fail('Không tìm thấy giải đấu.', 404);
+
+    if (tourney.status === 'COMPLETED' || tourney.status === 'CANCELLED') {
+      fail('Giải đấu đã kết thúc hoặc đã hủy.');
+    }
+
+    const user = (await client.query('SELECT username, elo_rating, team_name FROM "Users" WHERE id = $1', [userId])).rows[0];
+    if (!user) fail('Không tìm thấy tài khoản người dùng.', 404);
+
+    const cleanTeamName = (teamName !== undefined && teamName !== null && String(teamName).trim() !== '')
+      ? String(teamName).trim().slice(0, 100)
+      : (user.team_name || null);
+
+    if (cleanTeamName && cleanTeamName !== user.team_name) {
+      await client.query('UPDATE "Users" SET team_name = $1 WHERE id = $2', [cleanTeamName, userId]);
+    }
+
+    let bot = null;
+    if (botId) {
+      bot = (await client.query(`SELECT name, file_path_or_git_url FROM "Bots" WHERE id = $1 AND user_id = $2 AND status = 'active'`, [botId, userId])).rows[0];
+    }
+    if (!bot) {
+      bot = (await client.query(`SELECT name, file_path_or_git_url FROM "Bots" WHERE user_id = $1 AND status = 'active' ORDER BY is_active DESC, updated_at DESC LIMIT 1`, [userId])).rows[0];
+    }
+
+    let brackets = tourney.brackets_json || [];
+    let match = brackets.find(b => b.id === bracketMatchId);
+    if (!match) {
+      match = brackets.find(b => b.round === 1) || brackets[0];
+    }
+    if (!match) fail('Giải đấu chưa có sơ đồ nhánh đấu.', 400);
+
+    const slotKey = slot === 'p2' ? 'p2' : 'p1';
+    match[slotKey] = {
+      id: userId,
+      name: user.username,
+      bot: bot ? bot.name : 'Custom Bot',
+      team: cleanTeamName,
+      score: null,
+    };
+
+    // Also sync with settings.participants
+    const settings = tourney.settings_json || {};
+    const participants = settings.participants || [];
+    const existingIndex = participants.findIndex(p => p.userId === userId);
+    if (existingIndex !== -1) {
+      participants[existingIndex].teamName = cleanTeamName;
+      if (bot) {
+        participants[existingIndex].botId = botId || participants[existingIndex].botId;
+        participants[existingIndex].botName = bot.name;
+        participants[existingIndex].botPath = bot.file_path_or_git_url;
+      }
+    } else {
+      participants.push({
+        id: userId,
+        userId,
+        botId: botId || bot?.id || null,
+        botName: bot ? bot.name : 'Custom Bot',
+        botPath: bot ? bot.file_path_or_git_url : null,
+        username: user.username,
+        teamName: cleanTeamName,
+        elo: user.elo_rating,
+        initialElo: user.elo_rating,
+        points: 0,
+        registeredAt: new Date().toISOString(),
+      });
+    }
+    settings.participants = participants;
+
+    await client.query(
+      'UPDATE "Tournaments" SET brackets_json = $1, settings_json = $2, updated_at = NOW() WHERE id = $3',
+      [JSON.stringify(brackets), JSON.stringify(settings), tournamentId]
+    );
+
+    await client.query('COMMIT');
+    return {
+      success: true,
+      message: `Đã ghi danh vào ${match.title} (${slotKey.toUpperCase()}) thành công!`,
+      data: brackets,
+      matchId: match.id,
+      slot: slotKey,
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
  * List all tournaments
  */
 /**
@@ -456,4 +555,5 @@ module.exports = {
   listTournaments,
   updateUserTeam,
   getTournamentTeams,
+  joinBracketSlot,
 };

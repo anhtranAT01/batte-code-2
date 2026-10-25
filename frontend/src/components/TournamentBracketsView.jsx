@@ -26,6 +26,11 @@ export default function TournamentBracketsView({ onSelectReplay }) {
   const [showTeamDropdown, setShowTeamDropdown] = useState(false);
   const [standingsFilter, setStandingsFilter] = useState('');
 
+  // Student Bracket Selection state
+  const [selectedBracketMatchId, setSelectedBracketMatchId] = useState('');
+  const [selectedBracketSlot, setSelectedBracketSlot] = useState('p1');
+  const [highlightedMatchId, setHighlightedMatchId] = useState(null);
+
   // Admin schedule state
   const [scheduleTimeInput, setScheduleTimeInput] = useState('');
   const [countdown, setCountdown] = useState(null);
@@ -55,6 +60,43 @@ export default function TournamentBracketsView({ onSelectReplay }) {
         .catch(console.warn);
     }
   }, [user]);
+
+  // Keep selected bracket match synced with available brackets or user's current assignment
+  useEffect(() => {
+    const brs = standingsData?.tournament?.brackets || [];
+    if (brs.length > 0) {
+      const myMatch = brs.find(b => (b.p1?.id === user?.id || b.p1?.name === user?.username) || (b.p2?.id === user?.id || b.p2?.name === user?.username));
+      if (myMatch) {
+        setSelectedBracketMatchId(myMatch.id);
+        if (myMatch.p2?.id === user?.id || myMatch.p2?.name === user?.username) {
+          setSelectedBracketSlot('p2');
+        } else {
+          setSelectedBracketSlot('p1');
+        }
+      } else if (!selectedBracketMatchId || !brs.some(b => b.id === selectedBracketMatchId)) {
+        const firstQF = brs.find(b => b.round === 1) || brs[0];
+        if (firstQF) setSelectedBracketMatchId(firstQF.id);
+      }
+    }
+  }, [standingsData, user?.id, user?.username]);
+
+  // Smooth scroll down to a specific bracket match node
+  const handleSelectBracketMatch = (matchId, slot = null) => {
+    setSelectedBracketMatchId(matchId);
+    if (slot) setSelectedBracketSlot(slot);
+    setHighlightedMatchId(matchId);
+
+    setTimeout(() => {
+      const el = document.getElementById(`bracket-match-${matchId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 60);
+
+    setTimeout(() => {
+      setHighlightedMatchId(null);
+    }, 2500);
+  };
 
   // Keep team input synced if user profile loads or changes
   useEffect(() => {
@@ -175,7 +217,7 @@ export default function TournamentBracketsView({ onSelectReplay }) {
     }
   };
 
-  // Register student bot & team into current tournament
+  // Register student bot & team into current tournament (supports direct bracket slot assignment)
   const handleRegister = async () => {
     if (!user) {
       alert('Vui lòng đăng nhập để đăng ký giải đấu!');
@@ -188,23 +230,49 @@ export default function TournamentBracketsView({ onSelectReplay }) {
     try {
       if (!selectedBotId) throw new Error('Hãy chọn bot đã được máy chủ kiểm tra.');
       const chosenTeam = teamInput.trim();
-      await outbox.enqueue(user.id, 'tournament', {
-        tournamentId: selectedTourneyId,
-        botId: selectedBotId,
-        teamName: chosenTeam || undefined,
-      });
-      setActionMsg({
-        type: 'success',
-        text: 'Đã lưu yêu cầu tham gia giải đấu trên máy. Hệ thống đang đồng bộ với máy chủ...',
-      });
-      if (token && window.navigator?.onLine !== false) {
-        outbox.flush(() => ({ userId: user.id, token })).then(() => {
-          setTimeout(() => {
-            fetchStandings(selectedTourneyId);
-            fetchAvailableTeams();
-            if (refreshProfile) refreshProfile();
-          }, 600);
+
+      if (tournamentMode === 'BRANCHES') {
+        // Direct bracket slot join
+        const res = await fetch(`/api/tournaments/${selectedTourneyId}/brackets/join`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify({
+            bracketMatchId: selectedBracketMatchId,
+            slot: selectedBracketSlot,
+            botId: selectedBotId,
+            teamName: chosenTeam || undefined,
+          }),
         });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Ghi danh vào nhánh thất bại.');
+        setActionMsg({ type: 'success', text: data.message });
+        await fetchStandings(selectedTourneyId);
+        if (refreshProfile) refreshProfile();
+
+        // Smooth scroll to the assigned match below
+        if (selectedBracketMatchId) {
+          handleSelectBracketMatch(selectedBracketMatchId, selectedBracketSlot);
+        }
+      } else {
+        // ALL_IN mode
+        await outbox.enqueue(user.id, 'tournament', {
+          tournamentId: selectedTourneyId,
+          botId: selectedBotId,
+          teamName: chosenTeam || undefined,
+        });
+        setActionMsg({
+          type: 'success',
+          text: 'Đã lưu yêu cầu tham gia giải đấu trên máy. Hệ thống đang đồng bộ với máy chủ...',
+        });
+        if (token && window.navigator?.onLine !== false) {
+          outbox.flush(() => ({ userId: user.id, token })).then(() => {
+            setTimeout(() => {
+              fetchStandings(selectedTourneyId);
+              fetchAvailableTeams();
+              if (refreshProfile) refreshProfile();
+            }, 600);
+          });
+        }
       }
     } catch (err) {
       setActionMsg({ type: 'error', text: err.message });
@@ -687,6 +755,95 @@ export default function TournamentBracketsView({ onSelectReplay }) {
                 </div>
               )}
             </div>
+
+            {/* Branch / Bracket Match Selector for Students (Mục 2) */}
+            {tournamentMode === 'BRANCHES' && (
+              <div className="mt-3 p-3 rounded-xl bg-[#090d18] border border-indigo-500/30 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-indigo-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                    <span>Chọn Nhánh Đấu (Vòng Tứ Kết):</span>
+                  </label>
+                  {selectedBracketMatchId && (
+                    <button
+                      type="button"
+                      onClick={() => handleSelectBracketMatch(selectedBracketMatchId)}
+                      className="text-[10px] text-indigo-400 hover:text-indigo-200 underline flex items-center gap-1 font-semibold transition-colors"
+                    >
+                      <span>↓ Nhảy xuống nhánh</span>
+                    </button>
+                  )}
+                </div>
+
+                <select
+                  value={selectedBracketMatchId || ''}
+                  aria-label="Chọn nhánh đấu"
+                  onChange={(e) => handleSelectBracketMatch(e.target.value)}
+                  className="w-full py-2 px-3 rounded-xl bg-[#0e1322] border border-white/10 text-white text-xs font-semibold focus:outline-none focus:border-indigo-500"
+                >
+                  {brackets.filter(b => b.round === 1).map((m, idx) => (
+                    <option key={m.id} value={m.id}>
+                      {m.title || `Nhánh ${idx + 1}`} (P1: {m.p1?.name || 'Trống'} vs P2: {m.p2?.name || 'Trống'})
+                    </option>
+                  ))}
+                </select>
+
+                {/* Slot choice */}
+                <div className="flex items-center gap-2 pt-1">
+                  <span className="text-[11px] text-slate-400 font-semibold">Vị trí slot:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedBracketSlot('p1');
+                      if (selectedBracketMatchId) handleSelectBracketMatch(selectedBracketMatchId, 'p1');
+                    }}
+                    className={`flex-1 py-1 px-2 rounded-lg text-[10px] font-bold border transition-all ${
+                      selectedBracketSlot === 'p1'
+                        ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm'
+                        : 'bg-white/5 text-slate-400 border-white/10 hover:text-white'
+                    }`}
+                  >
+                    Vị trí 1 (Slot 1)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedBracketSlot('p2');
+                      if (selectedBracketMatchId) handleSelectBracketMatch(selectedBracketMatchId, 'p2');
+                    }}
+                    className={`flex-1 py-1 px-2 rounded-lg text-[10px] font-bold border transition-all ${
+                      selectedBracketSlot === 'p2'
+                        ? 'bg-purple-600 text-white border-purple-500 shadow-sm'
+                        : 'bg-white/5 text-slate-400 border-white/10 hover:text-white'
+                    }`}
+                  >
+                    Vị trí 2 (Slot 2)
+                  </button>
+                </div>
+
+                {/* Quick chip buttons to pick branch and jump down */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[10px] text-slate-400">Chọn nhanh:</span>
+                  {brackets.filter(b => b.round === 1).map((m, idx) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => handleSelectBracketMatch(m.id)}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 ${
+                        selectedBracketMatchId === m.id
+                          ? 'bg-indigo-500/30 text-indigo-200 border-indigo-400 ring-1 ring-indigo-400 shadow-sm'
+                          : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10'
+                      }`}
+                    >
+                      <span>Nhánh {idx + 1}</span>
+                      <span className="text-[9px] opacity-70">({m.title})</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <button
@@ -864,29 +1021,97 @@ export default function TournamentBracketsView({ onSelectReplay }) {
                     Vòng Tứ Kết (QF)
                   </span>
                 </div>
-                {brackets.filter(b => b.round === 1).map((m) => (
-                  <div key={m.id} className="p-3 rounded-xl bg-[#090d18] border border-white/10 space-y-2 relative group hover:border-indigo-500/50 transition-all">
+                {brackets.filter(b => b.round === 1).map((m, idx) => (
+                  <div
+                    key={m.id}
+                    id={`bracket-match-${m.id}`}
+                    onClick={() => handleSelectBracketMatch(m.id)}
+                    className={`p-3.5 rounded-xl bg-[#090d18] border space-y-2 relative cursor-pointer transition-all duration-300 ${
+                      selectedBracketMatchId === m.id
+                        ? 'border-indigo-500 ring-2 ring-indigo-500/80 shadow-[0_0_30px_rgba(99,102,241,0.45)] scale-[1.02] bg-indigo-950/20'
+                        : 'border-white/10 hover:border-indigo-500/50'
+                    } ${
+                      highlightedMatchId === m.id
+                        ? 'animate-pulse ring-4 ring-indigo-400'
+                        : ''
+                    }`}
+                  >
                     <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
-                      <span>{m.title}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-white font-extrabold">{m.title}</span>
+                        {selectedBracketMatchId === m.id && (
+                          <span className="px-1.5 py-0.2 rounded bg-indigo-500 text-white font-black text-[9px] tracking-wide animate-pulse">
+                            ĐANG CHỌN (NHÁNH {idx + 1})
+                          </span>
+                        )}
+                      </div>
                       <span className={`px-1.5 py-0.5 rounded ${m.status === 'COMPLETED' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/5 text-slate-400'}`}>
                         {m.status}
                       </span>
                     </div>
 
                     {/* Player 1 */}
-                    <div className={`p-2 rounded-lg flex items-center justify-between text-xs ${m.winner === m.p1?.name ? 'bg-emerald-950/40 text-emerald-300 font-bold border border-emerald-500/30' : 'bg-[#0c101d] text-slate-300'}`}>
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectBracketMatch(m.id, 'p1');
+                      }}
+                      className={`p-2 rounded-lg flex items-center justify-between text-xs transition-all ${
+                        selectedBracketMatchId === m.id && selectedBracketSlot === 'p1'
+                          ? 'ring-1 ring-indigo-400 bg-indigo-950/70 font-bold border border-indigo-500/40'
+                          : m.winner === m.p1?.name
+                          ? 'bg-emerald-950/40 text-emerald-300 font-bold border border-emerald-500/30'
+                          : 'bg-[#0c101d] text-slate-300 hover:bg-white/5'
+                      }`}
+                    >
                       <div>
-                        <div className="truncate max-w-[140px]">{m.p1?.name || 'TBD'}</div>
-                        <div className="text-[10px] text-slate-500 truncate">{m.p1?.bot || ''}</div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="truncate max-w-[140px] text-white font-bold">{m.p1?.name || 'Vị trí 1 (Trống)'}</span>
+                          {(m.p1?.id === user?.id || (user?.username && m.p1?.name === user?.username)) && (
+                            <span className="px-1.5 py-0.2 rounded bg-emerald-500/30 text-emerald-300 text-[9px] font-black border border-emerald-500/40">
+                              BẠN
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[10px] text-slate-400 truncate flex items-center gap-1 mt-0.5">
+                          {m.p1?.team && (
+                            <span className="text-indigo-300 font-semibold">[{m.p1.team}]</span>
+                          )}
+                          <span>{m.p1?.bot || ''}</span>
+                        </div>
                       </div>
                       <span className="font-mono font-bold text-sm">{m.p1?.score !== null ? m.p1?.score : '-'}</span>
                     </div>
 
                     {/* Player 2 */}
-                    <div className={`p-2 rounded-lg flex items-center justify-between text-xs ${m.winner === m.p2?.name ? 'bg-emerald-950/40 text-emerald-300 font-bold border border-emerald-500/30' : 'bg-[#0c101d] text-slate-300'}`}>
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectBracketMatch(m.id, 'p2');
+                      }}
+                      className={`p-2 rounded-lg flex items-center justify-between text-xs transition-all ${
+                        selectedBracketMatchId === m.id && selectedBracketSlot === 'p2'
+                          ? 'ring-1 ring-purple-400 bg-purple-950/70 font-bold border border-purple-500/40'
+                          : m.winner === m.p2?.name
+                          ? 'bg-emerald-950/40 text-emerald-300 font-bold border border-emerald-500/30'
+                          : 'bg-[#0c101d] text-slate-300 hover:bg-white/5'
+                      }`}
+                    >
                       <div>
-                        <div className="truncate max-w-[140px]">{m.p2?.name || 'TBD'}</div>
-                        <div className="text-[10px] text-slate-500 truncate">{m.p2?.bot || ''}</div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="truncate max-w-[140px] text-white font-bold">{m.p2?.name || 'Vị trí 2 (Trống)'}</span>
+                          {(m.p2?.id === user?.id || (user?.username && m.p2?.name === user?.username)) && (
+                            <span className="px-1.5 py-0.2 rounded bg-emerald-500/30 text-emerald-300 text-[9px] font-black border border-emerald-500/40">
+                              BẠN
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[10px] text-slate-400 truncate flex items-center gap-1 mt-0.5">
+                          {m.p2?.team && (
+                            <span className="text-indigo-300 font-semibold">[{m.p2.team}]</span>
+                          )}
+                          <span>{m.p2?.bot || ''}</span>
+                        </div>
                       </div>
                       <span className="font-mono font-bold text-sm">{m.p2?.score !== null ? m.p2?.score : '-'}</span>
                     </div>

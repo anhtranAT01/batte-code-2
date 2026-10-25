@@ -105,10 +105,53 @@ async function runTest() {
     assert.equal(standings[0].botName, 'Bot Beta');
     console.log('✓ Standings returned correct teamName and botName');
 
+    // TEST 6: Student joins specific bracket slot in BRANCHES tournament
+    console.log('6. Student joins specific bracket slot in BRANCHES tournament...');
+    const branchTourneyId = '12345678-aaaa-bbbb-cccc-555555555555';
+    await query('DELETE FROM "Tournaments" WHERE id = $1', [branchTourneyId]);
+
+    const initialBrackets = [
+      { id: 'qf-1', round: 1, title: 'Tứ Kết 1', status: 'PENDING', p1: null, p2: null, winner: null },
+      { id: 'qf-2', round: 1, title: 'Tứ Kết 2', status: 'PENDING', p1: null, p2: null, winner: null },
+    ];
+    await query(
+      `INSERT INTO "Tournaments" (id, name, status, mode, max_participants, scheduled_start_at, brackets_json, settings_json)
+       VALUES ($1, 'Branch Championship', 'UPCOMING', 'BRANCHES', 16, $2, $3, $4)`,
+      [branchTourneyId, pastDate, JSON.stringify(initialBrackets), JSON.stringify({ mode: 'BRANCHES', participants: [] })]
+    );
+
+    const bracketJoinResult = await tournamentService.joinBracketSlot({
+      tournamentId: branchTourneyId,
+      userId,
+      bracketMatchId: 'qf-1',
+      slot: 'p1',
+      botId: bot1Id,
+      teamName: 'Dragon Warriors',
+    });
+
+    assert.equal(bracketJoinResult.success, true);
+    assert.equal(bracketJoinResult.matchId, 'qf-1');
+    assert.equal(bracketJoinResult.slot, 'p1');
+
+    const updatedTourneyRow = (await query('SELECT brackets_json, settings_json FROM "Tournaments" WHERE id = $1', [branchTourneyId])).rows[0];
+    const match1 = updatedTourneyRow.brackets_json.find(m => m.id === 'qf-1');
+    assert.ok(match1.p1, 'p1 must be populated');
+    assert.equal(match1.p1.name, 'test_fighter');
+    assert.equal(match1.p1.bot, 'Bot Alpha');
+    assert.equal(match1.p1.team, 'Dragon Warriors');
+
+    const participantInBranch = updatedTourneyRow.settings_json.participants.find(p => p.userId === userId);
+    assert.ok(participantInBranch, 'User should be added to participants list');
+    assert.equal(participantInBranch.teamName, 'Dragon Warriors');
+
+    console.log('✓ Successfully joined bracket slot and synced bracket data & participants');
+
+    await query('DELETE FROM "Tournaments" WHERE id = $1', [branchTourneyId]);
+
     console.log('\nALL TOURNAMENT REGISTRATION & TEAM MANAGEMENT TESTS PASSED! 🎉');
   } finally {
     // Cleanup
-    await query('DELETE FROM "Tournaments" WHERE id = $1', [tourneyId]);
+    await query('DELETE FROM "Tournaments" WHERE id IN ($1, $2)', [tourneyId, '12345678-aaaa-bbbb-cccc-555555555555']);
     await query('DELETE FROM "Bots" WHERE id IN ($1, $2)', [bot1Id, bot2Id]);
     await query('DELETE FROM "Users" WHERE id = $1', [userId]);
     await pool.end();

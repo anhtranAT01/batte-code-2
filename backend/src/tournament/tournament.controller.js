@@ -79,6 +79,27 @@ async function getTeams(req, res, next) {
   }
 }
 
+async function joinBracketSlot(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { bracketMatchId, slot, botId, teamName } = req.body;
+    const userId = req.user.id;
+
+    const result = await tournamentService.joinBracketSlot({
+      tournamentId: id,
+      userId,
+      bracketMatchId,
+      slot,
+      botId,
+      teamName,
+    });
+
+    return res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function start(req, res, next) {
   try {
     const { id } = req.params;
@@ -218,4 +239,5 @@ module.exports = {
   getTournaments,
   updateTeam,
   getTeams,
+  joinBracketSlot,
 };

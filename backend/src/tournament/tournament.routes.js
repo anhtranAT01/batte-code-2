@@ -32,6 +32,13 @@ router.put('/team', authenticateJWT, tournamentController.updateTeam);
 router.post('/:id/register', authenticateJWT, tournamentController.register);
 
 /**
+ * @route   POST /api/tournaments/:id/brackets/join
+ * @desc    Student joins or assigns themselves to a specific bracket slot
+ * @access  Private (Bearer JWT)
+ */
+router.post('/:id/brackets/join', authenticateJWT, tournamentController.joinBracketSlot);
+
+/**
  * @route   POST /api/tournaments/:id/start
  * @desc    Admin starts Round 1 of the tournament
  * @access  Private (ADMIN)
