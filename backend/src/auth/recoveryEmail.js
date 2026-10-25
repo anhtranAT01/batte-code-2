@@ -1,11 +1,14 @@
 const nodemailer = require('nodemailer');
 
 const sender = () => process.env.EMAIL_FROM || process.env.SMTP_FROM;
+const appsScriptSelected = () => Boolean(process.env.GOOGLE_APPS_SCRIPT_URL || process.env.GOOGLE_APPS_SCRIPT_SECRET);
+const appsScriptConfigured = () => Boolean(process.env.GOOGLE_APPS_SCRIPT_URL && process.env.GOOGLE_APPS_SCRIPT_SECRET);
 function recoveryEmailEnabled(){
   if(!process.env.PASSWORD_RESET_URL||!sender())return false;
   try{const url=new URL(process.env.PASSWORD_RESET_URL);if(url.protocol!=='https:'&&!(process.env.NODE_ENV!=='production'&&url.protocol==='http:'&&['localhost','127.0.0.1'].includes(url.hostname)))return false;}
   catch{return false;}
-  return Boolean(process.env.RESEND_API_KEY||process.env.SMTP_HOST);
+  if(appsScriptSelected()&&!appsScriptConfigured())return false;
+  return Boolean(appsScriptConfigured()||process.env.RESEND_API_KEY||process.env.SMTP_HOST);
 }
 function escapeHtml(value){return String(value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));}
 function publicProviderError(error){
@@ -17,7 +20,8 @@ function publicProviderError(error){
     .replace(/\bre_[A-Za-z0-9_-]+\b/g,'[api-key]')
     .replace(/https?:\/\/\S+/gi,'[url]')
     .slice(0,240);
-  return {provider:process.env.RESEND_API_KEY?'resend':'smtp',...(status?{status}:{}),...(code?{code}:{}),...(typeof error?.command==='string'?{command:error.command}:{}),message};
+  const provider=appsScriptSelected()?'apps-script':process.env.RESEND_API_KEY?'resend':'smtp';
+  return {provider,...(status?{status}:{}),...(code?{code}:{}),...(typeof error?.command==='string'?{command:error.command}:{}),message};
 }
 
 async function sendRecoveryEmail({to,url}){
@@ -25,6 +29,23 @@ async function sendRecoveryEmail({to,url}){
   const subject='Khôi phục mật khẩu BattleCode';
   const text=`Bạn vừa yêu cầu khôi phục mật khẩu BattleCode. Mở liên kết dùng một lần trong 15 phút: ${url}\nNếu không yêu cầu, bạn có thể bỏ qua thư này.`;
   const html=`<div style="font-family:Arial,sans-serif;line-height:1.6;color:#172033;max-width:560px;margin:auto"><h2>Khôi phục mật khẩu BattleCode</h2><p>Bạn vừa yêu cầu đặt lại mật khẩu. Liên kết chỉ dùng một lần và hết hạn sau 15 phút.</p><p><a href="${escapeHtml(url)}" style="display:inline-block;background:#2563eb;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none">Đặt lại mật khẩu</a></p><p>Nếu nút không hoạt động, sao chép liên kết này vào trình duyệt:</p><p style="overflow-wrap:anywhere">${escapeHtml(url)}</p><p>Nếu bạn không yêu cầu, hãy bỏ qua email này.</p></div>`;
+
+  if(process.env.GOOGLE_APPS_SCRIPT_URL||process.env.GOOGLE_APPS_SCRIPT_SECRET){
+    if(!appsScriptConfigured())throw new Error('Google Apps Script URL and secret must both be configured.');
+    const endpoint=new URL(process.env.GOOGLE_APPS_SCRIPT_URL);
+    if(endpoint.protocol!=='https:'||endpoint.hostname!=='script.google.com'||!endpoint.pathname.startsWith('/macros/s/')||!endpoint.pathname.endsWith('/exec'))throw new Error('Google Apps Script URL must be an HTTPS web app /exec URL.');
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);
+    try{
+      const response=await fetch(endpoint.toString(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({secret:process.env.GOOGLE_APPS_SCRIPT_SECRET,to,subject,text,html}),signal:controller.signal,redirect:'follow'});
+      const result=await response.json().catch(()=>({}));
+      if(!response.ok||result.ok!==true){
+        const error=new Error(result.error||'Google Apps Script rejected the email request.');
+        error.status=response.status;error.code=result.error||'APPS_SCRIPT_REJECTED';
+        throw error;
+      }
+      return result;
+    }finally{clearTimeout(timer);}
+  }
 
   if(process.env.RESEND_API_KEY){
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);

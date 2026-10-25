@@ -5,6 +5,7 @@
   "main": "src/server.js",
   "scripts": {
     "test:resilience": "node src/support/testSupport.js",
+    "test:recovery-email": "node src/auth/testRecoveryEmailProviders.js",
     "test:tournament-teams": "node src/tournament/testTournamentTeam.js",
     "test:match-numbers": "node src/game/testMatchNumbers.js && node src/game/testMatchNumberMigration.js",
     "test:performance": "node src/game/testSearchSimulation.js && node src/game/testArenaReads.js && node src/game/testDuelExecutor.js && node src/game/testDuelResponse.js",
