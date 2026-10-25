@@ -1,11 +1,12 @@
 const jwt = require('jsonwebtoken');
+const { query } = require('../config/db');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key_tactical_rps_2026_x892k';
 
 /**
  * Middleware to authenticate requests via Bearer JWT token
  */
-function authenticateJWT(req, res, next) {
+async function authenticateJWT(req, res, next) {
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
@@ -25,10 +26,9 @@ function authenticateJWT(req, res, next) {
 
   const token = parts[1];
 
+  let decoded;
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded; // { id, username, role, iat, exp }
-    next();
+    decoded = jwt.verify(token, JWT_SECRET);
   } catch (err) {
     if (err.name === 'TokenExpiredError') {
       return res.status(401).json({
@@ -44,6 +44,13 @@ function authenticateJWT(req, res, next) {
       code: 'INVALID_TOKEN',
     });
   }
+  try {
+    const current = await query('SELECT id,username,role FROM "Users" WHERE id = $1',[decoded.id]);
+    if (!current.rows[0]) return res.status(401).json({success:false,
+      code:'ACCOUNT_REMOVED',message:'Tài khoản không còn tồn tại. Vui lòng đăng nhập lại.'});
+    req.user = {...decoded,...current.rows[0]};
+    next();
+  } catch (error) { next(error); }
 }
 
 /**

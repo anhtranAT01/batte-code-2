@@ -13,3 +13,18 @@ API yêu cầu Bearer token của Admin:
 - `PUT /api/admin/users/:id/password` với `{ "password": "mat_khau_moi" }`
 
 Các lần đăng nhập mới phải dùng mật khẩu mới. Phiên JWT đã cấp vẫn tồn tại đến khi hết hạn; thay đổi này không thêm cơ chế thu hồi phiên. Sau khi đổi quyền, người dùng cần đăng nhập lại để giao diện nhận quyền mới.
+
+Admin có nút **Xóa người dùng** ở tab Tài Khoản và **Xóa trận** ở tab Trận Đấu.
+Mỗi lần xóa phải xác nhận. Xóa người dùng xóa các bản ghi bot và lịch sử trận
+liên quan qua khóa ngoại, đồng thời gỡ đăng ký giải trong danh sách participants.
+Các file bot cũ trên ổ đĩa không được dọn bởi thao tác này. Không thể tự xóa
+tài khoản đang dùng hoặc xóa Admin cuối cùng. Token của tài khoản đã xóa bị từ
+chối ngay ở API yêu cầu đăng nhập; quyền hiện tại được kiểm tra từ cơ sở dữ liệu.
+
+Xóa riêng trận xóa bản ghi và replay. Elo của người chơi và kết quả giải đã tính
+được giữ nguyên, không hoàn điểm hay tính lại thứ hạng. Đây là thao tác xóa vĩnh
+viễn, không có thùng rác. Danh sách trận có phân trang 25 trận.
+
+- `GET /api/admin/matches?limit=25&offset=0`
+- `DELETE /api/admin/matches/:id`
+- `DELETE /api/admin/users/:id`

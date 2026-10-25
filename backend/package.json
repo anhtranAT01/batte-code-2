@@ -6,6 +6,7 @@
   "scripts": {
     "test:performance": "node src/game/testSearchSimulation.js && node src/game/testArenaReads.js && node src/game/testDuelExecutor.js && node src/game/testDuelResponse.js",
     "test:admin-accounts": "node src/admin/testAdminAccounts.js",
+    "test:admin-deletions": "node src/admin/testAdminDeletions.js",
     "test:heuristic-file": "node src/game/testHeuristicPython.js",
     "test:admin-registration": "node src/auth/testAdminRegistration.js",
     "test:history": "node src/game/testMatchHistory.js",

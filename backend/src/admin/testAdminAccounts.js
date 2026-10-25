@@ -27,7 +27,7 @@ const query = async (sql, args = []) => {
   if (sql.includes('COUNT(*)::INT AS count')) {
     return { rows: [{ count: forcedAdminCount ?? [...users.values()].filter(user => user.role === 'ADMIN').length }] };
   }
-  if (sql.startsWith('SELECT role') || sql.startsWith('SELECT id, role')) {
+  if (sql.startsWith('SELECT role') || sql.startsWith('SELECT id, role') || sql.startsWith('SELECT id,username,role')) {
     const user = users.get(args[0]);
     return { rows: user ? [safeUser(user)] : [] };
   }

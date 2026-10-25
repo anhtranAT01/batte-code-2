@@ -12,6 +12,13 @@ const { normalizeMatch } = require('./matchHistory');
 // In-memory active game sessions
 const activeMatches = new Map();
 
+function forgetDeletedData({matchId,userId}) {
+  if (matchId) activeMatches.delete(matchId);
+  if (userId) for (const [id,session] of activeMatches) {
+    if (session.userId === userId) activeMatches.delete(id);
+  }
+}
+
 /**
  * Create a new practice match against System Bot
  */
@@ -396,6 +403,7 @@ async function runAutomatedBotDuel({
 }
 
 module.exports = {
+  forgetDeletedData,
   createPracticeMatch,
   submitPlayerMove,
   getReplay,

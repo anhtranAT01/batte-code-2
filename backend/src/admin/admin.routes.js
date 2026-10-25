@@ -12,6 +12,9 @@ router.use(authenticateJWT, requireRole('ADMIN', 'TEACHER'));
  * @desc    List all users with stats
  */
 router.get('/users', adminController.listUsers);
+router.delete('/users/:id', requireCurrentAdmin, adminController.deleteUser);
+router.get('/matches', requireCurrentAdmin, adminController.listMatches);
+router.delete('/matches/:id', requireCurrentAdmin, adminController.deleteMatch);
 
 /**
  * @route   PUT /api/admin/users/:id/role

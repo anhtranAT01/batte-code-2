@@ -3,20 +3,10 @@ const router = express.Router();
 const gameController = require('./gameController');
 const { authenticateJWT } = require('../auth/auth.middleware');
 
-// Optional auth token parser (if present, attaches req.user, otherwise allows guest)
-const jwt = require('jsonwebtoken');
-const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key_tactical_rps_2026_x892k';
-
+// Guests are welcome, but supplied tokens must still belong to an existing user.
 function optionalAuth(req, res, next) {
   const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.split(' ')[1];
-    try {
-      req.user = jwt.verify(token, JWT_SECRET);
-    } catch {
-      // Ignore token parse failure for guest mode
-    }
-  }
+  if (authHeader) return authenticateJWT(req,res,next);
   next();
 }
 

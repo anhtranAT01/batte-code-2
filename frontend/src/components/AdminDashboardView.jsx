@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { invalidatePublicData } from '../lib/publicData';
 
 export default function AdminDashboardView({ onSelectReplay }) {
   const { user, getAuthHeaders, refreshProfile } = useAuth();
@@ -13,6 +14,10 @@ export default function AdminDashboardView({ onSelectReplay }) {
   const [botsList, setBotsList] = useState([]);
   const [tourneysList, setTourneysList] = useState([]);
   const [statsData, setStatsData] = useState(null);
+  const [matchesList, setMatchesList] = useState([]);
+  const [matchOffset, setMatchOffset] = useState(0);
+  const [hasMoreMatches, setHasMoreMatches] = useState(false);
+  const [deleting, setDeleting] = useState('');
   const loadedTabs = useRef(new Set());
   const pendingTabs = useRef(new Set());
   const [fetchingTabs, setFetchingTabs] = useState({});
@@ -30,14 +35,15 @@ export default function AdminDashboardView({ onSelectReplay }) {
   const [newTourneySchedule, setNewTourneySchedule] = useState('');
 
   useEffect(() => {
-    if (loadedTabs.current.has(activeTab)) return;
+    if (loadedTabs.current.has(activeTab) && activeTab !== 'matches') return;
     if (activeTab === 'users') fetchUsers();
     if (activeTab === 'bots') fetchBots();
     if (activeTab === 'tournaments') fetchTournaments();
     if (activeTab === 'stats') fetchStats();
-  }, [activeTab]);
+    if (activeTab === 'matches' && isAdmin) fetchMatches();
+  }, [activeTab, matchOffset]);
 
-  const loadTab = async (tab, url, setter, authenticated = true) => {
+  const loadTab = async (tab, url, setter, authenticated = true, onMeta) => {
     if (pendingTabs.current.has(tab)) return;
     pendingTabs.current.add(tab);
     setFetchingTabs(previous => ({ ...previous, [tab]: true }));
@@ -46,6 +52,7 @@ export default function AdminDashboardView({ onSelectReplay }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Không tải được dữ liệu quản trị.');
       setter(data.data ?? (tab === 'stats' ? null : []));
+      onMeta?.(data);
       loadedTabs.current.add(tab);
     } catch (error) {
       setAlertMsg({ type: 'error', text: error.message });
@@ -58,6 +65,34 @@ export default function AdminDashboardView({ onSelectReplay }) {
   const fetchBots = () => loadTab('bots', '/api/admin/bots', setBotsList);
   const fetchTournaments = () => loadTab('tournaments', '/api/tournaments', setTourneysList, false);
   const fetchStats = () => loadTab('stats', '/api/admin/stats', setStatsData);
+  const fetchMatches = () => loadTab('matches', `/api/admin/matches?limit=25&offset=${matchOffset}`,
+    setMatchesList, true, result => setHasMoreMatches(Boolean(result.pagination?.hasMore)));
+
+  const handleDelete = async (kind,item) => {
+    if (!isAdmin || deleting || (kind === 'users' && item.id === user.id)) return;
+    const description = kind === 'users'
+      ? `Xóa vĩnh viễn tài khoản "${item.username}"? Bot, đăng ký giải và lịch sử trận liên quan cũng bị xóa. Điểm Elo của người khác được giữ nguyên.`
+      : `Xóa vĩnh viễn trận ${item.id}? Bản ghi và replay sẽ bị xóa. Điểm Elo và kết quả giải đấu đã tính được giữ nguyên.`;
+    if (!confirm(description)) return;
+    setDeleting(`${kind}:${item.id}`);
+    try {
+      const response = await fetch(`/api/admin/${kind}/${item.id}`, {method:'DELETE',headers:getAuthHeaders()});
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Không thể xóa dữ liệu.');
+      invalidatePublicData();
+      for (const tab of ['users','bots','matches','stats','tournaments']) loadedTabs.current.delete(tab);
+      setStatsData(null);
+      if (kind === 'matches') setMatchesList(previous => previous.filter(row => row.id !== item.id));
+      if (kind === 'users') {
+        setUsersList(previous => previous.filter(row => row.id !== item.id));
+        setBotsList(previous => previous.filter(row => row.user_id !== item.id));
+        await fetchUsers();
+      } else if (matchesList.length === 1 && matchOffset > 0) setMatchOffset(offset => Math.max(0,offset-25));
+      else await fetchMatches();
+      setAlertMsg({type:'success',text:result.message});
+    } catch (error) { setAlertMsg({type:'error',text:error.message}); }
+    finally { setDeleting(''); }
+  };
 
   const openAccount = (selectedUser) => {
     setAccountUser(selectedUser);
@@ -288,7 +323,7 @@ export default function AdminDashboardView({ onSelectReplay }) {
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#0e1322] border border-white/5 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-[#0e1322] border border-white/5 self-start sm:self-auto">
           <button
             onClick={() => setActiveTab('users')}
             className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
@@ -305,6 +340,10 @@ export default function AdminDashboardView({ onSelectReplay }) {
           >
             Kho Bot{loadedTabs.current.has('bots') ? ` (${botsList.length})` : ''}
           </button>
+          {isAdmin && <button onClick={() => setActiveTab('matches')}
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'matches' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}>
+            Trận Đấu
+          </button>}
           <button
             onClick={() => setActiveTab('tournaments')}
             className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
@@ -425,6 +464,13 @@ export default function AdminDashboardView({ onSelectReplay }) {
                       >
                         Chỉnh Elo
                       </button>
+                      {isAdmin && <button type="button" onClick={() => handleDelete('users',u)}
+                        disabled={Boolean(deleting) || u.id === user.id}
+                        aria-label={`Xóa người dùng ${u.username}`}
+                        title={u.id === user.id ? 'Không thể xóa chính tài khoản đang dùng' : 'Xóa tài khoản, bot và lịch sử liên quan'}
+                        className="px-2.5 py-1 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 font-semibold disabled:opacity-40">
+                        {deleting === `users:${u.id}` ? 'Đang xóa…' : 'Xóa người dùng'}
+                      </button>}
                     </td>
                   </tr>
                 ))}
@@ -436,6 +482,38 @@ export default function AdminDashboardView({ onSelectReplay }) {
       )}
 
       {/* TAB 2: BOTS MANAGEMENT */}
+      {activeTab === 'matches' && isAdmin && <div className="rounded-2xl border border-white/5 bg-[#0e1322]/80 overflow-hidden">
+        <div className="p-4 border-b border-white/5 flex flex-wrap justify-between gap-3">
+          <div><h3 className="font-bold text-white text-sm">Quản Lý Trận Đấu</h3>
+            <p className="text-xs text-slate-400 mt-1">Xóa bản ghi và replay; giữ nguyên Elo và kết quả giải đấu đã tính.</p></div>
+          <button onClick={fetchMatches} disabled={fetchingTabs.matches || Boolean(deleting)} className="text-xs text-indigo-400">Làm mới ↻</button>
+        </div>
+        <div className="overflow-x-auto"><table className="w-full text-left text-xs">
+          <thead className="text-slate-400 bg-[#090d18]/70"><tr>
+            {['MÃ TRẬN','XANH (P1)','ĐỎ (P2)','KẾT QUẢ','NGÀY TẠO','THAO TÁC'].map(label => <th key={label} className="py-3 px-4">{label}</th>)}
+          </tr></thead>
+          <tbody className="divide-y divide-white/5">{matchesList.map(match => <tr key={match.id}>
+            <td className="py-3 px-4 font-mono text-slate-300" title={match.id}>{match.id.slice(0,8)}</td>
+            <td className="py-3 px-4 text-blue-300">{match.p1_username || 'Khách'}</td>
+            <td className="py-3 px-4 text-red-300">{match.p2_username || 'Boss AI'}</td>
+            <td className="py-3 px-4 text-slate-300">{match.winner_username ? `${match.winner_username} thắng` : match.result_known ? 'Hòa' : 'Chưa xác định'}</td>
+            <td className="py-3 px-4 text-slate-400">{new Date(match.created_at).toLocaleString('vi-VN')}</td>
+            <td className="py-3 px-4 whitespace-nowrap">
+              {onSelectReplay && <button onClick={() => onSelectReplay(match.id)} className="mr-3 text-indigo-400">Xem lại</button>}
+              <button type="button" onClick={() => handleDelete('matches',match)} disabled={Boolean(deleting)}
+                aria-label={`Xóa trận ${match.id}`} className="px-2.5 py-1 rounded-lg bg-red-500/20 text-red-300 border border-red-500/30 disabled:opacity-40">
+                {deleting === `matches:${match.id}` ? 'Đang xóa…' : 'Xóa trận'}
+              </button>
+            </td>
+          </tr>)}</tbody>
+        </table></div>
+        {!fetchingTabs.matches && !matchesList.length && <p className="p-5 text-sm text-slate-400">Chưa có trận đấu ở trang này.</p>}
+        <div className="flex items-center justify-end gap-3 p-4 border-t border-white/5 text-xs text-slate-300">
+          <button onClick={() => setMatchOffset(offset => Math.max(0,offset-25))} disabled={!matchOffset || fetchingTabs.matches || Boolean(deleting)}>← Trang trước</button>
+          <span>Trang {Math.floor(matchOffset/25)+1}</span>
+          <button onClick={() => setMatchOffset(offset => offset+25)} disabled={!hasMoreMatches || fetchingTabs.matches || Boolean(deleting)}>Trang sau →</button>
+        </div>
+      </div>}
       {activeTab === 'bots' && (
         <div className="rounded-2xl border border-white/5 bg-[#0e1322]/80 backdrop-blur-md overflow-hidden shadow-xl shadow-black/30">
           <div className="p-4 border-b border-white/5 flex items-center justify-between">

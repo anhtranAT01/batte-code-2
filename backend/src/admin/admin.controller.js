@@ -8,6 +8,32 @@ const tournamentService = require('../tournament/tournament.service');
 const gameService = require('../game/gameService');
 const accounts = require('./admin.accounts');
 const { invalidateArenaReads } = require('../game/arenaReads');
+const deletions = require('./admin.deletions');
+
+async function listMatches(req,res,next) {
+  try {
+    const {matches,pagination} = await deletions.listMatches(req.query);
+    res.json({success:true,data:matches,pagination});
+  } catch (error) { next(error); }
+}
+
+async function deleteMatch(req,res,next) {
+  try {
+    const data = await deletions.deleteMatch(req.params.id);
+    gameService.forgetDeletedData?.({matchId:data.id});
+    invalidateArenaReads();
+    res.json({success:true,data,message:'Đã xóa trận đấu và replay. Điểm Elo được giữ nguyên.'});
+  } catch (error) { next(error); }
+}
+
+async function deleteUser(req,res,next) {
+  try {
+    const data = await deletions.deleteUser(req.user.id,req.params.id);
+    gameService.forgetDeletedData?.({userId:data.id});
+    invalidateArenaReads();
+    res.json({success:true,data,message:`Đã xóa tài khoản ${data.username}, bot và lịch sử trận liên quan.`});
+  } catch (error) { next(error); }
+}
 
 /**
  * Get all users with stats
@@ -483,6 +509,9 @@ async function runBracketMatches(req, res, next) {
 }
 
 module.exports = {
+  listMatches,
+  deleteMatch,
+  deleteUser,
   listUsers,
   updateUserRole,
   updateUserAccount,
