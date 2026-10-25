@@ -56,8 +56,8 @@ CREATE TABLE IF NOT EXISTS "Tournaments" (
 CREATE TABLE IF NOT EXISTS "Matches" (
     "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     "tournament_id" UUID REFERENCES "Tournaments"("id") ON DELETE SET NULL,
-    "player1_id" UUID NOT NULL REFERENCES "Users"("id") ON DELETE CASCADE,
-    "player2_id" UUID NOT NULL REFERENCES "Users"("id") ON DELETE CASCADE,
+    "player1_id" UUID REFERENCES "Users"("id") ON DELETE CASCADE,
+    "player2_id" UUID REFERENCES "Users"("id") ON DELETE CASCADE,
     "player1_bot_id" UUID REFERENCES "Bots"("id") ON DELETE SET NULL,
     "player2_bot_id" UUID REFERENCES "Bots"("id") ON DELETE SET NULL,
     "map_id" UUID NOT NULL REFERENCES "Maps"("id") ON DELETE RESTRICT,

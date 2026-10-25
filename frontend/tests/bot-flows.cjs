@@ -23,6 +23,8 @@ function component(name) {
 const PvP = component('PvPBotArenaView');
 const Boss = component('BossArenaView');
 const Vault = component('BotVaultView');
+const AuthModal = component('AuthModal');
+const History = component('DataExplorerView');
 const response = data => ({ok:true,json:async () => ({success:true,data})});
 const text = element => Array.isArray(element) ? element.map(text).join('')
   : typeof element === 'object' && element ? text(element.props?.children) : String(element ?? '');
@@ -114,5 +116,33 @@ async function main() {
   assert.equal(uploaded.get('tactic'),null);
   act(() => tree.unmount());
   console.log('PASS: file survives mode changes/cancel and multipart submission contains the selected Python file');
+
+  let registration;
+  auth = {...auth,register:async (...args) => { registration = args; }};
+  await act(async () => { tree = create(React.createElement(AuthModal,{isOpen:true,initialMode:'register',onClose(){}})); });
+  assert.equal(tree.root.findAllByProps({id:'admin-registration-secret'}).length,0);
+  await act(async () => { tree.root.findByType('select').props.onChange({target:{value:'ADMIN'}}); });
+  assert.equal(tree.root.findByProps({id:'admin-registration-secret'}).props.required,true);
+  await act(async () => { tree.root.findByProps({id:'admin-registration-secret'}).props.onChange({target:{value:'test-secret'}}); });
+  await act(async () => { await tree.root.findByType('form').props.onSubmit({preventDefault(){}}); });
+  assert.equal(registration[2],'ADMIN');
+  assert.equal(registration[3],'test-secret');
+  await act(async () => { tree.root.findByType('select').props.onChange({target:{value:'STUDENT'}}); });
+  await act(async () => { await tree.root.findByType('form').props.onSubmit({preventDefault(){}}); });
+  assert.equal(registration[3],undefined);
+  act(() => tree.unmount());
+  console.log('PASS: admin signup alone requests separate secret; ordinary signup never sends it');
+
+  global.fetch = async () => response([
+    {id:'boss-win',p1_username:'trex',p2_username:'Boss AI',winner_username:'Boss AI',winner_side:2,result_known:true,win_reason:'FLAG_CAPTURE'},
+    {id:'draw',p1_username:'trex',p2_username:'Boss AI',winner_side:null,result_known:true,win_reason:'DRAW'},
+  ]);
+  await act(async () => { tree = create(React.createElement(History)); });
+  const labels = tree.root.findAllByType('span').map(node => text(node.props.children));
+  assert.ok(labels.includes('Boss AI THẮNG'));
+  assert.equal(labels.filter(label => label === 'HÒA').length,1);
+  assert.ok(tree.root.findAllByType('th').some(node => text(node.props.children) === 'XANH (P1)'));
+  act(() => tree.unmount());
+  console.log('PASS: Boss wins are not displayed as draws; history identifies Blue P1 and Red P2');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

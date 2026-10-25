@@ -173,7 +173,7 @@ async function getTemplates(req, res, next) {
         name: '💡 Heuristic Starter Bot',
         algorithm: 'Chiến thuật Tham lam & Đánh giá Ma trận Tương quan',
         description: 'Bản mẫu cơ bản tính điểm chiến thuật theo ma trận Oẳn Tù Tì, ăn bình buff và tiến công an toàn.',
-        filename: 'student_bot_template.py',
+        filename: 'heuristic.py',
       },
     ];
 

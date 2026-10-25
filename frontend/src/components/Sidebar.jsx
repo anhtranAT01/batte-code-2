@@ -39,7 +39,7 @@ export default function Sidebar({ activeTab, setActiveTab, onlineCount = 1 }) {
             {section.items.map((item) => {
               const active = activeTab === item.id;
               return (
-                <button key={item.id} type="button" title={item.label} onClick={() => setActiveTab(item.id)} className={`nav-item ${active ? 'is-active' : ''}`}>
+                <button key={item.id} data-nav={item.id} type="button" title={item.label} onClick={() => setActiveTab(item.id)} className={`nav-item ${active ? 'is-active' : ''}`}>
                   <span className="nav-icon"><Icon name={item.icon} size={19} /></span>
                   <span className="hidden md:block truncate flex-1 text-left">{item.label}</span>
                   {item.badge && <span className="hidden md:inline nav-badge">{item.badge}</span>}

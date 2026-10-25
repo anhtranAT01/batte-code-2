@@ -7,6 +7,7 @@ const { getPracticeBot } = require('./practiceBots');
 const { generateMap } = require('./mapGenerator');
 const { query } = require('../config/db');
 const crypto = require('crypto');
+const { normalizeMatch } = require('./matchHistory');
 
 // In-memory active game sessions
 const activeMatches = new Map();
@@ -21,7 +22,7 @@ async function createPracticeMatch({
   difficulty = 'medium',
   botLevel = 'MEDIUM',
 }) {
-  const matchId = `practice_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+  const matchId = crypto.randomUUID();
   const validSize = boardSize === 9 ? 9 : 8;
 
   const game = new GameEngine({
@@ -113,10 +114,11 @@ async function submitPlayerMove({ matchId, move, executionTimeMs = 120 }) {
   if (game.isGameOver) {
     try {
       const replayJson = game.getReplayJson();
+      Object.assign(replayJson,{mode:'PRACTICE',p1Name:session.userName,p2Name:`Boss AI (${session.botLevel})`,p2BotName:`Boss AI (${session.botLevel})`});
       if (session.userId) {
         await query(
           `INSERT INTO "Matches" (id, player1_id, player2_id, map_id, winner_id, win_reason, duration_ms, replay_json)
-           VALUES ($1, $2, $2, (SELECT id FROM "Maps" LIMIT 1), $3, $4, $5, $6)
+           VALUES ($1, $2, NULL, (SELECT id FROM "Maps" LIMIT 1), $3, $4, $5, $6)
            ON CONFLICT (id) DO NOTHING;`,
           [
             matchId,
@@ -153,13 +155,14 @@ async function getReplay(matchId) {
   // 1. Check in-memory active match sessions
   const session = activeMatches.get(matchId);
   if (session) {
-    return session.game.getReplayJson();
+    return {...session.game.getReplayJson(),mode:'PRACTICE',p1Name:session.userName,
+      p2Name:`Boss AI (${session.botLevel})`,p2BotName:`Boss AI (${session.botLevel})`};
   }
 
   // 2. Query historical matches from PostgreSQL database
   try {
     const res = await query(
-      `SELECT m.id, m.winner_id, m.win_reason, m.duration_ms, m.replay_json,
+      `SELECT m.id, m.player1_id, m.player2_id, m.player2_bot_id, m.winner_id, m.win_reason, m.duration_ms, m.replay_json,
               u1.username AS p1_username, u2.username AS p2_username,
               b1.name AS p1_bot_name, b2.name AS p2_bot_name,
               uw.username AS winner_username
@@ -174,7 +177,7 @@ async function getReplay(matchId) {
     );
 
     if (res.rows.length > 0) {
-      const match = res.rows[0];
+      const match = normalizeMatch(res.rows[0]);
       let replay = match.replay_json;
       if (typeof replay === 'string') {
         try {
@@ -232,7 +235,7 @@ function previewMap(size = 8, difficulty = 'medium') {
  */
 async function getRecentMatches(limit = 10) {
   const sql = `
-    SELECT m.id, m.duration_ms, m.winner_id, m.win_reason, m.p1_elo_change, m.p2_elo_change,
+    SELECT m.id, m.player1_id, m.player2_id, m.player2_bot_id, m.replay_json, m.duration_ms, m.winner_id, m.win_reason, m.p1_elo_change, m.p2_elo_change,
            m.has_infinite_loop_error, m.created_at,
            CASE 
              WHEN m.replay_json IS NULL THEN 0
@@ -256,7 +259,7 @@ async function getRecentMatches(limit = 10) {
   `;
   try {
     const res = await query(sql, [limit]);
-    return res.rows;
+    return res.rows.map(row => { const {replay_json,...match} = normalizeMatch(row); return match; });
   } catch (err) {
     console.error('[getRecentMatches DB Error]:', err.message);
     return [];
@@ -277,8 +280,14 @@ async function getLeaderboard(limit = 50) {
       b.id AS active_bot_id,
       b.name AS active_bot_name,
       COALESCE(SUM(CASE WHEN m.winner_id = u.id THEN 1 ELSE 0 END), 0)::INT AS wins,
-      COALESCE(SUM(CASE WHEN m.winner_id IS NOT NULL AND m.winner_id != u.id AND (m.player1_id = u.id OR m.player2_id = u.id) THEN 1 ELSE 0 END), 0)::INT AS losses,
-      COALESCE(SUM(CASE WHEN m.winner_id IS NULL AND (m.player1_id = u.id OR m.player2_id = u.id) THEN 1 ELSE 0 END), 0)::INT AS draws
+      COALESCE(SUM(CASE WHEN
+        (m.winner_id IS NOT NULL AND m.winner_id != u.id)
+        OR (m.winner_id IS NULL AND m.player1_id = u.id AND m.replay_json->>'winner' = '2'
+            AND (m.player2_id IS NULL OR (m.player2_id = m.player1_id AND m.player2_bot_id IS NULL)))
+        THEN 1 ELSE 0 END), 0)::INT AS losses,
+      COALESCE(SUM(CASE WHEN m.win_reason = 'DRAW'
+        OR (m.replay_json ? 'winner' AND m.replay_json->'winner' = 'null'::jsonb)
+        THEN 1 ELSE 0 END), 0)::INT AS draws
     FROM "Users" u
     LEFT JOIN "Bots" b ON b.user_id = u.id AND b.is_active = true
     LEFT JOIN "Matches" m ON (m.player1_id = u.id OR m.player2_id = u.id)
@@ -402,6 +411,8 @@ async function runAutomatedBotDuel({
   }
   const durationMs = Date.now() - startTime;
   const replayJson = game.getReplayJson();
+  Object.assign(replayJson,{mode:player2UserId ? 'PVP' : 'PRACTICE',p1Name:userName,
+    p2Name:player2Username || bot2Name,p1BotName:bot1Name,p2BotName:bot2Name});
 
   // Persist match in database if user is logged in
   try {
@@ -413,7 +424,7 @@ async function runAutomatedBotDuel({
       [
         matchId,
         userId,
-        player2UserId || userId,
+        player2UserId,
         bot1RecordId,
         bot2RecordId,
         winnerId,

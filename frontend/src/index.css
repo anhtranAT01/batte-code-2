@@ -29,7 +29,7 @@ html[data-theme='light'] {
   --line-strong: rgba(15, 23, 42, 0.15);
   --ink: #172033;
   --muted: #5f6c80;
-  --faint: #8792a3;
+  --faint: #657287;
   --brand: #4f46e5;
   --brand-strong: #4338ca;
   --brand-soft: rgba(79, 70, 229, 0.1);
@@ -160,8 +160,41 @@ html[data-theme='light'] textarea,
 html[data-theme='light'] select { background-color: #fff !important; color: var(--ink) !important; border-color: var(--line-strong) !important; }
 html[data-theme='light'] .shadow-black\/30,
 html[data-theme='light'] .shadow-xl { --tw-shadow-color: rgba(28,39,61,.08) !important; }
-html[data-theme='light'] button[class*="bg-indigo-"],
-html[data-theme='light'] button[class*="from-indigo-"],
+/* Colored icons remain distinct against white surfaces. */
+html[data-theme='light'] .nav-item { --nav-accent: #315fb3; }
+html[data-theme='light'] [data-nav='pvp'] { --nav-accent: #c8323e; }
+html[data-theme='light'] [data-nav='boss'] { --nav-accent: #ad5900; }
+html[data-theme='light'] [data-nav='tournament'] { --nav-accent: #8c4c00; }
+html[data-theme='light'] [data-nav='rules'] { --nav-accent: #19714b; }
+html[data-theme='light'] [data-nav='database'] { --nav-accent: #4354b0; }
+html[data-theme='light'] [data-nav='bots'] { --nav-accent: #7042ac; }
+html[data-theme='light'] [data-nav='chat'] { --nav-accent: #08766f; }
+html[data-theme='light'] [data-nav='admin'] { --nav-accent: #a63465; }
+html[data-theme='light'] .nav-icon {
+  width: 30px; height: 30px; flex-shrink: 0; border-radius: 8px;
+  color: #fff; background: var(--nav-accent);
+}
+html[data-theme='light'] .nav-item.is-active { color: var(--nav-accent); border-color: var(--nav-accent); background: #edf2ff; }
+html[data-theme='light'] .bg-slate-800 { background-color: #e2e8f0 !important; }
+html[data-theme='light'] [class*='text-blue-2'], html[data-theme='light'] [class*='text-blue-3'], html[data-theme='light'] [class*='text-blue-4'],
+html[data-theme='light'] [class*='text-sky-2'], html[data-theme='light'] [class*='text-sky-3'], html[data-theme='light'] [class*='text-sky-4'],
+html[data-theme='light'] [class*='text-cyan-2'], html[data-theme='light'] [class*='text-cyan-3'], html[data-theme='light'] [class*='text-cyan-4'] { color: #075b96 !important; }
+html[data-theme='light'] [class*='text-indigo-2'], html[data-theme='light'] [class*='text-indigo-3'], html[data-theme='light'] [class*='text-indigo-4'] { color: #4338a5 !important; }
+html[data-theme='light'] [class*='text-emerald-2'], html[data-theme='light'] [class*='text-emerald-3'], html[data-theme='light'] [class*='text-emerald-4'],
+html[data-theme='light'] [class*='text-green-3'], html[data-theme='light'] [class*='text-teal-3'] { color: #11633c !important; }
+html[data-theme='light'] [class*='text-rose-2'], html[data-theme='light'] [class*='text-rose-3'], html[data-theme='light'] [class*='text-rose-4'],
+html[data-theme='light'] [class*='text-red-2'], html[data-theme='light'] [class*='text-red-3'], html[data-theme='light'] [class*='text-red-4'] { color: #a9233c !important; }
+html[data-theme='light'] [class*='text-amber-2'], html[data-theme='light'] [class*='text-amber-3'], html[data-theme='light'] [class*='text-amber-4'],
+html[data-theme='light'] [class*='text-yellow-3'], html[data-theme='light'] [class*='text-orange-3'] { color: #864100 !important; }
+html[data-theme='light'] [class*='text-purple-2'], html[data-theme='light'] [class*='text-purple-3'], html[data-theme='light'] [class*='text-purple-4'],
+html[data-theme='light'] [class*='text-pink-3'] { color: #7735a0 !important; }
+/* Pale status chips need pale fills as well as darker lettering. */
+html[data-theme='light'] [class*='bg-emerald-950'] { background-color: #dcfce7 !important; }
+html[data-theme='light'] [class*='bg-amber-950'] { background-color: #fff1cc !important; }
+html[data-theme='light'] [class*='bg-red-950'] { background-color: #fee2e2 !important; }
+html[data-theme='light'] [class*='bg-purple-950'] { background-color: #f3e8ff !important; }
+html[data-theme='light'] [class*='bg-indigo-950'] { background-color: #e9edff !important; }
+html[data-theme='light'] .text-white:is([class~='bg-indigo-600'],[class~='bg-blue-600'],[class~='bg-cyan-600'],[class~='bg-emerald-600'],[class~='bg-red-600'],[class*='bg-gradient-']),
 html[data-theme='light'] .primary-action { color: #fff !important; }
 html[data-theme='light'] .modal-overlay { background: rgba(28,39,61,.35); }
 

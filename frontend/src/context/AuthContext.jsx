@@ -54,11 +54,11 @@ export const AuthProvider = ({ children }) => {
     return data.data;
   };
 
-  const register = async (username, password, role = 'STUDENT') => {
+  const register = async (username, password, role = 'STUDENT', adminRegistrationSecret) => {
     const res = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, role }),
+      body: JSON.stringify({ username, password, role, ...(role === 'ADMIN' ? {adminRegistrationSecret} : {}) }),
     });
     const data = await res.json();
     if (!res.ok) {

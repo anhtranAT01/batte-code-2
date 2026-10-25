@@ -122,8 +122,8 @@ model Tournament {
 model Match {
   id                      String      @id @default(uuid()) @db.Uuid
   tournament_id           String?     @db.Uuid
-  player1_id              String      @db.Uuid
-  player2_id              String      @db.Uuid
+  player1_id              String?     @db.Uuid
+  player2_id              String?     @db.Uuid
   player1_bot_id          String?     @db.Uuid
   player2_bot_id          String?     @db.Uuid
   map_id                  String      @db.Uuid
@@ -137,8 +137,8 @@ model Match {
   created_at              DateTime    @default(now()) @db.Timestamptz
 
   tournament              Tournament? @relation(fields: [tournament_id], references: [id], onDelete: SetNull)
-  player1                 User        @relation("Player1Matches", fields: [player1_id], references: [id], onDelete: Cascade)
-  player2                 User        @relation("Player2Matches", fields: [player2_id], references: [id], onDelete: Cascade)
+  player1                 User?       @relation("Player1Matches", fields: [player1_id], references: [id], onDelete: Cascade)
+  player2                 User?       @relation("Player2Matches", fields: [player2_id], references: [id], onDelete: Cascade)
   player1_bot             Bot?        @relation("Bot1Matches", fields: [player1_bot_id], references: [id], onDelete: SetNull)
   player2_bot             Bot?        @relation("Bot2Matches", fields: [player2_bot_id], references: [id], onDelete: SetNull)
   map                     Map         @relation(fields: [map_id], references: [id], onDelete: Restrict)

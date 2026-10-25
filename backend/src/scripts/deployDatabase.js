@@ -11,6 +11,8 @@ async function deployDatabase() {
   await pool.query(`
     ALTER TABLE "Bots" ADD COLUMN IF NOT EXISTS "is_active" BOOLEAN NOT NULL DEFAULT false;
     ALTER TABLE "Bots" ADD COLUMN IF NOT EXISTS "source_code" TEXT;
+    ALTER TABLE "Matches" ALTER COLUMN "player1_id" DROP NOT NULL;
+    ALTER TABLE "Matches" ALTER COLUMN "player2_id" DROP NOT NULL;
     ALTER TABLE "Bots" ADD COLUMN IF NOT EXISTS "tactic" VARCHAR(50) DEFAULT 'FLAG_RUSHER';
     ALTER TABLE "Tournaments" ADD COLUMN IF NOT EXISTS "scheduled_start_at" TIMESTAMPTZ;
     ALTER TABLE "Tournaments" ADD COLUMN IF NOT EXISTS "brackets_json" JSONB NOT NULL DEFAULT '[]'::jsonb;

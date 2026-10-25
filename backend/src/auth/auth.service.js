@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const {createHash,timingSafeEqual} = require('crypto');
 const { prisma, query } = require('../config/db');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key_tactical_rps_2026_x892k';
@@ -25,7 +26,17 @@ function generateToken(user) {
 /**
  * Register a new user
  */
-async function registerUser({ username, password, role = 'STUDENT' }) {
+async function registerUser({ username, password, role = 'STUDENT', adminRegistrationSecret }) {
+  if (role === 'ADMIN') {
+    const configured = process.env.ADMIN_REGISTRATION_SECRET;
+    const digest = value => createHash('sha256').update(value).digest();
+    if (!configured || typeof adminRegistrationSecret !== 'string'
+      || !timingSafeEqual(digest(configured),digest(adminRegistrationSecret))) {
+      const error = new Error('Mã cấp quyền quản trị không hợp lệ hoặc đăng ký admin chưa được bật.');
+      error.statusCode = 403;
+      throw error;
+    }
+  }
   // Check if username is already taken
   let existingUser = null;
 

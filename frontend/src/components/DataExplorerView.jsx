@@ -68,8 +68,8 @@ export default function DataExplorerView({ onSelectReplay }) {
             <thead>
               <tr className="border-b border-white/5 text-[11px] uppercase tracking-wider text-slate-400 font-bold bg-[#090d18]/70">
                 <th className="py-3.5 px-5">MÃ TRẬN</th>
-                <th className="py-3.5 px-5">ĐỎ (P1)</th>
-                <th className="py-3.5 px-5">XANH (P2)</th>
+                <th className="py-3.5 px-5">XANH (P1)</th>
+                <th className="py-3.5 px-5">ĐỎ (P2)</th>
                 <th className="py-3.5 px-5">KẾT QUẢ</th>
                 <th className="py-3.5 px-5">LÝ DO THẮNG</th>
                 <th className="py-3.5 px-5">SỐ LƯỢT</th>
@@ -93,8 +93,7 @@ export default function DataExplorerView({ onSelectReplay }) {
                 </tr>
               ) : (
                 filteredMatches.map((match) => {
-                  const isP1Win = match.winner_username === match.p1_username;
-                  const isDraw = !match.winner_username;
+                  const isDraw = match.result_known && match.winner_side === null;
 
                   return (
                     <tr key={match.id} className="hover:bg-white/[0.02] transition-colors">
@@ -104,7 +103,7 @@ export default function DataExplorerView({ onSelectReplay }) {
 
                       <td className="py-3.5 px-5">
                         <div className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-red-400"></span>
+                          <span className="w-2 h-2 rounded-full bg-blue-500"></span>
                           <span className="font-bold text-slate-200">{match.p1_username || 'Bot AI'}</span>
                           <span className="text-[10px] text-slate-500">({match.p1_bot_name || 'Gốc'})</span>
                         </div>
@@ -112,7 +111,7 @@ export default function DataExplorerView({ onSelectReplay }) {
 
                       <td className="py-3.5 px-5">
                         <div className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+                          <span className="w-2 h-2 rounded-full bg-red-500"></span>
                           <span className="font-bold text-slate-200">{match.p2_username || 'Bot AI'}</span>
                           <span className="text-[10px] text-slate-500">({match.p2_bot_name || 'Gốc'})</span>
                         </div>
@@ -125,7 +124,7 @@ export default function DataExplorerView({ onSelectReplay }) {
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 rounded bg-emerald-950/60 text-emerald-400 border border-emerald-500/20 font-bold text-[10px]">
-                            {match.winner_username} THẮNG
+                            {match.result_known ? `${match.winner_username} THẮNG` : 'CHƯA RÕ KẾT QUẢ'}
                           </span>
                         )}
                       </td>

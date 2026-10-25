@@ -7,6 +7,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', onClose }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('STUDENT');
+  const [adminRegistrationSecret, setAdminRegistrationSecret] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -14,6 +15,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', onClose }) {
     if (isOpen) {
       setMode(initialMode.toLowerCase() === 'register' ? 'REGISTER' : 'LOGIN');
       setError('');
+      setAdminRegistrationSecret('');
     }
   }, [isOpen, initialMode]);
 
@@ -26,7 +28,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', onClose }) {
 
     try {
       if (mode === 'REGISTER') {
-        await register(username, password, role);
+        await register(username, password, role, role === 'ADMIN' ? adminRegistrationSecret : undefined);
       } else {
         await login(username, password);
       }
@@ -52,7 +54,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', onClose }) {
         {/* Header & Tabs */}
         <div className="text-center mb-6">
           <h3 className="text-xl font-bold text-white mb-2">
-            {mode === 'REGISTER' ? 'Tạo Tài Khoản Học Sinh' : 'Đăng Nhập Hệ Thống'}
+            {mode === 'REGISTER' ? 'Tạo Tài Khoản' : 'Đăng Nhập Hệ Thống'}
           </h3>
           <p className="text-xs text-slate-400">
             Đăng nhập để quản lý bot và tham gia thi đấu.
@@ -134,13 +136,23 @@ export default function AuthModal({ isOpen, initialMode = 'login', onClose }) {
               </label>
               <select
                 value={role}
-                onChange={(e) => setRole(e.target.value)}
+                onChange={(e) => { setRole(e.target.value); setAdminRegistrationSecret(''); }}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-dark-900 border border-white/10 text-white text-sm focus:outline-none focus:border-cyan-400 transition-colors"
               >
                 <option value="STUDENT">Học Sinh / Thí Sinh</option>
                 <option value="TEACHER">Giáo Viên / Huấn Luyện Viên</option>
                 <option value="ADMIN">Quản Trị Viên (ADMIN)</option>
               </select>
+            </div>
+          )}
+
+          {mode === 'REGISTER' && role === 'ADMIN' && (
+            <div>
+              <label htmlFor="admin-registration-secret" className="block text-xs font-medium text-slate-300 mb-1.5">Mã cấp quyền quản trị</label>
+              <input id="admin-registration-secret" type="password" autoComplete="off" required maxLength={256}
+                value={adminRegistrationSecret} onChange={event => setAdminRegistrationSecret(event.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border text-sm" placeholder="Nhập mã riêng do chủ hệ thống cấp" />
+              <p className="mt-1.5 text-xs text-slate-400">Mã riêng này được kiểm tra trên máy chủ và khác mật khẩu tài khoản.</p>
             </div>
           )}
 

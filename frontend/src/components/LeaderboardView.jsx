@@ -301,8 +301,8 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
               <thead>
                 <tr className="border-b border-white/5 text-[11px] uppercase tracking-wider text-slate-400 font-bold bg-[#090d18]/70">
                   <th className="py-3.5 px-5">TRẬN</th>
-                  <th className="py-3.5 px-5">NGƯỜI CHƠI 1 (ĐỎ)</th>
-                  <th className="py-3.5 px-5">NGƯỜI CHƠI 2 (XANH)</th>
+                  <th className="py-3.5 px-5">NGƯỜI CHƠI 1 (XANH)</th>
+                  <th className="py-3.5 px-5">NGƯỜI CHƠI 2 (ĐỎ)</th>
                   <th className="py-3.5 px-5">KẾT QUẢ</th>
                   <th className="py-3.5 px-5">SỐ LƯỢT</th>
                   <th className="py-3.5 px-5">THỜI GIAN</th>
@@ -318,8 +318,7 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
                   </tr>
                 ) : (
                   recentMatches.map((match) => {
-                    const isP1Win = match.winner_username === match.p1_username;
-                    const isDraw = !match.winner_username;
+                    const isDraw = match.result_known && match.winner_side === null;
 
                     return (
                       <tr key={match.id} className="hover:bg-white/[0.02] transition-colors">
@@ -329,7 +328,7 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
 
                         <td className="py-3.5 px-5">
                           <div className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-red-400"></span>
+                            <span className="w-2 h-2 rounded-full bg-blue-500"></span>
                             <span className="font-semibold text-slate-200">{match.p1_username || 'Bot AI'}</span>
                             <span className="text-[10px] text-slate-500">({match.p1_bot_name || 'Mặc định'})</span>
                           </div>
@@ -337,7 +336,7 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
 
                         <td className="py-3.5 px-5">
                           <div className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+                            <span className="w-2 h-2 rounded-full bg-red-500"></span>
                             <span className="font-semibold text-slate-200">{match.p2_username || 'Bot AI'}</span>
                             <span className="text-[10px] text-slate-500">({match.p2_bot_name || 'Mặc định'})</span>
                           </div>
@@ -350,7 +349,7 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
                             </span>
                           ) : (
                             <span className="px-2 py-0.5 rounded bg-emerald-950/60 text-emerald-400 border border-emerald-500/20 font-semibold text-[10px]">
-                              {match.winner_username} THẮNG
+                              {match.result_known ? `${match.winner_username} THẮNG` : 'CHƯA RÕ KẾT QUẢ'}
                             </span>
                           )}
                         </td>

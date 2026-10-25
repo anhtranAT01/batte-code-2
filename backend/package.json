@@ -4,6 +4,9 @@
   "description": "Tactical Rock-Paper-Scissors Arena Backend Server with Real-time WebSockets and BullMQ",
   "main": "src/server.js",
   "scripts": {
+    "test:heuristic-file": "node src/game/testHeuristicPython.js",
+    "test:admin-registration": "node src/auth/testAdminRegistration.js",
+    "test:history": "node src/game/testMatchHistory.js",
     "test:pvp": "node src/game/testPvPOwnership.js",
     "test:bot-uploads": "node src/bot/testBotUploads.js",
     "start": "node src/server.js",

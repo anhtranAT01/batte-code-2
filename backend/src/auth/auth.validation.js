@@ -14,6 +14,7 @@ const registerSchema = z.object({
     .min(6, { message: 'Password must be at least 6 characters long' })
     .max(100, { message: 'Password cannot exceed 100 characters' }),
   role: z.enum(['STUDENT', 'TEACHER', 'ADMIN']).optional().default('STUDENT'),
+  adminRegistrationSecret: z.string().max(256).optional(),
 });
 
 const loginSchema = z.object({
