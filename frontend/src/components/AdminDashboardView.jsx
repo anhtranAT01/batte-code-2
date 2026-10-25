@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 export default function AdminDashboardView({ onSelectReplay }) {
-  const { user, getAuthHeaders } = useAuth();
+  const { user, getAuthHeaders, refreshProfile } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
   const [activeTab, setActiveTab] = useState('users'); // 'users' | 'bots' | 'tournaments' | 'stats'
   const [loading, setLoading] = useState(false);
   const [alertMsg, setAlertMsg] = useState(null);
@@ -12,6 +13,15 @@ export default function AdminDashboardView({ onSelectReplay }) {
   const [botsList, setBotsList] = useState([]);
   const [tourneysList, setTourneysList] = useState([]);
   const [statsData, setStatsData] = useState(null);
+  const loadedTabs = useRef(new Set());
+  const pendingTabs = useRef(new Set());
+  const [fetchingTabs, setFetchingTabs] = useState({});
+  const [accountUser, setAccountUser] = useState(null);
+  const [accountName, setAccountName] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [accountBusy, setAccountBusy] = useState(false);
+  const [accountError, setAccountError] = useState('');
 
   // Tournament creation form
   const [newTourneyName, setNewTourneyName] = useState('');
@@ -20,57 +30,73 @@ export default function AdminDashboardView({ onSelectReplay }) {
   const [newTourneySchedule, setNewTourneySchedule] = useState('');
 
   useEffect(() => {
-    fetchUsers();
-    fetchBots();
-    fetchTournaments();
-    fetchStats();
-  }, []);
+    if (loadedTabs.current.has(activeTab)) return;
+    if (activeTab === 'users') fetchUsers();
+    if (activeTab === 'bots') fetchBots();
+    if (activeTab === 'tournaments') fetchTournaments();
+    if (activeTab === 'stats') fetchStats();
+  }, [activeTab]);
 
-  const fetchUsers = async () => {
+  const loadTab = async (tab, url, setter, authenticated = true) => {
+    if (pendingTabs.current.has(tab)) return;
+    pendingTabs.current.add(tab);
+    setFetchingTabs(previous => ({ ...previous, [tab]: true }));
     try {
-      const res = await fetch('/api/admin/users', { headers: getAuthHeaders() });
-      if (res.ok) {
-        const d = await res.json();
-        setUsersList(d.data || []);
-      }
-    } catch (e) {
-      console.warn('Fetch users error:', e);
+      const res = await fetch(url, authenticated ? { headers: getAuthHeaders() } : undefined);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Không tải được dữ liệu quản trị.');
+      setter(data.data ?? (tab === 'stats' ? null : []));
+      loadedTabs.current.add(tab);
+    } catch (error) {
+      setAlertMsg({ type: 'error', text: error.message });
+    } finally {
+      pendingTabs.current.delete(tab);
+      setFetchingTabs(previous => ({ ...previous, [tab]: false }));
     }
   };
+  const fetchUsers = () => loadTab('users', '/api/admin/users', setUsersList);
+  const fetchBots = () => loadTab('bots', '/api/admin/bots', setBotsList);
+  const fetchTournaments = () => loadTab('tournaments', '/api/tournaments', setTourneysList, false);
+  const fetchStats = () => loadTab('stats', '/api/admin/stats', setStatsData);
 
-  const fetchBots = async () => {
-    try {
-      const res = await fetch('/api/admin/bots', { headers: getAuthHeaders() });
-      if (res.ok) {
-        const d = await res.json();
-        setBotsList(d.data || []);
-      }
-    } catch (e) {
-      console.warn('Fetch bots error:', e);
-    }
+  const openAccount = (selectedUser) => {
+    setAccountUser(selectedUser);
+    setAccountName(selectedUser.username);
+    setNewPassword('');
+    setConfirmPassword('');
+    setAccountError('');
   };
 
-  const fetchTournaments = async () => {
-    try {
-      const res = await fetch('/api/tournaments');
-      if (res.ok) {
-        const d = await res.json();
-        setTourneysList(d.data || []);
-      }
-    } catch (e) {
-      console.warn('Fetch tournaments error:', e);
+  const handleSaveAccount = async (action) => {
+    if (!accountUser || accountBusy) return;
+    if (action === 'password' && newPassword !== confirmPassword) {
+      setAccountError('Hai lần nhập mật khẩu chưa khớp.');
+      return;
     }
-  };
-
-  const fetchStats = async () => {
+    if (action === 'password' && (newPassword.length < 8 || new TextEncoder().encode(newPassword).length > 72)) {
+      setAccountError('Mật khẩu mới phải dài ít nhất 8 ký tự và tối đa 72 byte.');
+      return;
+    }
+    setAccountBusy(true);
+    setAccountError('');
     try {
-      const res = await fetch('/api/admin/stats', { headers: getAuthHeaders() });
-      if (res.ok) {
-        const d = await res.json();
-        setStatsData(d.data);
-      }
-    } catch (e) {
-      console.warn('Fetch stats error:', e);
+      const res = await fetch(`/api/admin/users/${accountUser.id}/${action}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify(action === 'password' ? { password: newPassword } : { username: accountName.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Không cập nhật được tài khoản.');
+      setUsersList(previous => previous.map(item => item.id === accountUser.id ? { ...item, ...data.data } : item));
+      setAlertMsg({ type: 'success', text: data.message });
+      if (action === 'account' && accountUser.id === user.id) await refreshProfile?.();
+      setAccountUser(null);
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error) {
+      setAccountError(error.message);
+    } finally {
+      setAccountBusy(false);
     }
   };
 
@@ -85,7 +111,7 @@ export default function AdminDashboardView({ onSelectReplay }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
       setAlertMsg({ type: 'success', text: data.message });
-      fetchUsers();
+      setUsersList(previous => previous.map(item => item.id === userId ? { ...item, ...data.data } : item));
     } catch (err) {
       setAlertMsg({ type: 'error', text: err.message });
     }
@@ -269,7 +295,7 @@ export default function AdminDashboardView({ onSelectReplay }) {
               activeTab === 'users' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
             }`}
           >
-            Thí Sinh ({usersList.length})
+            Tài Khoản{loadedTabs.current.has('users') ? ` (${usersList.length})` : ''}
           </button>
           <button
             onClick={() => setActiveTab('bots')}
@@ -277,7 +303,7 @@ export default function AdminDashboardView({ onSelectReplay }) {
               activeTab === 'bots' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
             }`}
           >
-            Kho Bot ({botsList.length})
+            Kho Bot{loadedTabs.current.has('bots') ? ` (${botsList.length})` : ''}
           </button>
           <button
             onClick={() => setActiveTab('tournaments')}
@@ -285,7 +311,7 @@ export default function AdminDashboardView({ onSelectReplay }) {
               activeTab === 'tournaments' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
             }`}
           >
-            Giải Đấu Khối ({tourneysList.length})
+            Giải Đấu Khối{loadedTabs.current.has('tournaments') ? ` (${tourneysList.length})` : ''}
           </button>
           <button
             onClick={() => setActiveTab('stats')}
@@ -312,8 +338,10 @@ export default function AdminDashboardView({ onSelectReplay }) {
         </div>
       )}
 
+      {fetchingTabs[activeTab] && <p className="text-sm text-slate-400" role="status">Đang tải dữ liệu...</p>}
+
       {/* Overview Metric Cards */}
-      {statsData && (
+      {activeTab === 'stats' && statsData && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="p-4 rounded-2xl bg-[#0e1322]/80 border border-white/5 backdrop-blur-md">
             <span className="text-xs text-slate-400 font-medium">Tổng Thí Sinh</span>
@@ -330,8 +358,8 @@ export default function AdminDashboardView({ onSelectReplay }) {
           <div className="p-4 rounded-2xl bg-[#0e1322]/80 border border-white/5 backdrop-blur-md">
             <span className="text-xs text-slate-400 font-medium">Máy Chấm BullMQ</span>
             <div className="text-xs font-mono text-amber-300 mt-2 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span>Chờ: {statsData.judgeQueue?.waiting || 0} | Đang chạy: {statsData.judgeQueue?.active || 0}</span>
+              <span className={`w-2 h-2 rounded-full ${statsData.queueAvailable ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
+              <span>{statsData.queueAvailable ? `Chờ: ${statsData.judgeQueue?.waiting || 0} | Đang chạy: ${statsData.judgeQueue?.active || 0}` : 'Chưa kết nối hàng đợi'}</span>
             </div>
           </div>
         </div>
@@ -365,6 +393,9 @@ export default function AdminDashboardView({ onSelectReplay }) {
                       <select
                         value={u.role}
                         onChange={(e) => handleChangeRole(u.id, e.target.value)}
+                        disabled={!isAdmin || u.id === user?.id}
+                        aria-label={`Quyền của ${u.username}`}
+                        title={!isAdmin ? 'Chỉ Admin được đổi quyền tài khoản' : u.id === user?.id ? 'Không thể tự gỡ quyền Admin' : 'Đổi quyền tài khoản'}
                         className="py-1 px-2 rounded-lg bg-[#090d18] border border-white/10 text-xs font-semibold text-slate-200"
                       >
                         <option value="STUDENT">STUDENT (Học sinh)</option>
@@ -380,7 +411,14 @@ export default function AdminDashboardView({ onSelectReplay }) {
                     <td className="py-3.5 px-5 text-slate-400">
                       {new Date(u.created_at).toLocaleDateString('vi-VN')}
                     </td>
-                    <td className="py-3.5 px-5 text-right">
+                    <td className="py-3.5 px-5 text-right space-x-2 whitespace-nowrap">
+                      {isAdmin && <button
+                        onClick={() => openAccount(u)}
+                        className="px-2.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 font-semibold"
+                        aria-label={`Quản lý tài khoản ${u.username}`}
+                      >
+                        Tài khoản / Mật khẩu
+                      </button>}
                       <button
                         onClick={() => handleAdjustElo(u.id, u.elo_rating)}
                         className="px-2.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 font-semibold"
@@ -393,6 +431,7 @@ export default function AdminDashboardView({ onSelectReplay }) {
               </tbody>
             </table>
           </div>
+          {!isAdmin && <p className="p-4 text-xs text-slate-400">Chỉ Admin được sửa tên đăng nhập, phân quyền và đặt lại mật khẩu.</p>}
         </div>
       )}
 
@@ -636,6 +675,7 @@ export default function AdminDashboardView({ onSelectReplay }) {
       {activeTab === 'stats' && statsData && (
         <div className="p-6 rounded-2xl bg-[#0e1322]/80 border border-white/5 backdrop-blur-md space-y-4">
           <h3 className="font-bold text-white text-base">Trạng Thái Hệ Thống & Hàng Đợi Chấm BullMQ</h3>
+          {!statsData.queueAvailable && <p className="text-xs text-amber-400">Chưa kết nối được Redis. Số liệu hàng đợi tạm thời chưa có.</p>}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
             <div className="p-4 rounded-xl bg-[#090d18] border border-white/5 space-y-2">
               <div className="text-slate-400 font-bold uppercase">Hàng Đợi Máy Chấm (Redis BullMQ):</div>
@@ -652,6 +692,31 @@ export default function AdminDashboardView({ onSelectReplay }) {
               <div className="text-white flex justify-between"><span>Bảo Vệ Vòng Lặp:</span><span className="text-emerald-400">Kích hoạt (Ngắt khi lặp 5 lần)</span></div>
             </div>
           </div>
+        </div>
+      )}
+
+      {accountUser && isAdmin && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <section role="dialog" aria-modal="true" aria-labelledby="account-dialog-title" className="w-full max-w-lg p-6 rounded-2xl bg-[#0e1322] border border-white/10 shadow-2xl space-y-5">
+            <div className="flex items-center justify-between gap-4">
+              <h2 id="account-dialog-title" className="text-lg font-bold text-white">Tài khoản: {accountUser.username}</h2>
+              <button onClick={() => setAccountUser(null)} disabled={accountBusy} aria-label="Đóng quản lý tài khoản" className="text-slate-400 px-2 py-1">✕</button>
+            </div>
+            {accountError && <p role="alert" className="text-sm text-red-400">{accountError}</p>}
+            <form onSubmit={event => { event.preventDefault(); handleSaveAccount('account'); }} className="space-y-3">
+              <label className="block text-xs font-bold text-slate-400" htmlFor="admin-account-name">Tên đăng nhập</label>
+              <input id="admin-account-name" value={accountName} onChange={event => setAccountName(event.target.value)} autoComplete="off" required minLength={3} maxLength={30} pattern="[a-zA-Z0-9_]+" className="w-full rounded-xl px-3 py-2.5 bg-[#090d18] border border-white/10 text-white text-sm" />
+              <button type="submit" disabled={accountBusy || accountName.trim() === accountUser.username} className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold disabled:opacity-50">Lưu tên đăng nhập</button>
+            </form>
+            <form onSubmit={event => { event.preventDefault(); handleSaveAccount('password'); }} className="space-y-3 pt-4 border-t border-white/10">
+              <p className="text-xs text-slate-400">Đặt mật khẩu mới cho người dùng. Mật khẩu hiện tại không được hiển thị.</p>
+              <label className="block text-xs font-bold text-slate-400" htmlFor="admin-new-password">Mật khẩu mới (ít nhất 8 ký tự)</label>
+              <input id="admin-new-password" type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} autoComplete="new-password" required minLength={8} maxLength={72} className="w-full rounded-xl px-3 py-2.5 bg-[#090d18] border border-white/10 text-white text-sm" />
+              <label className="block text-xs font-bold text-slate-400" htmlFor="admin-confirm-password">Nhập lại mật khẩu mới</label>
+              <input id="admin-confirm-password" type="password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} autoComplete="new-password" required minLength={8} maxLength={72} className="w-full rounded-xl px-3 py-2.5 bg-[#090d18] border border-white/10 text-white text-sm" />
+              <button type="submit" disabled={accountBusy} className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold disabled:opacity-50">{accountBusy ? 'Đang lưu...' : 'Đặt lại mật khẩu'}</button>
+            </form>
+          </section>
         </div>
       )}
     </div>

@@ -3,6 +3,7 @@
  */
 
 const gameService = require('./gameService');
+const { respondWithDuel } = require('./duelResponse');
 
 async function createPractice(req, res, next) {
   try {
@@ -123,7 +124,7 @@ async function runAutomatedDuel(req, res, next) {
     const userId = req.user?.id || null;
     const userName = req.user?.username || 'Kỳ Thủ Khách';
 
-    const result = await gameService.runAutomatedBotDuel({
+    return await respondWithDuel(req,res,next,execution => gameService.runAutomatedBotDuel({
       userId,
       userName,
       bot1Id,
@@ -131,13 +132,8 @@ async function runAutomatedDuel(req, res, next) {
       bot2Id,
       boardSize: Number(boardSize),
       difficulty,
-    });
-
-    return res.status(200).json({
-      success: true,
-      message: 'Trận đấu bot tự động hoàn tất!',
-      data: result,
-    });
+      ...execution,
+    }));
   } catch (err) {
     next(err);
   }
@@ -147,11 +143,11 @@ async function runPvPDuel(req, res, next) {
   try {
     if (req.body.bot1Id || req.body.bot2Id) return res.status(400).json({success:false,
       message:'Không chọn bot hộ người chơi. Trận PvP dùng bot chính của mỗi người.'});
-    const data = await gameService.runPvPDuel({
+    return await respondWithDuel(req,res,next,execution => gameService.runPvPDuel({
       userId:req.user.id,userName:req.user.username,opponentUserId:req.body.opponentUserId,
       boardSize:Number(req.body.boardSize || 9),
-    });
-    return res.json({success:true,data});
+      ...execution,
+    }));
   } catch (error) { next(error); }
 }
 

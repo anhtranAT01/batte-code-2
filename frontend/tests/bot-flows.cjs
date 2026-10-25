@@ -9,6 +9,15 @@ const { transformSync } = require('esbuild');
 let auth = { user:{id:'me',username:'Me'}, getAuthHeaders:() => ({Authorization:'Bearer test'}) };
 const alerts = [];
 global.alert = message => alerts.push(message);
+const helperModules = new Map();
+function helper(filename) {
+  if (helperModules.has(filename)) return helperModules.get(filename);
+  const js = transformSync(fs.readFileSync(filename,'utf8'),{loader:'js',format:'cjs'}).code;
+  const module = {exports:{}};
+  new Function('require','module','exports',js)(require,module,module.exports);
+  helperModules.set(filename,module.exports);
+  return module.exports;
+}
 function component(name) {
   const filename = path.resolve(__dirname,`../src/components/${name}.jsx`);
   const js = transformSync(fs.readFileSync(filename,'utf8'),{loader:'jsx',format:'cjs'}).code;
@@ -16,6 +25,7 @@ function component(name) {
   new Function('require','module','exports',js)((id) => {
     if (id === '../context/AuthContext') return {useAuth:() => auth};
     if (id === './GameBoard') return {__esModule:true,default:() => null};
+    if (id.startsWith('../lib/')) return helper(path.resolve(path.dirname(filename),`${id}.js`));
     return require(id);
   },module,module.exports);
   return module.exports.default;

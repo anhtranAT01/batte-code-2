@@ -23,8 +23,9 @@ function killProcessTree(pid) {
   }
 }
 
-function executePythonBot({ botScriptPath, inputPayload, timeoutMs = 1000 }) {
+function executePythonBot({ botScriptPath, inputPayload, timeoutMs = 1000, signal, onSpawn, onClose }) {
   return new Promise((resolve) => {
+    if (signal?.aborted) return resolve({success:false,error:'CANCELLED: Trận đấu đã dừng.'});
     const startTime = Date.now();
     const pythonCmd = getPythonCommand();
 
@@ -32,11 +33,13 @@ function executePythonBot({ botScriptPath, inputPayload, timeoutMs = 1000 }) {
     let stderrData = '';
     let timedOut = false;
     let resolved = false;
+    let outputBytes = 0;
 
     const child = spawn(pythonCmd, ['-u', botScriptPath], {
       detached: process.platform !== 'win32',
       stdio: ['pipe', 'pipe', 'pipe'],
     });
+    if (child.pid) onSpawn?.(child.pid);
 
     const timer = setTimeout(() => {
       timedOut = true;
@@ -54,11 +57,26 @@ function executePythonBot({ botScriptPath, inputPayload, timeoutMs = 1000 }) {
       }
     }, timeoutMs);
 
+    const stop = error => {
+      if (resolved) return;
+      resolved = true;
+      clearTimeout(timer);
+      signal?.removeEventListener('abort',abort);
+      killProcessTree(child.pid);
+      resolve({success:false,error,durationMs:Date.now()-startTime,timedOut:false,hasInfiniteLoop:false});
+    };
+    const abort = () => stop('CANCELLED: Trận đấu đã dừng.');
+    signal?.addEventListener('abort',abort,{once:true});
+
     child.stdout.on('data', (chunk) => {
+      outputBytes += chunk.length;
+      if (outputBytes > 128*1024) return stop('OUTPUT_LIMIT: Bot in quá nhiều dữ liệu (tối đa 128 KB mỗi lượt).');
       stdoutData += chunk.toString();
     });
 
     child.stderr.on('data', (chunk) => {
+      outputBytes += chunk.length;
+      if (outputBytes > 128*1024) return stop('OUTPUT_LIMIT: Bot in quá nhiều dữ liệu (tối đa 128 KB mỗi lượt).');
       stderrData += chunk.toString();
     });
     // A script may exit before consuming stdin. Handle EPIPE without crashing
@@ -67,6 +85,7 @@ function executePythonBot({ botScriptPath, inputPayload, timeoutMs = 1000 }) {
 
     child.on('error', (err) => {
       clearTimeout(timer);
+      signal?.removeEventListener('abort',abort);
       if (!resolved) {
         resolved = true;
         resolve({
@@ -80,7 +99,9 @@ function executePythonBot({ botScriptPath, inputPayload, timeoutMs = 1000 }) {
     });
 
     child.on('close', (code) => {
+      if (child.pid) onClose?.(child.pid);
       clearTimeout(timer);
+      signal?.removeEventListener('abort',abort);
       if (resolved) return;
       resolved = true;
       const durationMs = Date.now() - startTime;

@@ -173,8 +173,10 @@ class GameEngine {
    * @param {number} playerNum - 1 or 2
    * @param {Object} move - { fromRow, fromCol, toRow, toCol }
    * @param {number} [executionTimeMs=0] - Time taken to calculate move
+   * @param {Object} [options] - Internal execution options for isolated search states
+   * @param {boolean} [options.recordReplay=true] - Keep full snapshots for real moves
    */
-  executeMove(playerNum, move, executionTimeMs = 0) {
+  executeMove(playerNum, move, executionTimeMs = 0, { recordReplay = true } = {}) {
     if (this.isGameOver) {
       throw new Error(`[GameEngine] Trận đấu đã kết thúc (${this.winReason}). Không thể đi tiếp.`);
     }
@@ -251,8 +253,9 @@ class GameEngine {
         this.winner = playerNum === 1 ? 2 : 1;
         this.winReason = WIN_REASONS.INVALID_MOVE;
 
-        this.replay.push({
-          step: ++this.turnCount,
+        this.turnCount++;
+        if (recordReplay) this.replay.push({
+          step: this.turnCount,
           player: playerNum,
           move,
           error: validation.reason,
@@ -432,8 +435,9 @@ class GameEngine {
       }
     }
 
-    // Append to Replay History
-    const stepRecord = {
+    // Search states need all rules and repetition tracking, but do not retain
+    // replay snapshots that are immediately discarded at every minimax node.
+    const stepRecord = recordReplay ? {
       step: this.turnCount,
       player: playerNum,
       move: effectiveMove,
@@ -446,8 +450,8 @@ class GameEngine {
       boardSnapshot: this.getBoardSnapshot(),
       pieceCounts: { p1: p1Count, p2: p2Count },
       timestamp: Date.now(),
-    };
-    this.replay.push(stepRecord);
+    } : undefined;
+    if (recordReplay) this.replay.push(stepRecord);
 
     // Switch turn
     this.currentTurnPlayer = this.currentTurnPlayer === 1 ? 2 : 1;

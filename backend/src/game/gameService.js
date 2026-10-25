@@ -230,84 +230,13 @@ function previewMap(size = 8, difficulty = 'medium') {
   return generateMap({ size: Number(size), difficulty });
 }
 
-/**
- * Get recent matches for FFA arena match list
- */
-async function getRecentMatches(limit = 10) {
-  const sql = `
-    SELECT m.id, m.player1_id, m.player2_id, m.player2_bot_id, m.replay_json, m.duration_ms, m.winner_id, m.win_reason, m.p1_elo_change, m.p2_elo_change,
-           m.has_infinite_loop_error, m.created_at,
-           CASE 
-             WHEN m.replay_json IS NULL THEN 0
-             WHEN jsonb_typeof(m.replay_json) = 'array' THEN jsonb_array_length(m.replay_json)
-             WHEN jsonb_typeof(m.replay_json->'steps') = 'array' THEN jsonb_array_length(m.replay_json->'steps')
-             WHEN (m.replay_json->>'totalTurns') IS NOT NULL THEN (m.replay_json->>'totalTurns')::int
-             ELSE 0
-           END AS total_turns,
-           u1.username AS p1_username, u1.elo_rating AS p1_elo,
-           u2.username AS p2_username, u2.elo_rating AS p2_elo,
-           b1.name AS p1_bot_name, b2.name AS p2_bot_name,
-           uw.username AS winner_username
-    FROM "Matches" m
-    LEFT JOIN "Users" u1 ON u1.id = m.player1_id
-    LEFT JOIN "Users" u2 ON u2.id = m.player2_id
-    LEFT JOIN "Users" uw ON uw.id = m.winner_id
-    LEFT JOIN "Bots" b1 ON b1.id = m.player1_bot_id
-    LEFT JOIN "Bots" b2 ON b2.id = m.player2_bot_id
-    ORDER BY m.created_at DESC
-    LIMIT $1;
-  `;
-  try {
-    const res = await query(sql, [limit]);
-    return res.rows.map(row => { const {replay_json,...match} = normalizeMatch(row); return match; });
-  } catch (err) {
-    console.error('[getRecentMatches DB Error]:', err.message);
-    return [];
-  }
-}
-
-
-/**
- * Get Leaderboard with Elo, W/L/D, and active bot
- */
-async function getLeaderboard(limit = 50) {
-  const sql = `
-    SELECT 
-      u.id, 
-      u.username, 
-      u.role, 
-      u.elo_rating,
-      b.id AS active_bot_id,
-      b.name AS active_bot_name,
-      COALESCE(SUM(CASE WHEN m.winner_id = u.id THEN 1 ELSE 0 END), 0)::INT AS wins,
-      COALESCE(SUM(CASE WHEN
-        (m.winner_id IS NOT NULL AND m.winner_id != u.id)
-        OR (m.winner_id IS NULL AND m.player1_id = u.id AND m.replay_json->>'winner' = '2'
-            AND (m.player2_id IS NULL OR (m.player2_id = m.player1_id AND m.player2_bot_id IS NULL)))
-        THEN 1 ELSE 0 END), 0)::INT AS losses,
-      COALESCE(SUM(CASE WHEN m.win_reason = 'DRAW'
-        OR (m.replay_json ? 'winner' AND m.replay_json->'winner' = 'null'::jsonb)
-        THEN 1 ELSE 0 END), 0)::INT AS draws
-    FROM "Users" u
-    LEFT JOIN "Bots" b ON b.user_id = u.id AND b.is_active = true
-    LEFT JOIN "Matches" m ON (m.player1_id = u.id OR m.player2_id = u.id)
-    GROUP BY u.id, u.username, u.role, u.elo_rating, b.id, b.name
-    ORDER BY u.elo_rating DESC, wins DESC
-    LIMIT $1;
-  `;
-  try {
-    const res = await query(sql, [limit]);
-    return res.rows;
-  } catch (err) {
-    console.warn('[Leaderboard query error]:', err.message);
-    return [];
-  }
-}
+const { getRecentMatches, getLeaderboard, invalidateArenaReads } = require('./arenaReads');
+const duelExecutor = require('./duelExecutor');
 
 const { resolveBotPath } = require('../bot/botStorage');
-const { getTemplateBot, playBotTurn } = require('./botDuel');
+const { getTemplateBot } = require('./botDuel');
 
-async function runPvPDuel({userId,userName,opponentUserId,boardSize = 9}) {
+async function runPvPDuel({userId,userName,opponentUserId,boardSize = 9,...execution}) {
   const fail = (message,statusCode = 400) => { const error = new Error(message); error.statusCode = statusCode; throw error; };
   if (!userId) fail('Bạn cần đăng nhập để thi đấu PvP.',401);
   if (!opponentUserId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(opponentUserId)) {
@@ -327,7 +256,7 @@ async function runPvPDuel({userId,userName,opponentUserId,boardSize = 9}) {
   resolveBotPath(own);
   resolveBotPath(opponent);
   return runAutomatedBotDuel({userId,userName,bot1Id:own.id,bot2Id:opponent.id,
-    boardSize,difficulty:'medium'});
+    boardSize,difficulty:'medium',...execution});
 }
 
 /**
@@ -341,6 +270,7 @@ async function runAutomatedBotDuel({
   bot2Id = null,
   boardSize = 9,
   difficulty = 'medium',
+  onProgress, signal, requestKey,
 }) {
   const matchId = crypto.randomUUID();
   const validSize = boardSize === 8 ? 8 : 9;
@@ -392,27 +322,19 @@ async function runAutomatedBotDuel({
     systemBot2 = getPracticeBot(bot2Level, 2);
   }
 
-  // Initialize Game Engine
-  const game = new GameEngine({
-    matchId,
-    size: validSize,
-    difficulty,
-    maxTurns: 150,
-  });
-  game.allowFallback = false;
-
-  const startTime = Date.now();
-  const participants = {
-    1: { name: bot1Name, bot: template1?.bot, scriptPath: bot1ScriptPath },
-    2: { name: bot2Name, bot: systemBot2, scriptPath: bot2ScriptPath },
-  };
-  while (!game.isGameOver && game.turnCount < game.maxTurns) {
-    await playBotTurn(game, participants[game.currentTurnPlayer]);
-  }
-  const durationMs = Date.now() - startTime;
-  const replayJson = game.getReplayJson();
-  Object.assign(replayJson,{mode:player2UserId ? 'PVP' : 'PRACTICE',p1Name:userName,
-    p2Name:player2Username || bot2Name,p1BotName:bot1Name,p2BotName:bot2Name});
+  const metadata = {mode:player2UserId ? 'PVP' : 'PRACTICE',p1Name:userName,
+    p2Name:player2Username || bot2Name,p1BotName:bot1Name,p2BotName:bot2Name};
+  const simulated = await duelExecutor.run({matchId,size:validSize,difficulty,participants:{
+    1:{name:bot1Name,level:template1?.bot.level,scriptPath:bot1ScriptPath},
+    2:{name:bot2Name,level:systemBot2?.level,scriptPath:bot2ScriptPath},
+  }},{signal,owner:userId || requestKey,onProgress:event => {
+    if (event.type === 'started') event = {...event,data:{...metadata,matchId,isPvP:!!player2UserId,
+      replay:{...event.data.replay,...metadata}}};
+    onProgress?.(event);
+  }});
+  const {durationMs,replay:replayJson} = simulated;
+  const game = {winner:simulated.winner,winReason:simulated.winReason,turnCount:simulated.totalTurns};
+  Object.assign(replayJson,metadata);
 
   // Persist match in database if user is logged in
   try {
@@ -453,6 +375,7 @@ async function runAutomatedBotDuel({
     console.warn('[AutoMatch DB Warning]:', dbErr.message);
   }
 
+  invalidateArenaReads();
   const p2DisplayName = player2Username ? `${player2Username} (Sinh Viên)` : bot2Name;
 
   return {

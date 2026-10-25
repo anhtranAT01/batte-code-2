@@ -6,6 +6,8 @@ const { query } = require('../config/db');
 const { matchQueue } = require('../config/redis');
 const tournamentService = require('../tournament/tournament.service');
 const gameService = require('../game/gameService');
+const accounts = require('./admin.accounts');
+const { invalidateArenaReads } = require('../game/arenaReads');
 
 /**
  * Get all users with stats
@@ -13,19 +15,29 @@ const gameService = require('../game/gameService');
 async function listUsers(req, res, next) {
   try {
     const sql = `
-      SELECT 
+      SELECT
         u.id, 
         u.username, 
         u.role, 
         u.elo_rating, 
         u.created_at,
         COUNT(DISTINCT b.id)::INT AS bot_count,
-        COALESCE(SUM(CASE WHEN m.winner_id = u.id THEN 1 ELSE 0 END), 0)::INT AS wins,
-        COALESCE(SUM(CASE WHEN m.winner_id IS NOT NULL AND m.winner_id != u.id AND (m.player1_id = u.id OR m.player2_id = u.id) THEN 1 ELSE 0 END), 0)::INT AS losses
+        COALESCE(ms.wins, 0)::INT AS wins,
+        COALESCE(ms.losses, 0)::INT AS losses
       FROM "Users" u
       LEFT JOIN "Bots" b ON b.user_id = u.id
-      LEFT JOIN "Matches" m ON (m.player1_id = u.id OR m.player2_id = u.id)
-      GROUP BY u.id, u.username, u.role, u.elo_rating, u.created_at
+      LEFT JOIN (
+        SELECT player_id,
+          COUNT(*) FILTER (WHERE winner_id = player_id) AS wins,
+          COUNT(*) FILTER (WHERE winner_id IS NOT NULL AND winner_id != player_id) AS losses
+        FROM (
+          SELECT player1_id AS player_id, winner_id FROM "Matches" WHERE player1_id IS NOT NULL
+          UNION ALL
+          SELECT player2_id AS player_id, winner_id FROM "Matches" WHERE player2_id IS NOT NULL AND player2_id IS DISTINCT FROM player1_id
+        ) appearances
+        GROUP BY player_id
+      ) ms ON ms.player_id = u.id
+      GROUP BY u.id, u.username, u.role, u.elo_rating, u.created_at, ms.wins, ms.losses
       ORDER BY u.created_at DESC;
     `;
     const result = await query(sql);
@@ -40,18 +52,30 @@ async function listUsers(req, res, next) {
  */
 async function updateUserRole(req, res, next) {
   try {
-    const { id } = req.params;
-    const { role } = req.body;
-    if (!['STUDENT', 'TEACHER', 'ADMIN'].includes(role)) {
-      return res.status(400).json({ success: false, message: 'Quyền không hợp lệ.' });
-    }
-    const result = await query('UPDATE "Users" SET role = $1, updated_at = NOW() WHERE id = $2 RETURNING id, username, role', [role, id]);
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng.' });
-    }
-    return res.status(200).json({ success: true, message: `Đã cập nhật quyền thành ${role}`, data: result.rows[0] });
+    const data = await accounts.changeRole(req.user.id, req.params.id, req.body?.role);
+    invalidateArenaReads();
+    return res.status(200).json({ success: true, message: `Đã cập nhật quyền thành ${data.role}`, data });
   } catch (err) {
     next(err);
+  }
+}
+
+async function updateUserAccount(req, res, next) {
+  try {
+    const data = await accounts.renameUser(req.params.id, req.body?.username);
+    invalidateArenaReads();
+    return res.status(200).json({ success: true, message: 'Đã cập nhật tên đăng nhập.', data });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function resetUserPassword(req, res, next) {
+  try {
+    const data = await accounts.resetPassword(req.params.id, req.body?.password);
+    return res.status(200).json({ success: true, message: `Đã đặt mật khẩu mới cho ${data.username}.`, data });
+  } catch (error) {
+    next(error);
   }
 }
 
@@ -67,6 +91,10 @@ async function updateUserElo(req, res, next) {
       return res.status(400).json({ success: false, message: 'Điểm Elo phải từ 100 đến 3500.' });
     }
     const result = await query('UPDATE "Users" SET elo_rating = $1, updated_at = NOW() WHERE id = $2 RETURNING id, username, elo_rating', [eloNum, id]);
+    if (!result.rows[0]) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng.' });
+    }
+    invalidateArenaReads();
     return res.status(200).json({ success: true, message: `Đã chỉnh Elo thành ${eloNum}`, data: result.rows[0] });
   } catch (err) {
     next(err);
@@ -258,26 +286,36 @@ async function deleteTournament(req, res, next) {
  */
 async function getSystemStats(req, res, next) {
   try {
-    const [userCount, botCount, matchCount, tourneyCount] = await Promise.all([
-      query('SELECT COUNT(*)::INT AS c FROM "Users"'),
-      query('SELECT COUNT(*)::INT AS c FROM "Bots"'),
-      query('SELECT COUNT(*)::INT AS c FROM "Matches"'),
-      query('SELECT COUNT(*)::INT AS c FROM "Tournaments"'),
-    ]);
+    const counts = await query(`SELECT
+      (SELECT COUNT(*)::INT FROM "Users") AS users,
+      (SELECT COUNT(*)::INT FROM "Bots") AS bots,
+      (SELECT COUNT(*)::INT FROM "Matches") AS matches,
+      (SELECT COUNT(*)::INT FROM "Tournaments") AS tournaments`);
 
     let queueCounts = { waiting: 0, active: 0, completed: 0, failed: 0 };
+    let queueAvailable = false;
+    let queueTimeout;
     try {
-      queueCounts = await matchQueue.getJobCounts('waiting', 'active', 'completed', 'failed');
-    } catch {}
+      queueCounts = await Promise.race([
+        matchQueue.getJobCounts('waiting', 'active', 'completed', 'failed'),
+        new Promise((resolve, reject) => {
+          queueTimeout = setTimeout(() => reject(new Error('Queue unavailable')), 1000);
+        }),
+      ]);
+      queueAvailable = true;
+    } catch {} finally {
+      clearTimeout(queueTimeout);
+    }
 
     return res.status(200).json({
       success: true,
       data: {
-        totalUsers: userCount.rows[0].c,
-        totalBots: botCount.rows[0].c,
-        totalMatches: matchCount.rows[0].c,
-        totalTournaments: tourneyCount.rows[0].c,
+        totalUsers: counts.rows[0].users,
+        totalBots: counts.rows[0].bots,
+        totalMatches: counts.rows[0].matches,
+        totalTournaments: counts.rows[0].tournaments,
         judgeQueue: queueCounts,
+        queueAvailable,
         uptimeSeconds: Math.floor(process.uptime()),
       },
     });
@@ -447,6 +485,8 @@ async function runBracketMatches(req, res, next) {
 module.exports = {
   listUsers,
   updateUserRole,
+  updateUserAccount,
+  resetUserPassword,
   updateUserElo,
   listAllBots,
   adminDeleteBot,

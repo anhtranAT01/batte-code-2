@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import GameBoard from './GameBoard';
+import { runDuel, applyDuelEvent } from '../lib/duelStream';
+import { invalidatePublicData } from '../lib/publicData';
 
 export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = null, onOpenBots }) {
   const { user, getAuthHeaders } = useAuth();
@@ -16,6 +18,15 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
   const [isPlaying, setIsPlaying] = useState(true);
   const [playSpeed, setPlaySpeed] = useState(1);
   const timerRef = useRef(null);
+  const requestRef = useRef(null);
+  const playbackRef = useRef({totalSteps:0,loading:false});
+  const [queuePosition,setQueuePosition] = useState(null);
+  useEffect(() => () => requestRef.current?.abort(), []);
+  const leaveMatch = () => { requestRef.current?.abort(); setAutoMatchData(null); };
+  const receiveProgress = event => {
+    if (event.type === 'queued') setQueuePosition(event.data.position);
+    else setAutoMatchData(current => applyDuelEvent(current,event));
+  };
 
   const loadPlayers = async (isCancelled = () => false) => {
     setBotsLoading(true);
@@ -46,6 +57,7 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
 
   const replaySteps = autoMatchData?.replay?.steps || [];
   const totalSteps = replaySteps.length;
+  playbackRef.current = {totalSteps,loading};
   const opponents = players.filter(player => player.id !== user?.id);
   const selectedOpponent = opponents.find(player => player.id === selectedOpponentId);
   const ownProfile = players.find(player => player.id === user?.id);
@@ -53,12 +65,12 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
   // Autoplay step timer
 
   useEffect(() => {
-    if (autoMatchData && isPlaying && totalSteps > 0) {
+    if (autoMatchData && isPlaying) {
       const intervalMs = Math.max(120, 700 / playSpeed);
       timerRef.current = setInterval(() => {
         setCurrentStepIdx((prev) => {
-          if (prev >= totalSteps - 1) {
-            setIsPlaying(false);
+          if (prev >= playbackRef.current.totalSteps - 1) {
+            if (!playbackRef.current.loading) setIsPlaying(false);
             return prev;
           }
           return prev + 1;
@@ -71,7 +83,7 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [autoMatchData, isPlaying, playSpeed, totalSteps]);
+  }, [Boolean(autoMatchData), isPlaying, playSpeed]);
 
   const handlePickRandomOpponent = () => {
     const others = opponents.filter(player => player.id !== selectedOpponentId);
@@ -79,23 +91,28 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
   };
   const handleStartPvPDuel = async () => {
     if (!canStart) return;
+    requestRef.current?.abort();
+    const controller = new AbortController();
+    requestRef.current = controller;
+    setQueuePosition(null);
     setLoading(true);
     setSelectionError('');
     setAutoMatchData(null);
     setCurrentStepIdx(0);
     setIsPlaying(true);
     try {
-      const response = await fetch('/api/game/pvp', {
-        method:'POST',
-        headers:{'Content-Type':'application/json',...getAuthHeaders()},
-        body:JSON.stringify({opponentUserId:selectedOpponentId,boardSize}),
+      const result = await runDuel('/api/game/pvp', {
+        body: { opponentUserId:selectedOpponentId, boardSize },
+        headers: getAuthHeaders(),
+        signal: controller.signal,
+        onUpdate: receiveProgress,
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || 'Không thể tạo trận đấu PvP.');
-      setAutoMatchData(data.data);
+      if (controller.signal.aborted) return;
+      setAutoMatchData(result);
+      invalidatePublicData();
     } catch (error) {
-      setSelectionError(error.message);
-    } finally { setLoading(false); }
+      if (!controller.signal.aborted) setSelectionError(error.message);
+    } finally { if (requestRef.current === controller) setLoading(false); }
   };
   const currentStep = replaySteps[currentStepIdx] || null;
   const currentGrid =
@@ -125,7 +142,7 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
 
         {autoMatchData && (
           <button
-            onClick={() => setAutoMatchData(null)}
+            onClick={leaveMatch}
             className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition-colors self-start sm:self-auto"
           >
             ← Chọn Cặp Đấu Khác
@@ -133,10 +150,15 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
         )}
       </div>
 
+      {selectionError && <p role="alert" className="rounded-xl border border-red-500/30 p-3 mb-4 text-sm text-red-300">{selectionError}</p>}
+      {loading && <p role="status" className="text-sm text-slate-400 mb-4">{queuePosition && !autoMatchData
+        ? `Đang xếp hàng: vị trí ${queuePosition}. Máy chủ sẽ mở bàn cờ khi đến lượt.`
+        : autoMatchData ? `Bot đang tính tiếp · đã có ${totalSteps} lượt. Bạn có thể xem ngay hoặc tạm dừng.`
+        : 'Đang kết nối và chuẩn bị bàn cờ…'}</p>}
+      {loading && !autoMatchData && <button type="button" onClick={leaveMatch} className="mb-4 text-xs text-cyan-300 underline">Hủy chờ</button>}
       {!autoMatchData ? (
         /* Setup PvP Match */
         <div className="space-y-6">
-          {selectionError && <p role="alert" className="text-sm text-red-300">{selectionError}</p>}
           <div className="rounded-2xl border border-blue-500/30 bg-[#0e1322]/80 p-5 space-y-3">
             <label htmlFor="pvp-opponent" className="block text-sm font-bold text-blue-300">Bạn (phe Xanh) chọn đối thủ</label>
             <div className="flex flex-wrap items-center gap-3">
@@ -336,7 +358,7 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
 
                   <button
                     onClick={() => {
-                      setCurrentStepIdx(totalSteps - 1);
+                      setCurrentStepIdx(Math.max(0,totalSteps - 1));
                       setIsPlaying(false);
                     }}
                     className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold"
@@ -363,7 +385,7 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
             </div>
 
             {/* Result Announcement */}
-            {currentStepIdx >= totalSteps - 1 && (
+            {!loading && !selectionError && totalSteps > 0 && currentStepIdx >= totalSteps - 1 && (
               <div className="w-full mt-4 p-5 rounded-2xl bg-gradient-to-r from-blue-950/60 via-indigo-950/60 to-purple-950/60 border border-cyan-500/30 text-center space-y-2.5 shadow-2xl">
                 <h3 className="font-black text-lg text-white">
                   CHIẾN THẮNG: {autoMatchData.winnerName}!

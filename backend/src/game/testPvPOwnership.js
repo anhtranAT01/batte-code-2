@@ -46,6 +46,8 @@ require('./pythonRunner').executePythonBot = async ({botScriptPath,inputPayload}
   game.grid = inputPayload.grid.map(row => row.map(cell => ({...cell,piece:cell.piece ? new GamePiece(cell.piece) : null})));
   return {success:true,move:game.getValidMovesForPlayer(inputPayload.player_id)[0],durationMs:1};
 };
+// Keep the test's fake Python runner in-process; production uses real workers.
+require('./duelExecutor').run = (task,options) => require('./duelSimulation').simulateDuel(task,options);
 require('../auth/auth.middleware').authenticateJWT = (req,res,next) => {
   if (!actingUser) return res.status(401).json({success:false});
   req.user = {id:actingUser,username:users.find(u => u.id === actingUser)?.username};

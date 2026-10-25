@@ -1,20 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { io } from 'socket.io-client';
 import Sidebar from './components/Sidebar';
 import HeaderBar from './components/HeaderBar';
 import LeaderboardView from './components/LeaderboardView';
-import BossArenaView from './components/BossArenaView';
-import PvPBotArenaView from './components/PvPBotArenaView';
-import TournamentBracketsView from './components/TournamentBracketsView';
-import RulesAndStrategyView from './components/RulesAndStrategyView';
-import BotVaultView from './components/BotVaultView';
-import DataExplorerView from './components/DataExplorerView';
-import ReplayViewer from './components/ReplayViewer';
-import WorldChatModal from './components/WorldChatModal';
 import AuthModal from './components/AuthModal';
-import AdminDashboardView from './components/AdminDashboardView';
 import { apiOrigin } from './lib/api';
 import useTheme from './hooks/useTheme';
+
+// Load game, replay and admin tools when opened instead of delaying the first page.
+const BossArenaView = lazy(() => import('./components/BossArenaView'));
+const PvPBotArenaView = lazy(() => import('./components/PvPBotArenaView'));
+const TournamentBracketsView = lazy(() => import('./components/TournamentBracketsView'));
+const RulesAndStrategyView = lazy(() => import('./components/RulesAndStrategyView'));
+const BotVaultView = lazy(() => import('./components/BotVaultView'));
+const DataExplorerView = lazy(() => import('./components/DataExplorerView'));
+const ReplayViewer = lazy(() => import('./components/ReplayViewer'));
+const WorldChatModal = lazy(() => import('./components/WorldChatModal'));
+const AdminDashboardView = lazy(() => import('./components/AdminDashboardView'));
 
 export default function App() {
   const { theme, toggleTheme } = useTheme();
@@ -108,6 +110,7 @@ export default function App() {
         {/* Dynamic Page Views Container */}
         <main className="app-main flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 scrollbar-thin">
           <div className="max-w-7xl mx-auto pb-12">
+            <Suspense fallback={<div role="status" className="py-12 text-center text-sm text-slate-400">Đang mở trang...</div>}>
             {activeTab === 'leaderboard' && (
               <LeaderboardView
                 onSelectReplay={handleOpenReplay}
@@ -154,6 +157,7 @@ export default function App() {
                 onBack={() => setActiveTab(previousTab || 'leaderboard')}
               />
             )}
+            </Suspense>
           </div>
         </main>
       </div>
@@ -166,12 +170,14 @@ export default function App() {
       />
 
       {/* Real-time World Chat Modal */}
-      <WorldChatModal
-        isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
-        socket={socket}
-        onlineCount={onlineCount}
-      />
+      {isChatOpen && <Suspense fallback={null}>
+        <WorldChatModal
+          isOpen={isChatOpen}
+          onClose={() => setIsChatOpen(false)}
+          socket={socket}
+          onlineCount={onlineCount}
+        />
+      </Suspense>}
     </div>
   );
 }

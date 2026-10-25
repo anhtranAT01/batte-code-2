@@ -189,6 +189,7 @@ server.listen(PORT, async () => {
 // Graceful Shutdown
 function handleShutdown(signal) {
   console.log(`\n[Process] Received ${signal}. Gracefully closing server and database pool...`);
+  require('./game/duelExecutor').shutdown().catch(console.error);
   server.close(async () => {
     try {
       await pool.end();

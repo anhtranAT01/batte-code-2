@@ -22,6 +22,12 @@ services:
         value: /var/data/bots
       - key: TURN_TIMEOUT_MS
         value: 1000
+      - key: DUEL_WORKERS
+        value: 1
+      - key: DUEL_QUEUE_LIMIT
+        value: 16
+      - key: DUEL_TIMEOUT_MS
+        value: 60000
       - key: REDIS_HOST
         fromService:
           type: keyvalue

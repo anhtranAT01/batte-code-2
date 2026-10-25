@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const adminController = require('./admin.controller');
 const { authenticateJWT, requireRole } = require('../auth/auth.middleware');
+const { requireCurrentAdmin } = require('./admin.accounts');
 
 // All admin routes require ADMIN or TEACHER role
 router.use(authenticateJWT, requireRole('ADMIN', 'TEACHER'));
@@ -16,7 +17,9 @@ router.get('/users', adminController.listUsers);
  * @route   PUT /api/admin/users/:id/role
  * @desc    Update user role (STUDENT, TEACHER, ADMIN)
  */
-router.put('/users/:id/role', adminController.updateUserRole);
+router.put('/users/:id/role', requireCurrentAdmin, adminController.updateUserRole);
+router.put('/users/:id/account', requireCurrentAdmin, adminController.updateUserAccount);
+router.put('/users/:id/password', requireCurrentAdmin, adminController.resetUserPassword);
 
 /**
  * @route   PUT /api/admin/users/:id/elo

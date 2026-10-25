@@ -54,7 +54,7 @@ function simulate(game, move) {
   copy.boardStateHistory = new Map(game.boardStateHistory);
   copy.replay = [];
   copy.allowFallback = false;
-  copy.executeMove(copy.currentTurnPlayer, move);
+  copy.executeMove(copy.currentTurnPlayer, move, 0, { recordReplay: false });
   return copy;
 }
 

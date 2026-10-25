@@ -18,7 +18,7 @@ function getTemplateBot(id, player) {
 
 // Both sides follow the same strict execution path. A failed bot never gets a
 // replacement move that would make an unrelated algorithm appear to be running.
-async function playBotTurn(game, participant, runPython = executePythonBot) {
+async function playBotTurn(game, participant, runPython = executePythonBot, signal) {
   const player = game.currentTurnPlayer;
   if (!game.getValidMovesForPlayer(player).length) {
     game.isGameOver = true;
@@ -34,6 +34,7 @@ async function playBotTurn(game, participant, runPython = executePythonBot) {
       botScriptPath: participant.scriptPath,
       inputPayload:buildBotInput(game,player),
       timeoutMs: 1000,
+      signal,
     });
     if (!result.success) {
       const error = new Error(`${participant.name}: ${result.error || 'Bot không trả về nước đi'}`);

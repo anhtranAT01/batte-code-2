@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import GameBoard from './GameBoard';
+import { runDuel, applyDuelEvent } from '../lib/duelStream';
+import { invalidatePublicData } from '../lib/publicData';
 
 export default function BossArenaView({ onSelectReplay }) {
   const { user, getAuthHeaders } = useAuth();
@@ -61,6 +63,15 @@ export default function BossArenaView({ onSelectReplay }) {
   const [isPlaying, setIsPlaying] = useState(true);
   const [playSpeed, setPlaySpeed] = useState(1); // 1x, 2x, 4x
   const timerRef = useRef(null);
+  const requestRef = useRef(null);
+  const playbackRef = useRef({totalSteps:0,loading:false});
+  const [queuePosition,setQueuePosition] = useState(null);
+  useEffect(() => () => requestRef.current?.abort(), []);
+  const leaveMatch = () => { requestRef.current?.abort(); setAutoMatchData(null); };
+  const receiveProgress = event => {
+    if (event.type === 'queued') setQueuePosition(event.data.position);
+    else setAutoMatchData(current => applyDuelEvent(current,event));
+  };
 
   // Fetch student bots
   useEffect(() => {
@@ -83,14 +94,15 @@ export default function BossArenaView({ onSelectReplay }) {
   // Autoplay step timer
   const replaySteps = autoMatchData?.replay?.steps || [];
   const totalSteps = replaySteps.length;
+  playbackRef.current = {totalSteps,loading};
 
   useEffect(() => {
-    if (autoMatchData && isPlaying && totalSteps > 0) {
+    if (autoMatchData && isPlaying) {
       const intervalMs = Math.max(150, 700 / playSpeed);
       timerRef.current = setInterval(() => {
         setCurrentStepIdx((prev) => {
-          if (prev >= totalSteps - 1) {
-            setIsPlaying(false);
+          if (prev >= playbackRef.current.totalSteps - 1) {
+            if (!playbackRef.current.loading) setIsPlaying(false);
             return prev;
           }
           return prev + 1;
@@ -103,10 +115,14 @@ export default function BossArenaView({ onSelectReplay }) {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [autoMatchData, isPlaying, playSpeed, totalSteps]);
+  }, [Boolean(autoMatchData), isPlaying, playSpeed]);
 
   // Start Automated Bot Duel
   const handleStartAutoDuel = async () => {
+    requestRef.current?.abort();
+    const controller = new AbortController();
+    requestRef.current = controller;
+    setQueuePosition(null);
     setLoading(true);
     setMatchError('');
     setAutoMatchData(null);
@@ -114,28 +130,24 @@ export default function BossArenaView({ onSelectReplay }) {
     setIsPlaying(true);
 
     try {
-      const res = await fetch('/api/game/bot-vs-bot', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders(),
-        },
-        body: JSON.stringify({
+      const result = await runDuel('/api/game/bot-vs-bot', {
+        body: {
           bot1Id: selectedBotId,
           bot2Level: selectedBoss.id,
           boardSize,
           difficulty: selectedBoss.difficulty,
-        }),
+        },
+        headers: getAuthHeaders(),
+        signal: controller.signal,
+        onUpdate: receiveProgress,
       });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Không thể tạo trận đấu');
-
-      setAutoMatchData(data.data);
+      if (controller.signal.aborted) return;
+      setAutoMatchData(result);
+      invalidatePublicData();
     } catch (err) {
-      setMatchError(`Không thể bắt đầu trận: ${err.message}`);
+      if (!controller.signal.aborted) setMatchError(`Không thể tiếp tục trận: ${err.message}`);
     } finally {
-      setLoading(false);
+      if (requestRef.current === controller) setLoading(false);
     }
   };
 
@@ -161,13 +173,13 @@ export default function BossArenaView({ onSelectReplay }) {
             </span>
           </div>
           <p className="text-sm text-slate-400 mt-1">
-            Chọn bot của bạn để tự động giao tranh với Boss AI. Hệ thống mô phỏng toàn bộ ván cờ và chiếu lại trực tiếp.
+            Chọn bot của bạn để tự động giao tranh với Boss AI. Bàn cờ hiện ngay khi bắt đầu, nước đi được cập nhật trong lúc bot tính toán.
           </p>
         </div>
 
         {autoMatchData && (
           <button
-            onClick={() => setAutoMatchData(null)}
+            onClick={leaveMatch}
             className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition-colors self-start sm:self-auto"
           >
             ← Chọn Boss & Cấu Hình Khác
@@ -175,10 +187,15 @@ export default function BossArenaView({ onSelectReplay }) {
         )}
       </div>
 
+      {matchError && <p role="alert" className="rounded-xl border border-red-500/30 p-3 mb-4 text-sm text-red-300">{matchError}</p>}
+      {loading && <p role="status" className="text-sm text-slate-400 mb-4">{queuePosition && !autoMatchData
+        ? `Đang xếp hàng: vị trí ${queuePosition}. Máy chủ sẽ mở bàn cờ khi đến lượt.`
+        : autoMatchData ? `Bot đang tính tiếp · đã có ${totalSteps} lượt. Bạn có thể xem ngay hoặc tạm dừng.`
+        : 'Đang kết nối và chuẩn bị bàn cờ…'}</p>}
+      {loading && !autoMatchData && <button type="button" onClick={leaveMatch} className="mb-4 text-xs text-cyan-300 underline">Hủy chờ</button>}
       {!autoMatchData ? (
         /* Setup & Selection View */
         <div className="space-y-6">
-          {matchError && <p role="alert" className="rounded-xl border border-red-500/30 p-3 text-sm text-red-300">{matchError}</p>}
           {/* Boss Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {bosses.map((boss) => {
@@ -292,7 +309,7 @@ export default function BossArenaView({ onSelectReplay }) {
             {/* Top match header */}
             <div className="w-full flex items-center justify-between mb-4 pb-3 border-b border-white/5 text-xs">
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
                 <span className="font-bold text-white">{autoMatchData.p1Name}</span>
                 <span className="text-slate-400">({autoMatchData.p1BotName})</span>
               </div>
@@ -301,7 +318,7 @@ export default function BossArenaView({ onSelectReplay }) {
               </div>
               <div className="flex items-center gap-2">
                 <span className="font-bold text-white">{autoMatchData.p2Name}</span>
-                <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
               </div>
             </div>
 
@@ -346,7 +363,7 @@ export default function BossArenaView({ onSelectReplay }) {
 
                   <button
                     onClick={() => {
-                      setCurrentStepIdx(totalSteps - 1);
+                      setCurrentStepIdx(Math.max(0,totalSteps - 1));
                       setIsPlaying(false);
                     }}
                     className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold"
@@ -373,7 +390,7 @@ export default function BossArenaView({ onSelectReplay }) {
             </div>
 
             {/* Result Announcement */}
-            {currentStepIdx >= totalSteps - 1 && (
+            {!loading && !matchError && totalSteps > 0 && currentStepIdx >= totalSteps - 1 && (
               <div className="w-full mt-4 p-4 rounded-xl bg-gradient-to-r from-indigo-950/60 to-purple-950/40 border border-indigo-500/30 text-center space-y-2">
                 <h3 className="font-black text-base text-white">
                   {autoMatchData.winner === 1 ? 'BOT CỦA BẠN ĐÃ CHIẾN THẮNG' : 'BOSS ĐÃ CHIẾN THẮNG'}

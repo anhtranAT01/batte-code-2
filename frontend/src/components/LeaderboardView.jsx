@@ -1,37 +1,40 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { getPublicData, peekPublicData, invalidatePublicData } from '../lib/publicData';
+import './LeaderboardView.css';
+
+const LEADERBOARD_PATH = '/api/game/leaderboard?limit=25';
+const MATCHES_PATH = '/api/game/recent-matches?limit=10';
 
 export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onExploreData }) {
   const { user } = useAuth();
-  const [leaderboard, setLeaderboard] = useState([]);
-  const [recentMatches, setRecentMatches] = useState([]);
+  const [leaderboard, setLeaderboard] = useState(() => peekPublicData(LEADERBOARD_PATH) || []);
+  const [recentMatches, setRecentMatches] = useState(() => peekPublicData(MATCHES_PATH) || []);
   const [loading, setLoading] = useState(true);
+  const [matchesLoading, setMatchesLoading] = useState(true);
+  const [errors, setErrors] = useState({});
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+    let active = true;
     setLoading(true);
-    try {
-      const [lbRes, rmRes] = await Promise.all([
-        fetch('/api/game/leaderboard?limit=25'),
-        fetch('/api/game/recent-matches?limit=10'),
-      ]);
+    setMatchesLoading(true);
+    setErrors({});
+    // Each table becomes usable as soon as its own request finishes.
+    getPublicData(LEADERBOARD_PATH)
+      .then(data => { if (active) setLeaderboard(data); })
+      .catch(error => { if (active) setErrors(previous => ({ ...previous, leaderboard: error.message })); })
+      .finally(() => { if (active) setLoading(false); });
+    getPublicData(MATCHES_PATH)
+      .then(data => { if (active) setRecentMatches(data); })
+      .catch(error => { if (active) setErrors(previous => ({ ...previous, matches: error.message })); })
+      .finally(() => { if (active) setMatchesLoading(false); });
+    return () => { active = false; };
+  }, [refreshKey]);
 
-      if (lbRes.ok) {
-        const lbData = await lbRes.json();
-        setLeaderboard(lbData.data || []);
-      }
-      if (rmRes.ok) {
-        const rmData = await rmRes.json();
-        setRecentMatches(rmData.data || []);
-      }
-    } catch (err) {
-      console.error('[Leaderboard] Fetch error:', err);
-    } finally {
-      setLoading(false);
-    }
+  const fetchData = () => {
+    invalidatePublicData();
+    setRefreshKey(value => value + 1);
   };
 
   // 5 Tier definition cards
@@ -87,31 +90,10 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
   };
 
   const getRankBadge = (rank) => {
-    if (rank === 1) {
-      return (
-        <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-amber-500 to-yellow-400 text-slate-900 font-black flex items-center justify-center text-xs shadow-md shadow-amber-500/30 ring-2 ring-amber-400/30">
-          1
-        </div>
-      );
-    }
-    if (rank === 2) {
-      return (
-        <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-slate-300 to-slate-100 text-slate-900 font-black flex items-center justify-center text-xs shadow-md shadow-slate-300/30 ring-2 ring-slate-300/30">
-          2
-        </div>
-      );
-    }
-    if (rank === 3) {
-      return (
-        <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-amber-700 to-orange-500 text-white font-black flex items-center justify-center text-xs shadow-md shadow-orange-500/30 ring-2 ring-orange-500/30">
-          3
-        </div>
-      );
-    }
     return (
-      <div className="w-7 h-7 rounded-full bg-slate-800/80 text-slate-400 font-semibold flex items-center justify-center text-xs border border-white/5">
+      <span className="leaderboard-rank" data-podium={rank <= 3 ? rank : undefined} aria-label={`Hạng ${rank}`}>
         {rank}
-      </div>
+      </span>
     );
   };
 
@@ -129,6 +111,9 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button className="leaderboard-refresh" onClick={fetchData} disabled={loading || matchesLoading}>
+            {loading || matchesLoading ? 'Đang cập nhật...' : 'Làm mới'}
+          </button>
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-950/40 border border-emerald-500/20 text-xs text-emerald-300 font-medium">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
             <span>Cổng FFA: Mở</span>
@@ -160,6 +145,7 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
       </div>
 
       {/* Main Leaderboard Table */}
+      {errors.leaderboard && <p role="alert" className="leaderboard-feedback leaderboard-error">{errors.leaderboard} Bấm Làm mới để thử lại.</p>}
       <div className="rounded-2xl border border-white/5 bg-[#0e1322]/80 backdrop-blur-md overflow-hidden shadow-xl shadow-black/30">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -174,14 +160,14 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.04] text-sm">
-              {loading ? (
+              {loading && leaderboard.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-500">
                     <div className="inline-block w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mb-2"></div>
                     <p className="text-xs">Đang tải bảng xếp hạng FFA...</p>
                   </td>
                 </tr>
-              ) : leaderboard.length === 0 ? (
+              ) : leaderboard.length === 0 && !errors.leaderboard ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-500">
                     Chưa có người chơi nào trên bảng xếp hạng.
@@ -208,11 +194,7 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
                       {/* Player Info */}
                       <td className="py-4 px-5">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 p-0.5 shadow-md shadow-indigo-950/50">
-                            <div className="w-full h-full bg-[#11162a] rounded-full flex items-center justify-center font-bold text-xs text-white uppercase">
-                              {player.username.charAt(0)}
-                            </div>
-                          </div>
+                          <span className="leaderboard-avatar">{player.username.charAt(0)}</span>
                           <div>
                             <div className="flex items-center gap-2">
                               <span className="font-bold text-white text-sm">{player.username}</span>
@@ -230,7 +212,7 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
                       {/* Elo Rating */}
                       <td className="py-4 px-5">
                         <span className="inline-flex items-center px-3 py-1 rounded-lg bg-[#090d18] border border-white/5 font-mono font-bold text-amber-400 text-sm shadow-inner">
-                          {player.elo_rating || 1200}
+                          {player.elo_rating ?? 1200}
                         </span>
                       </td>
 
@@ -259,9 +241,10 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
                       <td className="py-4 px-5 text-right">
                         <button
                           onClick={() => onChallengePlayer(player)}
+                          disabled={isCurrent}
                           className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-medium text-xs shadow-md shadow-indigo-950/40 transition-all hover:scale-105 active:scale-95 inline-flex items-center gap-1.5"
                         >
-                          <span>Thách đấu</span>
+                          <span>{isCurrent ? 'Bạn' : 'Thách đấu'}</span>
                         </button>
                       </td>
                     </tr>
@@ -295,6 +278,7 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
         </div>
 
         {/* Recent Matches Table */}
+        {errors.matches && <p role="alert" className="leaderboard-feedback leaderboard-error">{errors.matches} Bấm Làm mới để thử lại.</p>}
         <div className="rounded-2xl border border-white/5 bg-[#0e1322]/80 backdrop-blur-md overflow-hidden shadow-xl shadow-black/30">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -310,7 +294,11 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.04] text-xs">
-                {recentMatches.length === 0 ? (
+                {matchesLoading && recentMatches.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-12 text-center text-slate-500" role="status">Đang tải trận đấu gần đây...</td>
+                  </tr>
+                ) : recentMatches.length === 0 && !errors.matches ? (
                   <tr>
                     <td colSpan={7} className="py-12 text-center text-slate-500">
                       Chưa có trận đấu nào được diễn ra. Hãy thách đấu để tạo trận đấu đầu tiên!
