@@ -17,7 +17,7 @@ const PAGE_META = {
   replay: ['Phân tích trận đấu', 'Trình xem lại ván cờ'],
 };
 
-export default function HeaderBar({ activeTab, onOpenAuthModal, onNavigateTab }) {
+export default function HeaderBar({ activeTab, onOpenAuthModal, onNavigateTab, theme = 'dark', onToggleTheme }) {
   const { user, isAuthenticated, logout } = useAuth();
   const health = useSystemStatus();
 
@@ -47,6 +47,15 @@ export default function HeaderBar({ activeTab, onOpenAuthModal, onNavigateTab })
 
       {/* Right Controls Area */}
       <div className="flex items-center gap-2.5 sm:gap-3">
+        <button
+          type="button"
+          className="icon-button shrink-0"
+          onClick={onToggleTheme}
+          title={theme === 'dark' ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'}
+          aria-label={theme === 'dark' ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'}
+        >
+          <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={18} />
+        </button>
         {/* Quick CTA to jump into action */}
         {onNavigateTab && (
           <button

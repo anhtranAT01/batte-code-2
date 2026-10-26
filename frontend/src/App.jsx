@@ -122,6 +122,8 @@ export default function App() {
           activeTab={activeTab}
           onOpenAuthModal={handleOpenAuthModal}
           onNavigateTab={handleSelectTab}
+          theme={theme}
+          onToggleTheme={toggleTheme}
         />
 
         {/* Dynamic Page Views Container */}
@@ -137,7 +139,7 @@ export default function App() {
                 onNavigateTab={handleSelectTab}
               />
             )}
-            {activeTab === 'status' && <SystemStatus theme={theme} onToggleTheme={toggleTheme} />}
+            {activeTab === 'status' && <SystemStatus />}
 
             {activeTab === 'pvp' && (
               <PvPBotArenaView
