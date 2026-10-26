@@ -3,6 +3,17 @@
 @tailwind utilities;
 
 :root {
+  --navy-950: 7 11 20;
+  --navy-900: 11 17 32;
+  --navy-850: 15 23 42;
+  --navy-800: 19 29 50;
+  --navy-750: 23 35 60;
+  --navy-700: 30 43 69;
+  --dark-950: 6 9 17;
+  --dark-900: 10 14 23;
+  --dark-800: 18 24 38;
+  --dark-700: 24 34 52;
+  --dark-600: 34 48 73;
   --app-bg: #070b14;
   --app-bg-soft: #0c1222;
   --surface: #111a2e;
@@ -557,3 +568,14 @@ html[data-theme='light'] .game-board-shell {
     transition-duration: 0.01ms !important;
   }
 }
+
+.theme-title { color: var(--ink); }
+.theme-muted { color: var(--muted); }
+.theme-faint { color: var(--faint); }
+.selection-summary { margin-top: 8px; color: var(--muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.view-loading { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 240px; color: var(--muted); font-size: 13px; }
+.loading-orbit { width: 22px; height: 22px; border: 2px solid var(--line-strong); border-top-color: var(--brand); border-radius: 50%; }
+button, input, select, textarea, .nav-item, .cyber-card, .board-cell-pro {
+  transition-property: color, background-color, border-color, box-shadow, transform, opacity;
+}
+:where(button, a, summary):focus-visible { outline: 3px solid var(--brand); outline-offset: 3px; }

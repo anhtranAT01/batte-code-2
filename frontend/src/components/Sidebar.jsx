@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Icon from './Icons';
 
-export default function Sidebar({ activeTab, setActiveTab, onlineCount = 1, isCollapsed, setIsCollapsed }) {
+export default function Sidebar({ activeTab, setActiveTab, onlineCount = 1, isCollapsed, setIsCollapsed, onPreloadTab }) {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'TEACHER';
 
@@ -93,6 +93,8 @@ export default function Sidebar({ activeTab, setActiveTab, onlineCount = 1, isCo
                   type="button"
                   title={item.label}
                   onClick={() => setActiveTab(item.id)}
+                  onPointerEnter={event => { if (event.pointerType === 'mouse') onPreloadTab?.(item.id); }}
+                  onFocus={() => onPreloadTab?.(item.id)}
                   className={`nav-item relative group ${active ? 'is-active' : ''}`}
                 >
                   <span className="nav-icon">

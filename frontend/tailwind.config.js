@@ -9,19 +9,19 @@ export default {
     extend: {
       colors: {
         navy: {
-          950: '#070b14',
-          900: '#0b1120',
-          850: '#0f172a',
-          800: '#131d32',
-          750: '#17233c',
-          700: '#1e2b45',
+          950: 'rgb(var(--navy-950) / <alpha-value>)',
+          900: 'rgb(var(--navy-900) / <alpha-value>)',
+          850: 'rgb(var(--navy-850) / <alpha-value>)',
+          800: 'rgb(var(--navy-800) / <alpha-value>)',
+          750: 'rgb(var(--navy-750) / <alpha-value>)',
+          700: 'rgb(var(--navy-700) / <alpha-value>)',
         },
         dark: {
-          950: '#060911',
-          900: '#0a0e17',
-          800: '#121826',
-          700: '#182234',
-          600: '#223049',
+          950: 'rgb(var(--dark-950) / <alpha-value>)',
+          900: 'rgb(var(--dark-900) / <alpha-value>)',
+          800: 'rgb(var(--dark-800) / <alpha-value>)',
+          700: 'rgb(var(--dark-700) / <alpha-value>)',
+          600: 'rgb(var(--dark-600) / <alpha-value>)',
         },
         cyber: {
           blue: '#3b82f6',

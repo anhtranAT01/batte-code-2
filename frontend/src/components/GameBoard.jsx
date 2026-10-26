@@ -10,8 +10,7 @@ const ITEM_LABELS = {
   POTION_SPEED: { icon: 'speed', name: 'Tăng tốc' }, POTION_CLONE: { icon: 'clone', name: 'Thêm quân' },
 };
 
-function BoardGlyph({ kind, className = '' }) {
-  const artwork = {
+const artwork = {
     rock: <g stroke="#8793ad" strokeWidth="1.2" strokeLinejoin="round">
       <path d="M8 23V13c0-4 5-5 7-2 0-5 7-6 8-1 3-3 8-1 8 3 4 0 5 3 4 7l-2 8c-2 5-6 7-12 7h-4c-6 0-10-4-11-9Z" fill="#e8e9f2"/>
       <path d="M15 11v9m8-10v10m8-7-1 8M9 21h21" fill="none" strokeLinecap="round"/>
@@ -44,11 +43,12 @@ function BoardGlyph({ kind, className = '' }) {
     speed: <g strokeLinejoin="round"><path d="m23 3-17 21h12l-2 13 18-22H22Z" fill="#ffc568" stroke="#e39431" strokeWidth="1.5"/><path d="m23 8-10 13h8" fill="none" stroke="#ffe3a8" strokeWidth="2"/></g>,
     clone: <g strokeLinecap="round"><path d="M20 7v26M7 20h26" stroke="#7e6cd6" strokeWidth="8"/><path d="M19 7v25M7 19h25" stroke="#b3a1ff" strokeWidth="4"/></g>,
     flag: <g stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"><path d="M10 35V5m0 1c8-7 14 7 23 0v17c-9 7-15-7-23 0" fill="currentColor" fillOpacity=".2"/><path d="M5 35h12"/></g>,
-  };
+};
+function BoardGlyph({ kind, className = '' }) {
   return <svg className={`board-glyph ${className}`} viewBox="0 0 40 40" aria-hidden="true" focusable="false">{artwork[kind] || artwork.flag}</svg>;
 }
 
-export default function GameBoard({ grid: propGrid, board, selectedPiece = null, validMoves = [], onTileClick = () => {}, readOnly = false, isInteractive = true, disabled = false, lastMove = null }) {
+function GameBoard({ grid: propGrid, board, selectedPiece = null, validMoves = [], onTileClick = () => {}, readOnly = false, isInteractive = true, disabled = false, lastMove = null }) {
   let grid = propGrid || board || [];
   if (typeof grid === 'string') {
     try { grid = JSON.parse(grid); } catch { grid = []; }
@@ -134,3 +134,4 @@ export default function GameBoard({ grid: propGrid, board, selectedPiece = null,
     </section>
   );
 }
+export default React.memo(GameBoard);

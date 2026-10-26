@@ -92,5 +92,19 @@ async function main() {
   assert.equal(tree.root.findAllByProps({role:'alert'}).length,0,'Intentional cancellation has no error banner');
   act(() => tree.unmount());
   console.log('PASS: board renders before match completion, buffers without false winner, and leaving cancels the request');
+
+  const Boundary = load(path.resolve(__dirname,'../src/components/ViewBoundary.jsx')).default;
+  const unavailableView = () => { throw new Error('Failed to fetch dynamically imported module'); };
+  const originalConsoleError = console.error;
+  try {
+    console.error = () => {};
+    await act(async () => { tree = create(React.createElement(Boundary, { key:'failed' }, React.createElement(unavailableView))); });
+  } finally { console.error = originalConsoleError; }
+  assert.equal(tree.root.findAllByProps({role:'alert'}).length,1);
+  assert.match(text(tree.toJSON()),/Tải lại ứng dụng/);
+  await act(async () => { tree.update(React.createElement(Boundary,{key:'another-tab'},React.createElement('p',null,'Healthy view'))); });
+  assert.match(text(tree.toJSON()),/Healthy view/);
+  act(() => tree.unmount());
+  console.log('PASS: an unavailable screen has a recovery action and does not prevent opening another tab');
 }
 main().catch(error => {console.error(error);process.exitCode=1;});

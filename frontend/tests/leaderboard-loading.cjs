@@ -80,5 +80,18 @@ async function main() {
   await cache.getPublicData('/retry');
   assert.equal(attempts, 2, 'Failed requests are never cached');
   console.log('PASS: public request dedupe, cache invalidation races and retry after failure');
+
+  cache.invalidatePublicData();
+  const slow = deferred();
+  let slowSignal;
+  global.fetch = (url, options) => { slowSignal = options.signal; return slow.promise; };
+  await assert.rejects(cache.getPublicData('/slow', { timeoutMs: 20 }), /phản hồi chậm/);
+  assert.equal(slowSignal.aborted, true);
+  global.fetch = async () => response(['fresh after timeout']);
+  await cache.getPublicData('/slow');
+  slow.resolve(response(['late stale result']));
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.deepEqual(cache.peekPublicData('/slow'), ['fresh after timeout']);
+  console.log('PASS: hung requests time out, can be retried and cannot replace fresh data when they finish late');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

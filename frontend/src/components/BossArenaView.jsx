@@ -207,8 +207,13 @@ export default function BossArenaView({ onSelectReplay }) {
               return (
                 <div
                   key={boss.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={isSelected}
+                  data-level={boss.id}
                   onClick={() => setSelectedBoss(boss)}
-                  className={`cursor-pointer rounded-2xl p-5 border transition-all duration-300 bg-gradient-to-b ${boss.color} backdrop-blur-md relative overflow-hidden group ${
+                  onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelectedBoss(boss); } }}
+                  className={`boss-card cursor-pointer rounded-2xl p-5 border transition-all duration-300 bg-gradient-to-b ${boss.color} backdrop-blur-md relative overflow-hidden group ${
                     isSelected
                       ? 'ring-2 ring-indigo-400 shadow-xl shadow-indigo-950/50 scale-[1.02]'
                       : 'hover:-translate-y-1 opacity-80 hover:opacity-100'

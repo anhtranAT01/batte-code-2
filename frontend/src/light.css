@@ -1,0 +1,102 @@
+/* Light surfaces and readable content, while keeping action buttons and team colors distinct. */
+html[data-theme='light'] {
+  --navy-950: 255 255 255;
+  --navy-900: 248 250 252;
+  --navy-850: 241 245 249;
+  --navy-800: 238 242 247;
+  --navy-750: 226 232 240;
+  --navy-700: 203 213 225;
+  --dark-950: 255 255 255;
+  --dark-900: 248 250 252;
+  --dark-800: 241 245 249;
+  --dark-700: 226 232 240;
+  --dark-600: 203 213 225;
+  --app-bg: #f3f6fb;
+  --app-bg-soft: #f8fafd;
+  --surface-raised: #f8fafd;
+  --line: #e0e7f0;
+  --line-strong: #cbd5e1;
+  --ink: #17243b;
+  --muted: #52627a;
+  --faint: #64748b;
+  --shadow: 0 6px 24px rgb(30 58 95 / 6%);
+  color-scheme: light;
+}
+
+html[data-theme='light'] .app-main {
+  background: radial-gradient(ellipse at 90% 0, #eaf0ff 0, transparent 45%), var(--app-bg);
+}
+html[data-theme='light'] .app-sidebar { background: #fff; }
+html[data-theme='light'] .app-header-new { background: #fff; backdrop-filter: none; }
+html[data-theme='light'] .brand-mark,
+html[data-theme='light'] .user-avatar { box-shadow: 0 3px 10px rgb(37 99 235 / 18%); }
+html[data-theme='light'] .nav-item.is-active {
+  background: #edf3ff; border-color: #cdddfc; box-shadow: inset 3px 0 #2563eb;
+}
+html[data-theme='light'] .cyber-card,
+html[data-theme='light'] .glass-panel,
+html[data-theme='light'] .safety-panel,
+html[data-theme='light'] .shadow-xl,
+html[data-theme='light'] .shadow-2xl { box-shadow: var(--shadow); }
+html[data-theme='light'] .cyber-card:hover { box-shadow: 0 10px 28px rgb(30 58 95 / 10%); }
+html[data-theme='light'] .game-board-shell { box-shadow: var(--shadow); }
+html[data-theme='light'] .modal-overlay { background: rgb(30 41 59 / 42%); }
+html[data-theme='light'] .modal-card { box-shadow: 0 24px 70px rgb(15 23 42 / 18%); }
+html[data-theme='light'] .blur-3xl { display: none; }
+
+html[data-theme='light'] :is(.text-white, .text-slate-100, .text-slate-200) { color: var(--ink); }
+html[data-theme='light'] :is(.text-slate-300, .text-slate-400) { color: var(--muted); }
+html[data-theme='light'] :is(.text-slate-500, .text-slate-600) { color: var(--faint); }
+html[data-theme='light'] .hover\:text-white:hover,
+html[data-theme='light'] .group:hover .group-hover\:text-white { color: var(--ink); }
+html[data-theme='light'] :is(.text-blue-200, .text-blue-300, .text-blue-400, .text-indigo-300, .text-indigo-400) { color: #1d4ed8; }
+html[data-theme='light'] :is(.text-cyan-200, .text-cyan-300, .text-cyan-400, .text-sky-300, .text-sky-400) { color: #0e7490; }
+html[data-theme='light'] :is(.text-purple-200, .text-purple-300, .text-purple-400, .text-violet-400) { color: #6d28d9; }
+html[data-theme='light'] :is(.text-emerald-200, .text-emerald-300, .text-emerald-400, .text-green-300, .text-green-400, .text-teal-400) { color: #047857; }
+html[data-theme='light'] :is(.text-amber-200, .text-amber-300, .text-amber-400, .text-yellow-300, .text-yellow-400, .text-orange-300, .text-orange-400) { color: #92400e; }
+html[data-theme='light'] :is(.text-red-300, .text-red-400, .text-rose-300, .text-rose-400, .text-pink-300, .text-pink-400) { color: #be123c; }
+html[data-theme='light'] .bg-clip-text { background-image: linear-gradient(100deg, #1d4ed8, #0e7490, #6d28d9); }
+
+html[data-theme='light'] :is(.bg-slate-800, .bg-slate-700) { background-color: #e9eef6; }
+html[data-theme='light'] [class*='bg-[#'] { background-color: var(--surface); }
+html[data-theme='light'] :is(.bg-white\/5, .bg-white\/10) { background-color: rgb(30 58 95 / 4%); }
+html[data-theme='light'] :is(.hover\:bg-white\/5, .hover\:bg-white\/10):hover { background-color: rgb(37 99 235 / 7%); }
+html[data-theme='light'] :is(.border-white\/5, .border-white\/10, .border-white\/20) { border-color: var(--line); }
+html[data-theme='light'] .divide-white\/5 > :not([hidden]) ~ :not([hidden]) { border-color: var(--line); }
+
+html[data-theme='light'] :is(input, select, textarea) {
+  background-color: var(--surface); color: var(--ink); border-color: var(--line-strong);
+  min-width: 0; line-height: 1.5;
+}
+html[data-theme='light'] select { padding-right: 2rem; }
+html[data-theme='light'] option { color: var(--ink); background: #fff; }
+html[data-theme='light'] :is(input, textarea)::placeholder { color: var(--faint); opacity: 1; }
+html[data-theme='light'] thead { background: #edf2f9; }
+html[data-theme='light'] th { color: #52627a; }
+html[data-theme='light'] tbody tr:hover { background-color: #f1f5fd; }
+html[data-theme='light'] .health-badge { color: #92400e; }
+html[data-theme='light'] .health-badge.is-ok { color: #047857; }
+html[data-theme='light'] .board-coordinate { opacity: .85; }
+html[data-theme='light'] .tier-card { background: #fff; box-shadow: var(--shadow); }
+html[data-theme='light'] .boss-card {
+  --boss-accent: #1d4ed8;
+  background: #fff; opacity: 1; backdrop-filter: none; border-color: var(--line);
+  border-top: 3px solid var(--boss-accent); box-shadow: var(--shadow);
+}
+html[data-theme='light'] .boss-card[data-level='EASY'] { --boss-accent: #b45309; }
+html[data-theme='light'] .boss-card[data-level='HARD'] { --boss-accent: #a16207; }
+html[data-theme='light'] .boss-card[data-level='GRANDMASTER'] { --boss-accent: #7e22ce; }
+html[data-theme='light'] .boss-card[aria-pressed='true'] { background: #eff5ff; outline: 2px solid #818cf8; outline-offset: 1px; }
+html[data-theme='light'] .boss-card > div:first-child > span:last-child { color: var(--boss-accent); background: #eef2f8; }
+html[data-theme='light'] .boss-card p { display: block; -webkit-line-clamp: unset; }
+
+/* Solid active actions keep white labels even when the surrounding page is light. */
+html[data-theme='light'] :is(
+  .primary-action, .brand-mark, .user-avatar, .duelist-avatar,
+  .bg-indigo-600, .bg-blue-600, .bg-cyan-600, .bg-emerald-600, .bg-red-600, .bg-rose-600,
+  .from-blue-600, .from-indigo-600, .from-emerald-600, .from-amber-600, .from-orange-500
+) { color: #fff; }
+
+@media (max-width: 640px) {
+  html[data-theme='light'] .safety-row { flex-wrap: wrap; gap: 10px; }
+}

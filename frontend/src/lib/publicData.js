@@ -14,7 +14,7 @@ export function invalidatePublicData() {
   pending.clear();
 }
 
-export function getPublicData(path, { force = false } = {}) {
+export function getPublicData(path, { force = false, timeoutMs = 12000 } = {}) {
   const entry = cache.get(path);
   if (!force && entry && Date.now() - entry.updatedAt < TTL_MS) {
     return Promise.resolve(entry.data);
@@ -22,20 +22,29 @@ export function getPublicData(path, { force = false } = {}) {
   if (pending.has(path)) return pending.get(path);
 
   const requestGeneration = generation;
-  const request = (async () => {
-    const response = await fetch(path);
+  const controller = new AbortController();
+  let timer;
+  const timeout = new Promise((resolve, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new Error('Máy chủ phản hồi chậm. Vui lòng thử lại.'));
+    }, timeoutMs);
+  });
+  const request = Promise.race([(async () => {
+    const response = await fetch(path, { signal: controller.signal });
     const result = await response.json();
     if (!response.ok || result.success === false) {
       throw new Error(result.message || 'Không tải được dữ liệu. Vui lòng thử lại.');
     }
     const data = result.data || [];
-    if (generation === requestGeneration) {
+    if (!controller.signal.aborted && generation === requestGeneration) {
       cache.set(path, { data, updatedAt: Date.now() });
       // Keep the cache bounded if additional public screens use this helper later.
       if (cache.size > 20) cache.delete(cache.keys().next().value);
     }
     return data;
-  })().finally(() => {
+  })(), timeout]).finally(() => {
+    clearTimeout(timer);
     if (pending.get(path) === request) pending.delete(path);
   });
   pending.set(path, request);

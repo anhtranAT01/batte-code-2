@@ -1,7 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { apiUrl } from '../lib/api';
 import {outbox, subscribeOutbox} from '../lib/outbox';
+
+// Only the clock updates each second; standings and brackets stay unchanged.
+function TournamentCountdown({ scheduledStartAt }) {
+  const [now, setNow] = useState(Date.now);
+  const target = scheduledStartAt ? new Date(scheduledStartAt).getTime() : NaN;
+  useEffect(() => {
+    if (!Number.isFinite(target) || target <= Date.now()) return;
+    const timer = setInterval(() => {
+      const current = Date.now();
+      setNow(current);
+      if (current >= target) clearInterval(timer);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [target]);
+  if (!Number.isFinite(target)) return <div className="text-xs text-slate-400 italic">Chưa thiết lập thời gian bắt đầu</div>;
+  const seconds = Math.max(0, Math.ceil((target - now) / 1000));
+  const days = Math.floor(seconds / 86400);
+  const clock = [Math.floor(seconds / 3600) % 24, Math.floor(seconds / 60) % 60, seconds % 60].map(value => String(value).padStart(2, '0')).join(':');
+  return <div className="font-mono text-2xl font-black text-amber-400 tracking-wider">⏱️ {seconds ? `${days ? `${days} ngày ` : ''}${clock}` : 'Đã đến giờ bắt đầu!'}</div>;
+}
 
 export default function TournamentBracketsView({ onSelectReplay, onNavigateStatus }) {
   const { user, token, getAuthHeaders, refreshProfile } = useAuth();
@@ -12,6 +32,9 @@ export default function TournamentBracketsView({ onSelectReplay, onNavigateStatu
   const [tournaments, setTournaments] = useState([]);
   const [selectedTourneyId, setSelectedTourneyId] = useState(null);
   const [standingsData, setStandingsData] = useState(null);
+  const standingsRequest = useRef(null);
+  const selectedTourneyRef = useRef(selectedTourneyId);
+  selectedTourneyRef.current = selectedTourneyId;
   const [myBots, setMyBots] = useState([]);
   const [selectedBotId, setSelectedBotId] = useState('');
   const selectedBot = myBots.find(bot => bot.id === selectedBotId);
@@ -32,7 +55,6 @@ export default function TournamentBracketsView({ onSelectReplay, onNavigateStatu
 
   // Admin schedule state
   const [scheduleTimeInput, setScheduleTimeInput] = useState('');
-  const [countdown, setCountdown] = useState(null);
 
   // Admin Bracket Assignment Modal
   const [assignModalOpen, setAssignModalOpen] = useState(false);
@@ -123,13 +145,14 @@ export default function TournamentBracketsView({ onSelectReplay, onNavigateStatu
 
   // Listen to outbox sync: automatically re-fetch standings when tournament registration is accepted
   useEffect(() => {
+    let refreshTimer;
     const unsub = subscribeOutbox(() => {
-      if (selectedTourneyId) {
-        fetchStandings(selectedTourneyId);
-        fetchAvailableTeams();
-      }
+      clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => {
+        if (selectedTourneyId) { fetchStandings(selectedTourneyId); fetchAvailableTeams(); }
+      }, 300);
     });
-    return unsub;
+    return () => { clearTimeout(refreshTimer); unsub(); };
   }, [selectedTourneyId]);
 
   // Load standings on tournament change
@@ -137,6 +160,7 @@ export default function TournamentBracketsView({ onSelectReplay, onNavigateStatu
     if (selectedTourneyId) {
       fetchStandings(selectedTourneyId);
     }
+    return () => { standingsRequest.current?.abort(); standingsRequest.current = null; };
   }, [selectedTourneyId]);
 
   // Filter tournaments matching current mode
@@ -155,36 +179,6 @@ export default function TournamentBracketsView({ onSelectReplay, onNavigateStatu
     }
   }, [tournamentMode, tournaments]);
 
-  // Countdown timer
-  useEffect(() => {
-    if (!standingsData?.tournament?.scheduledStartAt) {
-      setCountdown(null);
-      return;
-    }
-
-    const target = new Date(standingsData.tournament.scheduledStartAt).getTime();
-    const interval = setInterval(() => {
-      const now = Date.now();
-      const diff = target - now;
-      if (diff <= 0) {
-        setCountdown('Đã đến giờ bắt đầu!');
-        clearInterval(interval);
-      } else {
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-        const mins = Math.floor((diff / (1000 * 60)) % 60);
-        const secs = Math.floor((diff / 1000) % 60);
-        setCountdown(
-          `${days > 0 ? `${days} ngày ` : ''}${hours.toString().padStart(2, '0')}:${mins
-            .toString()
-            .padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-        );
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [standingsData?.tournament?.scheduledStartAt]);
-
   const fetchTournaments = async () => {
     try {
       const res = await fetch('/api/tournaments');
@@ -202,17 +196,22 @@ export default function TournamentBracketsView({ onSelectReplay, onNavigateStatu
   };
 
   const fetchStandings = async (id) => {
+    if (id !== selectedTourneyRef.current) return;
+    standingsRequest.current?.abort();
+    const controller = new AbortController();
+    standingsRequest.current = controller;
     setLoading(true);
+    setStandingsData(current => current?.tournament?.id === id ? current : null);
     try {
-      const res = await fetch(`/api/tournaments/${id}/standings`);
+      const res = await fetch(`/api/tournaments/${id}/standings`, { signal: controller.signal });
       if (res.ok) {
         const data = await res.json();
-        setStandingsData(data.data);
+        if (!controller.signal.aborted && standingsRequest.current === controller && id === selectedTourneyRef.current) setStandingsData(data.data);
       }
     } catch (err) {
-      console.warn('[Tournament] Standings fetch error:', err);
+      if (err.name !== 'AbortError') console.warn('[Tournament] Standings fetch error:', err);
     } finally {
-      setLoading(false);
+      if (standingsRequest.current === controller && !controller.signal.aborted) setLoading(false);
     }
   };
 
@@ -574,15 +573,7 @@ export default function TournamentBracketsView({ onSelectReplay, onNavigateStatu
             </div>
 
             <div className="mt-3">
-              {countdown ? (
-                <div className="font-mono text-2xl font-black text-amber-400 tracking-wider">
-                  ⏱️ {countdown}
-                </div>
-              ) : (
-                <div className="text-xs text-slate-400 italic">
-                  Chưa thiết lập thời gian bắt đầu
-                </div>
-              )}
+              <TournamentCountdown scheduledStartAt={tourney?.scheduledStartAt} />
               {tourney?.scheduledStartAt && (
                 <div className="text-[11px] text-slate-400 mt-1">
                   Bắt đầu: {new Date(tourney.scheduledStartAt).toLocaleString('vi-VN')}

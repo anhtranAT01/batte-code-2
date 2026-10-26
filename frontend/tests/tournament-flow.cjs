@@ -14,6 +14,8 @@ let auth = {
 
 let queued = null;
 let lastScrolledId = null;
+let rowBuilds = 0;
+let outboxListener;
 global.window = { addEventListener() {}, removeEventListener() {} };
 global.document = {
   addEventListener() {},
@@ -30,6 +32,7 @@ function component(name) {
   const js = transformSync(fs.readFileSync(filename, 'utf8'), { loader: 'jsx', format: 'cjs' }).code;
   const module = { exports: {} };
   new Function('require', 'module', 'exports', js)((id) => {
+    if (id === 'react') return { ...React, createElement: (...args) => { if (args[0] === 'tr') rowBuilds++; return React.createElement(...args); } };
     if (id === '../context/AuthContext') return { useAuth: () => auth };
     if (id === './DeviceSafety' || id === './Icons') return { __esModule: true, default: () => null };
     if (id === '../lib/api') return { apiUrl: (endpoint) => `/api${endpoint}` };
@@ -39,7 +42,7 @@ function component(name) {
           enqueue: async (...args) => { queued = args; },
           flush: async () => {},
         },
-        subscribeOutbox: () => () => {},
+        subscribeOutbox: callback => { outboxListener = callback; return () => { outboxListener = null; }; },
       };
     }
     return require(id);
@@ -80,6 +83,7 @@ async function run() {
               mode: 'BRANCHES',
               max_participants: 16,
             },
+            { id: 't-3', name: 'Slow tournament', status: 'UPCOMING', mode: 'BRANCHES', max_participants: 16 },
           ],
         }),
       };
@@ -144,7 +148,7 @@ async function run() {
         json: async () => ({
           success: true,
           data: {
-            tournament: { id: 't-1', name: 'Vô Địch Arena', status: 'ONGOING', mode: 'ALL_IN' },
+            tournament: { id: 't-1', name: 'Vô Địch Arena', status: 'ONGOING', mode: 'ALL_IN', scheduledStartAt: new Date(Date.now()+60000).toISOString() },
             standings: [
               {
                 userId: 'u1',
@@ -189,6 +193,22 @@ async function run() {
   assert.ok(cells.some((c) => c.includes('Cyber Warriors')), 'Cyber Warriors must be rendered in table');
   assert.ok(cells.some((c) => c.includes('AI Titans')), 'AI Titans must be rendered in table');
   console.log('✓ Team names rendered in participant standings');
+
+  const rowsBeforeClock = rowBuilds;
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 1100)); });
+  assert.equal(rowBuilds, rowsBeforeClock, 'countdown ticks must not rebuild the standings table');
+  console.log('✓ Countdown updates without rebuilding standings rows');
+
+  const beforeBurstFetch = global.fetch;
+  let standingsRefreshes = 0;
+  global.fetch = (...args) => { if (String(args[0]).includes('/standings')) standingsRefreshes++; return beforeBurstFetch(...args); };
+  await act(async () => {
+    for (let index=0; index<20; index++) outboxListener();
+    await new Promise(resolve => setTimeout(resolve, 350));
+  });
+  assert.equal(standingsRefreshes, 1, 'an outbox sync burst must only refresh standings once');
+  global.fetch = beforeBurstFetch;
+  console.log('✓ Outbox notification bursts share one standings refresh');
 
   // Verify Team Input exists
   const teamInput = tree.root.findByProps({ placeholder: 'Nhập tên đội hoặc tìm bên dưới...' });
@@ -295,6 +315,25 @@ async function run() {
   assert.equal(branchJoinBody.botId, 'b-1', 'Bot ID must match selected bot b-1');
   assert.equal(branchJoinBody.teamName, 'Robo Force', 'Team name must match Robo Force');
   console.log('✓ Successfully joined bracket slot qf-2 (Slot 2) with team and bot');
+
+  const originalFetch = global.fetch;
+  let resolveSlow, slowSignal;
+  global.fetch = (url, options) => {
+    if (url === '/api/tournaments/t-3/standings') {
+      slowSignal = options.signal;
+      return new Promise(resolve => { resolveSlow = resolve; });
+    }
+    return originalFetch(url, options);
+  };
+  await act(async () => { tourneySelect.props.onChange({ target: { value: 't-3' } }); });
+  await act(async () => { tourneySelect.props.onChange({ target: { value: 't-2' } }); });
+  assert.equal(slowSignal.aborted, true, 'switching tournaments cancels the previous request');
+  await act(async () => {
+    resolveSlow({ ok: true, json: async () => ({ data: { tournament: { id: 't-3', name: 'STALE_STANDINGS', mode: 'BRANCHES' }, standings: [] } }) });
+  });
+  assert.equal(tree.root.findAllByProps({ id: 'bracket-match-qf-2' }).length, 1, 'the selected tournament brackets must survive an old response');
+  assert.equal(tourneySelect.props.value, 't-2');
+  console.log('✓ Late standings cannot replace the newly selected tournament');
 
   act(() => tree.unmount());
   console.log('\nALL FRONTEND TOURNAMENT TEAM & BRANCH JUMPING TESTS PASSED! 🎉');

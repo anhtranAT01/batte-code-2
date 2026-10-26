@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, lazy, Suspense } from 'react';
 import { io } from 'socket.io-client';
 import Sidebar from './components/Sidebar';
 import HeaderBar from './components/HeaderBar';
@@ -7,23 +7,27 @@ import AuthModal from './components/AuthModal';
 import { apiOrigin } from './lib/api';
 import useTheme from './hooks/useTheme';
 import OutboxPump from './components/OutboxPump';
+import ViewBoundary from './components/ViewBoundary';
+import { viewModules, preloadView } from './lib/viewModules';
 
 // Load game, replay and admin tools when opened instead of delaying the first page.
-const BossArenaView = lazy(() => import('./components/BossArenaView'));
-const PvPBotArenaView = lazy(() => import('./components/PvPBotArenaView'));
-const TournamentBracketsView = lazy(() => import('./components/TournamentBracketsView'));
-const RulesAndStrategyView = lazy(() => import('./components/RulesAndStrategyView'));
-const BotVaultView = lazy(() => import('./components/BotVaultView'));
-const DataExplorerView = lazy(() => import('./components/DataExplorerView'));
-const ReplayViewer = lazy(() => import('./components/ReplayViewer'));
-const WorldChatModal = lazy(() => import('./components/WorldChatModal'));
-const AdminDashboardView = lazy(() => import('./components/AdminDashboardView'));
-const AlgorithmTrainingView = lazy(() => import('./components/AlgorithmTrainingView'));
-const SystemStatus = lazy(() => import('./components/SystemStatus'));
+const BossArenaView = lazy(viewModules.boss);
+const PvPBotArenaView = lazy(viewModules.pvp);
+const TournamentBracketsView = lazy(viewModules.tournament);
+const RulesAndStrategyView = lazy(viewModules.rules);
+const BotVaultView = lazy(viewModules.bots);
+const DataExplorerView = lazy(viewModules.database);
+const ReplayViewer = lazy(viewModules.replay);
+const WorldChatModal = lazy(viewModules.chat);
+const AdminDashboardView = lazy(viewModules.admin);
+const AlgorithmTrainingView = lazy(viewModules.training);
+const SystemStatus = lazy(viewModules.status);
 
 export default function App() {
   const { theme, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState('leaderboard');
+  const mainRef = useRef(null);
+  useLayoutEffect(() => { if (mainRef.current) mainRef.current.scrollTop = 0; }, [activeTab]);
   const [previousTab, setPreviousTab] = useState('leaderboard');
   const [selectedReplay, setSelectedReplay] = useState(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -108,6 +112,7 @@ export default function App() {
         onlineCount={onlineCount}
         isCollapsed={isSidebarCollapsed}
         setIsCollapsed={setIsSidebarCollapsed}
+        onPreloadTab={preloadView}
       />
 
       {/* Main Content Area */}
@@ -120,9 +125,10 @@ export default function App() {
         />
 
         {/* Dynamic Page Views Container */}
-        <main className="app-main flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 scrollbar-thin">
+        <main ref={mainRef} className="app-main flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 scrollbar-thin">
           <div className="max-w-7xl mx-auto pb-12">
-            <Suspense fallback={<div role="status" className="py-12 text-center text-sm text-slate-400">Đang mở trang...</div>}>
+            <ViewBoundary key={activeTab}>
+            <Suspense fallback={<div role="status" className="view-loading"><span className="loading-orbit animate-spin" aria-hidden="true" />Đang mở trang...</div>}>
             {activeTab === 'leaderboard' && (
               <LeaderboardView
                 onSelectReplay={handleOpenReplay}
@@ -176,6 +182,7 @@ export default function App() {
               />
             )}
             </Suspense>
+            </ViewBoundary>
           </div>
         </main>
       </div>

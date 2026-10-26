@@ -70,3 +70,21 @@ Submission ingestion and Python validation have a separate measured report in
 [`submission-capacity.md`](submission-capacity.md). The submission scheduler now
 drains ready jobs without a fixed two-second gap, retaining one worker and the
 existing retry/pause behavior. This does not change the PvP match queue limit.
+
+Frontend navigation and rendering (2026-10-26): hovering/focusing a sidebar item
+preloads only that screen's JavaScript. Public-summary requests now have a
+12-second deadline and remain retryable; late results cannot replace fresh data.
+Tournament changes cancel the previous standings request and ignore stale
+responses. Outbox notification bursts share one refresh after 300 ms. The
+countdown updates in a separate component so it no longer rebuilds standings
+rows each second. Board glyph artwork is reused and unchanged board props skip
+rendering. A failed screen module has a recovery panel; changing tabs still works.
+Tab navigation resets the main scroll position before paint.
+
+Light mode uses theme-aware surface colors, darker text, explicit solid-button
+labels, and readable forms/tables. Default dark mode is preserved. The saved
+theme applies before the initial paint to avoid a flash of the wrong appearance.
+Browser QA uses `frontend/tests/preview-resilience.cjs` with a mock API and a real
+local duel worker, separate from production. Regression tests verify request
+timeouts, late tournament results, countdown isolation, coalesced refreshes and
+screen recovery; they do not establish a production FPS or latency guarantee.
