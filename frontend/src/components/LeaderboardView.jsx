@@ -680,10 +680,11 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
                           <button
                             type="button"
                             onClick={() => onSelectReplay(match.id)}
+                            disabled={Boolean(match.replay_expired_at)}
                             className="px-3 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 hover:text-white border border-blue-500/30 font-bold text-xs transition-colors inline-flex items-center gap-1.5"
                           >
                             <Icon name="play" size={13} />
-                            <span>Xem Replay</span>
+                            <span>{match.replay_expired_at ? 'Replay đã hết hạn' : 'Xem Replay'}</span>
                           </button>
                         </td>
                       </tr>

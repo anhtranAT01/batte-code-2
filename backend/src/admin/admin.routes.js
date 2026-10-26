@@ -14,6 +14,12 @@ router.use(authenticateJWT, requireRole('ADMIN', 'TEACHER'));
 router.get('/users', adminController.listUsers);
 router.delete('/users/:id', requireCurrentAdmin, adminController.deleteUser);
 router.get('/matches', requireCurrentAdmin, adminController.listMatches);
+router.get('/replay-retention', requireCurrentAdmin, async(req,res,next)=>{
+  try {res.set('Cache-Control','no-store').json({success:true,data:await require('./replayRetention').getSettings()});}catch(error){next(error);}
+});
+router.put('/replay-retention', requireCurrentAdmin, async(req,res,next)=>{
+  try {res.json({success:true,data:await require('./replayRetention').saveSettings(req.body.days),message:'Đã lưu thời gian giữ replay.'});}catch(error){next(error);}
+});
 router.delete('/matches/:id', requireCurrentAdmin, adminController.deleteMatch);
 
 /**

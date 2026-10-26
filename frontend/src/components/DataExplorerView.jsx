@@ -170,9 +170,10 @@ export default function DataExplorerView({ onSelectReplay }) {
                       <td className="py-3.5 px-5 text-right">
                         <button
                           onClick={() => onSelectReplay(match.id)}
+                          disabled={Boolean(match.replay_expired_at)}
                           className="px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 hover:text-white border border-indigo-500/30 font-semibold transition-colors"
                         >
-                          Xem replay
+                          {match.replay_expired_at ? 'Replay đã hết hạn' : 'Xem replay'}
                         </button>
                       </td>
                     </tr>

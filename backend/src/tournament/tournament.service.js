@@ -6,6 +6,7 @@
 const { query, pool } = require('../config/db');
 const { matchQueue } = require('../config/redis');
 const { generateSwissPairings } = require('./swissPairing');
+const {totalTurnsSql} = require('../game/replaySummary');
 
 /**
  * Create a new tournament
@@ -232,12 +233,21 @@ async function getTournamentStandings(tournamentId) {
   const matchesRes = await query(
     `SELECT m.id, m.player1_id, m.player2_id, m.winner_id, m.win_reason,
             m.duration_ms, m.p1_elo_change, m.p2_elo_change, m.has_infinite_loop_error,
-            m.replay_json
+            ${totalTurnsSql()} AS total_turns
      FROM "Matches" m
      WHERE m.tournament_id = $1`,
     [tournamentId]
   );
   const matches = matchesRes.rows;
+
+  const matchesByPlayer = new Map();
+  for (const match of matches) {
+    for (const id of new Set([match.player1_id,match.player2_id])) {
+      if(!id)continue;
+      if(!matchesByPlayer.has(id))matchesByPlayer.set(id,[]);
+      matchesByPlayer.get(id).push(match);
+    }
+  }
 
   // Aggregate stats per participant
   const standings = participants.map((p) => {
@@ -250,7 +260,7 @@ async function getTournamentStandings(tournamentId) {
     let turnsList = [];
     let infiniteLoopErrors = 0;
 
-    for (const m of matches) {
+    for (const m of matchesByPlayer.get(p.userId) || []) {
       const isP1 = m.player1_id === p.userId;
       const isP2 = m.player2_id === p.userId;
 
@@ -276,8 +286,8 @@ async function getTournamentStandings(tournamentId) {
         }
       }
 
-      if (Array.isArray(m.replay_json) && m.replay_json.length > 0) {
-        turnsList.push(m.replay_json.length);
+      if (m.total_turns > 0) {
+        turnsList.push(Number(m.total_turns));
       }
     }
 

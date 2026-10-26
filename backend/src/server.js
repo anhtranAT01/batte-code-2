@@ -172,6 +172,7 @@ server.listen(PORT, async () => {
   console.log(`=======================================================`);
   await checkDbConnection();
   require('./support/submissionQueue').start();
+  require('./admin/replayRetention').start();
 });
 
 // Graceful Shutdown
@@ -180,6 +181,7 @@ function handleShutdown(signal) {
   console.log(`\n[Process] Received ${signal}. Gracefully closing server and database pool...`);
   require('./game/duelExecutor').shutdown().catch(console.error);
   require('./support/submissionQueue').stop();
+  require('./admin/replayRetention').stop();
   server.close(async () => {
     try {
       await pool.end();

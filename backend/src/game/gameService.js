@@ -11,6 +11,12 @@ const { normalizeMatch } = require('./matchHistory');
 
 // In-memory active game sessions
 const activeMatches = new Map();
+// Release abandoned practice sessions instead of retaining every board forever.
+function pruneInactiveMatches(now=Date.now()) {
+  for(const [id,session] of activeMatches) if(now-(session.lastActivityAt || session.createdAt)>60*60_000) activeMatches.delete(id);
+}
+const sessionSweeper=setInterval(pruneInactiveMatches,5*60_000);
+sessionSweeper.unref();
 
 function forgetDeletedData({matchId,userId}) {
   if (matchId) activeMatches.delete(matchId);
@@ -76,6 +82,7 @@ async function submitPlayerMove({ matchId, move, executionTimeMs = 120 }) {
   }
 
   const { game, bot } = session;
+  session.lastActivityAt=Date.now();
 
   if (game.isGameOver) {
     return {
@@ -124,8 +131,8 @@ async function submitPlayerMove({ matchId, move, executionTimeMs = 120 }) {
       Object.assign(replayJson,{mode:'PRACTICE',p1Name:session.userName,p2Name:`Boss AI (${session.botLevel})`,p2BotName:`Boss AI (${session.botLevel})`});
       if (session.userId) {
         const persisted = await query(
-          `INSERT INTO "Matches" (id, player1_id, player2_id, map_id, winner_id, win_reason, duration_ms, replay_json)
-           VALUES ($1, $2, NULL, (SELECT id FROM "Maps" LIMIT 1), $3, $4, $5, $6)
+          `INSERT INTO "Matches" (id, player1_id, player2_id, map_id, winner_id, win_reason, duration_ms, replay_json,judged_at)
+           VALUES ($1, $2, NULL, (SELECT id FROM "Maps" LIMIT 1), $3, $4, $5, $6,NOW())
            ON CONFLICT (id) DO NOTHING RETURNING match_number;`,
           [
             matchId,
@@ -160,6 +167,7 @@ async function submitPlayerMove({ matchId, move, executionTimeMs = 120 }) {
  * Retrieve replay for playback from RAM or PostgreSQL Database
  */
 async function getReplay(matchId) {
+  pruneInactiveMatches();
   // 1. Check in-memory active match sessions
   const session = activeMatches.get(matchId);
   if (session) {
@@ -172,8 +180,9 @@ async function getReplay(matchId) {
     const input = String(matchId).trim();
     const number = input.replace(/^#/,'');
     const byNumber = /^\d{1,19}$/.test(number) && BigInt(number) <= 9223372036854775807n;
+    const byUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input);
     const res = await query(
-      `SELECT m.id, m.match_number, m.player1_id, m.player2_id, m.player2_bot_id, m.winner_id, m.win_reason, m.duration_ms, m.replay_json,
+      `SELECT m.id, m.match_number, m.player1_id, m.player2_id, m.player2_bot_id, m.winner_id, m.win_reason, m.duration_ms, m.replay_json,m.replay_expired_at,
               u1.username AS p1_username, u2.username AS p2_username,
               b1.name AS p1_bot_name, b2.name AS p2_bot_name,
               uw.username AS winner_username
@@ -183,11 +192,13 @@ async function getReplay(matchId) {
        LEFT JOIN "Bots" b1 ON b1.id = m.player1_bot_id
        LEFT JOIN "Bots" b2 ON b2.id = m.player2_bot_id
        LEFT JOIN "Users" uw ON uw.id = m.winner_id
-       WHERE ${byNumber ? 'm.match_number = $1::bigint' : 'm.id::text = $1 OR m.id::text LIKE $2'}`,
-      byNumber ? [number] : [input, `${input}%`]
+       WHERE ${byNumber ? 'm.match_number = $1::bigint' : byUuid ? 'm.id = $1::uuid' : 'm.id::text = $1 OR m.id::text LIKE $2'} LIMIT 2`,
+      byNumber ? [number] : byUuid ? [input] : [input, `${input.replace(/[\\%_]/g,'\\$&')}%`]
     );
 
     if (res.rows.length > 0) {
+      if(res.rows.length > 1) throw Object.assign(new Error('Mã trận khớp nhiều trận. Hãy nhập đầy đủ mã trận.'),{statusCode:400});
+      if(res.rows[0].replay_expired_at) throw Object.assign(new Error('Replay đã được tự xóa theo thời gian lưu do Admin thiết lập. Kết quả trận đấu vẫn được giữ.'),{statusCode:410});
       const match = normalizeMatch(res.rows[0]);
       let replay = match.replay_json;
       if (typeof replay === 'string') {
@@ -230,6 +241,7 @@ async function getReplay(matchId) {
       return replay;
     }
   } catch (err) {
+    if(err.statusCode)throw err;
     console.warn('[GetReplay DB query error]:', err.message);
   }
 
@@ -353,8 +365,8 @@ async function runAutomatedBotDuel({
   try {
     const winnerId = game.winner === 1 ? userId : (game.winner === 2 && player2UserId ? player2UserId : null);
     const persisted = await query(
-      `INSERT INTO "Matches" (id, player1_id, player2_id, player1_bot_id, player2_bot_id, map_id, winner_id, win_reason, duration_ms, replay_json)
-       VALUES ($1, $2, $3, $4, $5, (SELECT id FROM "Maps" LIMIT 1), $6, $7, $8, $9)
+      `INSERT INTO "Matches" (id, player1_id, player2_id, player1_bot_id, player2_bot_id, map_id, winner_id, win_reason, duration_ms, replay_json,judged_at)
+       VALUES ($1, $2, $3, $4, $5, (SELECT id FROM "Maps" LIMIT 1), $6, $7, $8, $9,NOW())
        ON CONFLICT (id) DO NOTHING RETURNING match_number;`,
       [
         matchId,

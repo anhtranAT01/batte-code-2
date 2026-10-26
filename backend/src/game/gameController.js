@@ -67,10 +67,13 @@ async function getReplay(req, res, next) {
       });
     }
 
-    return res.status(200).json({
-      success: true,
-      data: replay,
-    });
+    res.set('Cache-Control','no-store').vary('Accept-Encoding');
+    const payload=JSON.stringify({success:true,data:replay});
+    if(Buffer.byteLength(payload)>1024 && req.acceptsEncodings('gzip')) {
+      const compressed=await require('node:util').promisify(require('node:zlib').gzip)(payload,{level:4});
+      return res.status(200).set('Content-Encoding','gzip').type('json').send(compressed);
+    }
+    return res.status(200).type('json').send(payload);
   } catch (err) {
     next(err);
   }

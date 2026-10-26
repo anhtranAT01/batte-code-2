@@ -2,7 +2,8 @@
 const express=require('../../backend/node_modules/express');
 const fs=require('fs'),path=require('path');
 const app=express();app.use(express.json({limit:'3mb'}));
-const user={id:'11111111-1111-4111-8111-111111111111',username:'OfflineTester',role:'STUDENT',elo_rating:1200};
+const user={id:'11111111-1111-4111-8111-111111111111',username:'OfflineTester',role:process.env.PREVIEW_ROLE==='ADMIN'?'ADMIN':'STUDENT',elo_rating:1200};
+let replayRetentionDays=0;
 let available=true;
 const receipts=new Map();
 const peers=[user,{id:'22222222-2222-4222-8222-222222222222',username:'CyberWarriors',elo_rating:1520},{id:'33333333-3333-4333-8333-333333333333',username:'AlphaTeam',elo_rating:1380}];
@@ -10,6 +11,9 @@ const tourneys=[{id:'t-1',name:'Giải đấu thuật toán sinh viên 2026',mod
 app.post('/fixture/toggle',(req,res)=>{available=!available;res.json({available});});
 app.use('/api',(req,res,next)=>available?next():res.status(503).json({message:'Simulated outage'}));
 app.get('/api/auth/me',(req,res)=>res.json({data:user}));
+app.get('/api/admin/users',(req,res)=>res.json({success:true,data:peers.map(p=>({...p,role:p.role || 'STUDENT',created_at:new Date().toISOString()}))}));
+app.get('/api/admin/replay-retention',(req,res)=>res.json({success:true,data:{days:replayRetentionDays,checkIntervalMinutes:5}}));
+app.put('/api/admin/replay-retention',(req,res)=>{replayRetentionDays=req.body.days;res.json({success:true,data:{days:replayRetentionDays,checkIntervalMinutes:5}});});
 app.get('/api/health',(req,res)=>res.json({timestamp:new Date().toISOString(),gateway:'online',database:'online',judge:'online',tournamentJudge:'online'}));
 app.get('/api/game/leaderboard',(req,res)=>res.json({success:true,data:peers.map((p,i)=>({...p,wins:12-i*3,losses:i+2,draws:1,active_bots:1}))}));
 app.get('/api/tournaments',(req,res)=>res.json({success:true,data:tourneys}));

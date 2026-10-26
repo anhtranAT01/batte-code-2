@@ -13,7 +13,7 @@ async function listMatches({limit = 25,offset = 0} = {}) {
   offset = Math.max(0,Number.parseInt(offset,10) || 0);
   const result = await query(`
     SELECT m.id,m.match_number,m.player1_id,m.player2_id,m.player2_bot_id,m.winner_id,
-      m.win_reason,m.duration_ms,m.created_at,m.tournament_id,
+      m.win_reason,m.duration_ms,m.created_at,m.tournament_id,m.replay_expired_at,
       u1.username AS p1_username,u2.username AS p2_username,uw.username AS winner_username,
       CASE WHEN jsonb_typeof(m.replay_json)='object'
         THEN m.replay_json - ARRAY['steps','initialBoard','mapConfig']

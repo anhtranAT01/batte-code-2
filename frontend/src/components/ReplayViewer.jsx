@@ -12,6 +12,10 @@ export default function ReplayViewer({ initialReplay = null, onBack = null }) {
   const [error, setError] = useState('');
 
   const timerRef = useRef(null);
+  const requestRef = useRef(null);
+  const [logPage,setLogPage] = useState(0);
+  useEffect(()=>()=>{requestRef.current?.abort();requestRef.current=null;},[]);
+  useEffect(()=>{setLogPage(Math.floor(currentStepIndex/50));},[currentStepIndex]);
 
   // If initialReplay changes, sync it
   useEffect(() => {
@@ -20,6 +24,11 @@ export default function ReplayViewer({ initialReplay = null, onBack = null }) {
         setMatchIdInput(initialReplay);
         loadReplayByMatchId(initialReplay);
       } else {
+        requestRef.current?.abort();
+        requestRef.current=null;
+        setLoading(false);
+        setError('');
+        setLogPage(0);
         setReplay(initialReplay);
         setCurrentStepIndex(0);
         setIsPlaying(false);
@@ -28,12 +37,19 @@ export default function ReplayViewer({ initialReplay = null, onBack = null }) {
   }, [initialReplay]);
 
   const loadReplayByMatchId = async (id) => {
+    requestRef.current?.abort();
+    const controller=new AbortController();
+    requestRef.current=controller;
+    const timeout=setTimeout(()=>controller.abort('timeout'),15000);
     setLoading(true);
     setError('');
+    setLogPage(0);
+    setReplay(null);
     setIsPlaying(false);
     try {
-      const res = await fetch(`/api/game/replay/${encodeURIComponent(id.trim())}`);
+      const res = await fetch(`/api/game/replay/${encodeURIComponent(id.trim())}`,{signal:controller.signal});
       const data = await res.json();
+      if(controller.signal.aborted || requestRef.current!==controller)return;
       if (res.ok && data.success) {
         setReplay(data.data);
         setCurrentStepIndex(0);
@@ -41,9 +57,11 @@ export default function ReplayViewer({ initialReplay = null, onBack = null }) {
         setError(data.message || 'Không tìm thấy dữ liệu Replay cho trận này.');
       }
     } catch {
-      setError('Lỗi khi tải bản ghi Replay.');
+      if(requestRef.current===controller && (!controller.signal.aborted || controller.signal.reason==='timeout'))
+        setError(controller.signal.reason==='timeout'?'Tải replay quá lâu. Vui lòng thử lại.':'Lỗi khi tải bản ghi Replay.');
     } finally {
-      setLoading(false);
+      clearTimeout(timeout);
+      if(requestRef.current===controller)setLoading(false);
     }
   };
 
@@ -78,24 +96,7 @@ export default function ReplayViewer({ initialReplay = null, onBack = null }) {
     e?.preventDefault();
     if (!matchIdInput.trim()) return;
 
-    setLoading(true);
-    setError('');
-    setIsPlaying(false);
-
-    try {
-      const res = await fetch(`/api/game/replay/${encodeURIComponent(matchIdInput.trim())}`);
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setReplay(data.data);
-        setCurrentStepIndex(0);
-      } else {
-        setError(data.message || 'Không tìm thấy dữ liệu Replay cho trận này.');
-      }
-    } catch {
-      setError('Lỗi khi tải bản ghi Replay.');
-    } finally {
-      setLoading(false);
-    }
+    await loadReplayByMatchId(matchIdInput);
   };
 
   // Determine current grid state from step snapshot
@@ -309,8 +310,14 @@ export default function ReplayViewer({ initialReplay = null, onBack = null }) {
               </div>
 
               {/* Scrollable Step List */}
+              <div className="flex items-center justify-between gap-2 text-xs text-slate-400 mb-3">
+                <button type="button" disabled={logPage===0} onClick={()=>setLogPage(page=>page-1)}>← Nhật ký trước</button>
+                <span>{logPage*50+1}–{Math.min(totalSteps,(logPage+1)*50)}</span>
+                <button type="button" disabled={(logPage+1)*50>=totalSteps} onClick={()=>setLogPage(page=>page+1)}>Nhật ký sau →</button>
+              </div>
               <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-                {steps.map((st, idx) => {
+                {steps.slice(logPage*50,(logPage+1)*50).map((st, localIndex) => {
+                  const idx=logPage*50+localIndex;
                   const isCurrent = idx === currentStepIndex;
                   const isP1 = st.player === 1;
 

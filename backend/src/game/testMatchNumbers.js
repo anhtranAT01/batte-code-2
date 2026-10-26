@@ -18,7 +18,7 @@ async function main(){
     assert.deepEqual(calls.at(-1).args,[input.replace(/^#/,'')]);
   }
   await service.getReplay('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
-  assert.match(calls.at(-1).sql,/m.id::text = \$1/);
+  assert.match(calls.at(-1).sql,/m.id = \$1::uuid/);
   await service.getReplay('9999999999999999999999999');
   assert.ok(!calls.at(-1).sql.includes('m.match_number = $1::bigint'),'Huge inputs cannot overflow bigint lookup');
   const result=await service.runAutomatedBotDuel({bot1Id:'template_heuristic',bot2Level:'EASY'});

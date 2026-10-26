@@ -484,6 +484,7 @@ export default function AdminDashboardView({ onSelectReplay }) {
 
       {/* TAB 2: BOTS MANAGEMENT */}
       {activeTab === 'matches' && isAdmin && <div className="rounded-2xl border border-white/5 bg-[#0e1322]/80 overflow-hidden">
+        <ReplayRetentionSettings getAuthHeaders={getAuthHeaders} />
         <div className="p-4 border-b border-white/5 flex flex-wrap justify-between gap-3">
           <div><h3 className="font-bold text-white text-sm">Quản Lý Trận Đấu</h3>
             <p className="text-xs text-slate-400 mt-1">Xóa bản ghi và replay; giữ nguyên Elo và kết quả giải đấu đã tính.</p></div>
@@ -500,7 +501,7 @@ export default function AdminDashboardView({ onSelectReplay }) {
             <td className="py-3 px-4 text-slate-300">{match.winner_username ? `${match.winner_username} thắng` : match.result_known ? 'Hòa' : 'Chưa xác định'}</td>
             <td className="py-3 px-4 text-slate-400">{new Date(match.created_at).toLocaleString('vi-VN')}</td>
             <td className="py-3 px-4 whitespace-nowrap">
-              {onSelectReplay && <button onClick={() => onSelectReplay(match.id)} className="mr-3 text-indigo-400">Xem lại</button>}
+              {match.replay_expired_at ? <span className="mr-3 text-slate-400">Replay đã hết hạn</span> : onSelectReplay && <button onClick={() => onSelectReplay(match.id)} className="mr-3 text-indigo-400">Xem lại</button>}
               <button type="button" onClick={() => handleDelete('matches',match)} disabled={Boolean(deleting)}
                 aria-label={`Xóa trận ${match.id}`} className="px-2.5 py-1 rounded-lg bg-red-500/20 text-red-300 border border-red-500/30 disabled:opacity-40">
                 {deleting === `matches:${match.id}` ? 'Đang xóa…' : 'Xóa trận'}
@@ -800,4 +801,46 @@ export default function AdminDashboardView({ onSelectReplay }) {
       )}
     </div>
   );
+}
+
+export function ReplayRetentionSettings({getAuthHeaders}) {
+  const [settings,setSettings]=useState(null),[days,setDays]=useState('0');
+  const [busy,setBusy]=useState(false),[message,setMessage]=useState('');
+  const headersRef=useRef(getAuthHeaders);headersRef.current=getAuthHeaders;
+  const load=async(signal)=>{
+    setMessage('');
+    try {
+      const res=await fetch('/api/admin/replay-retention',{headers:headersRef.current(),signal});
+      const result=await res.json();
+      if(!res.ok)throw new Error(result.message || 'Không tải được cấu hình lưu replay.');
+      if(signal?.aborted)return;
+      setSettings(result.data);setDays(String(result.data.days ?? 0));
+    } catch(error){if(error.name!=='AbortError')setMessage(error.message);}
+  };
+  useEffect(()=>{const controller=new AbortController();load(controller.signal);return()=>controller.abort();},[]);
+  const save=async(event)=>{
+    event.preventDefault();
+    const value=Number(days);
+    if(!days.trim() || !Number.isInteger(value) || value<0 || value>3650){setMessage('Nhập số ngày nguyên từ 0 đến 3650.');return;}
+    if(value>0 && !window.confirm(`Tự xóa dữ liệu phát lại của các trận đã kết thúc quá ${value} ngày? Replay đã xóa không khôi phục được. Kết quả, Elo và bảng điểm vẫn được giữ. Các replay cũ đủ hạn cũng sẽ được dọn.`))return;
+    setBusy(true);setMessage('');
+    try {
+      const res=await fetch('/api/admin/replay-retention',{method:'PUT',headers:{...headersRef.current(),'Content-Type':'application/json'},body:JSON.stringify({days:value})});
+      const result=await res.json();
+      if(!res.ok)throw new Error(result.message || 'Không lưu được cấu hình.');
+      setSettings(result.data);setDays(String(result.data.days));setMessage('Đã lưu. Hệ thống kiểm tra tự dọn mỗi 5 phút.');
+    } catch(error){setMessage(error.message);}finally{setBusy(false);}
+  };
+  return <section className="p-4 border-b border-white/10 space-y-3" aria-label="Thời gian lưu replay">
+    <div><h3 className="font-bold text-white">Tự dọn replay</h3><p className="text-xs text-slate-400 mt-1">Xóa dữ liệu từng nước cờ để tiết kiệm dung lượng; giữ mã trận, kết quả, Elo và bảng điểm. Bỏ qua trận chưa kết thúc và giải đang diễn ra hoặc sắp diễn ra.</p></div>
+    <form onSubmit={save} className="flex flex-wrap items-end gap-3">
+      <label className="text-xs text-slate-300" htmlFor="replay-retention-days">Số ngày lưu (0 = không tự xóa)
+        <input id="replay-retention-days" type="number" min="0" max="3650" step="1" required value={days} disabled={!settings || busy} onChange={event=>setDays(event.target.value)} className="block mt-1 w-48 rounded-lg bg-navy-950 border border-white/10 p-2" />
+      </label>
+      <button type="submit" disabled={!settings || busy} className="primary-action text-xs disabled:opacity-50">{busy?'Đang lưu…':'Lưu thời gian'}</button>
+      <button type="button" onClick={()=>load()} disabled={busy} className="secondary-action text-xs">Làm mới cấu hình</button>
+    </form>
+    {settings?.lastCleanup && <p className="text-xs text-slate-400">Kiểm tra gần nhất: {new Date(settings.lastCleanup.checkedAt).toLocaleString('vi-VN')} · Đã dọn {settings.lastCleanup.removed} replay trong lượt đó.</p>}
+    {message && <p role="status" className="text-sm text-slate-300">{message}</p>}
+  </section>;
 }
