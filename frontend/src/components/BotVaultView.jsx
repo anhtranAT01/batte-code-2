@@ -2,13 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {outbox} from '../lib/outbox';
 import {readDraft,writeDraft} from '../lib/deviceStore';
+import {readScreenData,peekScreenData} from '../lib/screenData';
 
 export default function BotVaultView({onNavigateStatus}) {
   const { user, getAuthHeaders } = useAuth();
+  const ownerRef=useRef(user?.id);ownerRef.current=user?.id;
+  const botsRequest=useRef(0);
 
-  const [myBots, setMyBots] = useState([]);
-  const [templates, setTemplates] = useState([]);
-  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [myBots, setMyBots] = useState(()=>peekScreenData('/api/bots/my-bots',getAuthHeaders()) || []);
+  const [templates, setTemplates] = useState(()=>peekScreenData('/api/bots/templates') || []);
+  const [selectedTemplate, setSelectedTemplate] = useState(()=>peekScreenData('/api/bots/templates')?.[0] || null);
   const [activeSubTab, setActiveSubTab] = useState('vault'); // 'vault' | 'templates' | 'upload' | 'guide'
 
   // Upload/Create state
@@ -42,18 +45,18 @@ export default function BotVaultView({onNavigateStatus}) {
   },[draftReady,botName,codeContent,uploadMode,gitUrl,selectedFile]);
 
   useEffect(() => {
-    fetchMyBots();
+    setMyBots(peekScreenData('/api/bots/my-bots',getAuthHeaders()) || []);
+    fetchMyBots(false);
     fetchTemplates();
-  }, [user]);
+  }, [user?.id]);
 
-  const fetchMyBots = async () => {
+  const fetchMyBots = async (force=true) => {
     if (!user) return;
+    const owner=user.id;
+    const request=++botsRequest.current;
     try {
-      const res = await fetch('/api/bots/my-bots', { headers: getAuthHeaders() });
-      if (res.ok) {
-        const d = await res.json();
-        setMyBots(d.data || []);
-      }
+      const bots=await readScreenData('/api/bots/my-bots', { headers: getAuthHeaders(),force });
+      if(ownerRef.current===owner && request===botsRequest.current)setMyBots(bots);
     } catch (e) {
       console.warn('Bot fetch error:', e);
     }
@@ -61,15 +64,11 @@ export default function BotVaultView({onNavigateStatus}) {
 
   const fetchTemplates = async () => {
     try {
-      const res = await fetch('/api/bots/templates');
-      if (res.ok) {
-        const d = await res.json();
-        const list = d.data || [];
+        const list = await readScreenData('/api/bots/templates');
         setTemplates(list);
         if (list.length > 0) {
-          setSelectedTemplate(list[0]);
+          setSelectedTemplate(current=>list.find(item=>item.id===current?.id) || list[0]);
         }
-      }
     } catch (e) {
       console.warn('Templates fetch error:', e);
     }

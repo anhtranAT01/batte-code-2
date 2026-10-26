@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { io } from 'socket.io-client';
 import Sidebar from './components/Sidebar';
 import HeaderBar from './components/HeaderBar';
@@ -8,7 +8,9 @@ import { apiOrigin } from './lib/api';
 import useTheme from './hooks/useTheme';
 import OutboxPump from './components/OutboxPump';
 import ViewBoundary from './components/ViewBoundary';
-import { viewModules, preloadView } from './lib/viewModules';
+import { viewModules, preloadView, scheduleViewWarmup } from './lib/viewModules';
+import { useAuth } from './context/AuthContext';
+import {prefetchScreenData} from './lib/screenData';
 
 // Load game, replay and admin tools when opened instead of delaying the first page.
 const BossArenaView = lazy(viewModules.boss);
@@ -23,7 +25,71 @@ const AdminDashboardView = lazy(viewModules.admin);
 const AlgorithmTrainingView = lazy(viewModules.training);
 const SystemStatus = lazy(viewModules.status);
 
+const PageContent=React.memo(function PageContent({activeTab,selectedReplay,previousTab,challengedOpponent,handleOpenReplay,handleChallengePlayer,handleSelectTab}) {
+  return (
+            <ViewBoundary key={activeTab}>
+            <Suspense fallback={<div role="status" className="view-loading"><span className="loading-orbit animate-spin" aria-hidden="true" />Đang mở trang...</div>}>
+            {activeTab === 'leaderboard' && (
+              <LeaderboardView
+                onSelectReplay={handleOpenReplay}
+                onChallengePlayer={handleChallengePlayer}
+                onExploreData={() => handleSelectTab('database')}
+                onNavigateTab={handleSelectTab}
+              />
+            )}
+            {activeTab === 'status' && <SystemStatus />}
+
+            {activeTab === 'pvp' && (
+              <PvPBotArenaView
+                onSelectReplay={handleOpenReplay}
+                preselectedOpponent={challengedOpponent}
+                onOpenBots={() => handleSelectTab('bots')}
+              />
+            )}
+
+            {activeTab === 'boss' && (
+              <BossArenaView onSelectReplay={handleOpenReplay} />
+            )}
+
+            {activeTab === 'tournament' && (
+              <TournamentBracketsView onSelectReplay={handleOpenReplay} onNavigateStatus={() => handleSelectTab('status')} />
+            )}
+
+            {activeTab === 'training' && (
+              <AlgorithmTrainingView onGoToBots={() => handleSelectTab('bots')} />
+            )}
+
+            {activeTab === 'rules' && (
+              <RulesAndStrategyView onGoToTemplates={() => handleSelectTab('bots')} />
+            )}
+
+            {activeTab === 'database' && (
+              <DataExplorerView onSelectReplay={handleOpenReplay} />
+            )}
+
+            {activeTab === 'bots' && (
+              <BotVaultView onNavigateStatus={() => handleSelectTab('status')} />
+            )}
+
+            {activeTab === 'admin' && (
+              <AdminDashboardView onSelectReplay={handleOpenReplay} />
+            )}
+
+            {activeTab === 'replay' && (
+              <ReplayViewer
+                initialReplay={selectedReplay}
+                onBack={() => handleSelectTab(previousTab || 'leaderboard')}
+              />
+            )}
+            </Suspense>
+            </ViewBoundary>
+  );
+});
+
 export default function App() {
+  const {getAuthHeaders}=useAuth();
+  useEffect(scheduleViewWarmup,[]);
+  const handlePreload=useCallback(tab=>{preloadView(tab);prefetchScreenData(tab,getAuthHeaders());},[getAuthHeaders]);
   const { theme, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState('leaderboard');
   const mainRef = useRef(null);
@@ -71,30 +137,30 @@ export default function App() {
   }, []);
 
   // Handle Tab Switch
-  const handleSelectTab = (tabId) => {
+  const handleSelectTab = useCallback((tabId) => {
     if (tabId === 'chat') {
       setIsChatOpen(true);
       return;
     }
     setPreviousTab(activeTab);
     setActiveTab(tabId);
-  };
+  },[activeTab]);
 
   // Open Replay
-  const handleOpenReplay = (replayDataOrId) => {
+  const handleOpenReplay = useCallback((replayDataOrId) => {
     setSelectedReplay(replayDataOrId);
     setPreviousTab(activeTab);
     setActiveTab('replay');
-  };
+  },[activeTab]);
 
   const [challengedOpponent, setChallengedOpponent] = useState(null);
 
   // Challenge a player from Leaderboard
-  const handleChallengePlayer = (player) => {
+  const handleChallengePlayer = useCallback((player) => {
     setChallengedOpponent(player);
     setPreviousTab(activeTab);
     setActiveTab('pvp');
-  };
+  },[activeTab]);
 
   // Open Auth Modal
   const handleOpenAuthModal = (mode = 'login') => {
@@ -112,7 +178,7 @@ export default function App() {
         onlineCount={onlineCount}
         isCollapsed={isSidebarCollapsed}
         setIsCollapsed={setIsSidebarCollapsed}
-        onPreloadTab={preloadView}
+        onPreloadTab={handlePreload}
       />
 
       {/* Main Content Area */}
@@ -129,62 +195,9 @@ export default function App() {
         {/* Dynamic Page Views Container */}
         <main ref={mainRef} className="app-main flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 scrollbar-thin">
           <div className="max-w-7xl mx-auto pb-12">
-            <ViewBoundary key={activeTab}>
-            <Suspense fallback={<div role="status" className="view-loading"><span className="loading-orbit animate-spin" aria-hidden="true" />Đang mở trang...</div>}>
-            {activeTab === 'leaderboard' && (
-              <LeaderboardView
-                onSelectReplay={handleOpenReplay}
-                onChallengePlayer={handleChallengePlayer}
-                onExploreData={() => setActiveTab('database')}
-                onNavigateTab={handleSelectTab}
-              />
-            )}
-            {activeTab === 'status' && <SystemStatus />}
-
-            {activeTab === 'pvp' && (
-              <PvPBotArenaView
-                onSelectReplay={handleOpenReplay}
-                preselectedOpponent={challengedOpponent}
-                onOpenBots={() => setActiveTab('bots')}
-              />
-            )}
-
-            {activeTab === 'boss' && (
-              <BossArenaView onSelectReplay={handleOpenReplay} />
-            )}
-
-            {activeTab === 'tournament' && (
-              <TournamentBracketsView onSelectReplay={handleOpenReplay} onNavigateStatus={() => setActiveTab('status')} />
-            )}
-
-            {activeTab === 'training' && (
-              <AlgorithmTrainingView onGoToBots={() => setActiveTab('bots')} />
-            )}
-
-            {activeTab === 'rules' && (
-              <RulesAndStrategyView onGoToTemplates={() => setActiveTab('bots')} />
-            )}
-
-            {activeTab === 'database' && (
-              <DataExplorerView onSelectReplay={handleOpenReplay} />
-            )}
-
-            {activeTab === 'bots' && (
-              <BotVaultView onNavigateStatus={() => setActiveTab('status')} />
-            )}
-
-            {activeTab === 'admin' && (
-              <AdminDashboardView onSelectReplay={handleOpenReplay} />
-            )}
-
-            {activeTab === 'replay' && (
-              <ReplayViewer
-                initialReplay={selectedReplay}
-                onBack={() => setActiveTab(previousTab || 'leaderboard')}
-              />
-            )}
-            </Suspense>
-            </ViewBoundary>
+            <PageContent activeTab={activeTab} selectedReplay={selectedReplay} previousTab={previousTab}
+              challengedOpponent={challengedOpponent} handleOpenReplay={handleOpenReplay}
+              handleChallengePlayer={handleChallengePlayer} handleSelectTab={handleSelectTab} />
           </div>
         </main>
       </div>

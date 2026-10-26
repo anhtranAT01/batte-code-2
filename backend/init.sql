@@ -77,6 +77,8 @@ CREATE INDEX IF NOT EXISTS idx_users_elo ON "Users" ("elo_rating" DESC);
 CREATE INDEX IF NOT EXISTS idx_bots_user ON "Bots" ("user_id");
 CREATE INDEX IF NOT EXISTS idx_matches_p1 ON "Matches" ("player1_id");
 CREATE INDEX IF NOT EXISTS idx_matches_p2 ON "Matches" ("player2_id");
+CREATE INDEX IF NOT EXISTS idx_matches_bot1 ON "Matches" ("player1_bot_id");
+CREATE INDEX IF NOT EXISTS idx_matches_bot2 ON "Matches" ("player2_bot_id");
 CREATE INDEX IF NOT EXISTS idx_matches_tournament ON "Matches" ("tournament_id");
 CREATE INDEX IF NOT EXISTS idx_matches_created_at ON "Matches" ("created_at" DESC, "id" DESC);
 CREATE INDEX IF NOT EXISTS idx_tournaments_status ON "Tournaments" ("status");

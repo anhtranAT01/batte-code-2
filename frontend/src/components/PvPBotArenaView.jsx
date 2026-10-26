@@ -4,15 +4,16 @@ import GameBoard from './GameBoard';
 import { runDuel, applyDuelEvent } from '../lib/duelStream';
 import { invalidatePublicData } from '../lib/publicData';
 import Icon from './Icons';
+import {readScreenData,peekScreenData} from '../lib/screenData';
 
 export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = null, onOpenBots }) {
   const { user, getAuthHeaders } = useAuth();
 
-  const [players, setPlayers] = useState([]);
-  const [selectedOpponentId, setSelectedOpponentId] = useState(preselectedOpponent?.id || '');
+  const [players, setPlayers] = useState(()=>peekScreenData('/api/bots/players') || []);
+  const [selectedOpponentId, setSelectedOpponentId] = useState(()=>preselectedOpponent?.id || peekScreenData('/api/bots/players')?.find(player=>player.id!==user?.id)?.id || '');
   const [boardSize, setBoardSize] = useState(9);
   const [loading, setLoading] = useState(false);
-  const [botsLoading, setBotsLoading] = useState(true);
+  const [botsLoading, setBotsLoading] = useState(()=>!peekScreenData('/api/bots/players'));
   const [selectionError, setSelectionError] = useState('');
   const [autoMatchData, setAutoMatchData] = useState(null);
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
@@ -21,6 +22,7 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
   const [isFullScreen, setIsFullScreen] = useState(false);
   const timerRef = useRef(null);
   const requestRef = useRef(null);
+  const playersRequest=useRef(0);
   const playbackRef = useRef({ totalSteps: 0, loading: false });
   const [queuePosition, setQueuePosition] = useState(null);
 
@@ -37,15 +39,14 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
     else setAutoMatchData((current) => applyDuelEvent(current, event));
   };
 
-  const loadPlayers = async (isCancelled = () => false) => {
-    setBotsLoading(true);
+  const loadPlayers = async (isCancelled = () => false,force=true) => {
+    const request=++playersRequest.current;
+    const stale=()=>isCancelled() || request!==playersRequest.current;
+    setBotsLoading(force || !peekScreenData('/api/bots/players'));
     setSelectionError('');
     try {
-      const response = await fetch('/api/bots/players');
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || 'Không tải được danh sách người chơi.');
-      if (isCancelled()) return;
-      const list = data.data || [];
+      const list=await readScreenData('/api/bots/players',{force});
+      if (stale()) return;
       setPlayers(list);
       setSelectedOpponentId((current) =>
         list.some((player) => player.id === current && player.id !== user?.id)
@@ -53,15 +54,15 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
           : list.find((player) => player.id !== user?.id)?.id || ''
       );
     } catch (error) {
-      if (!isCancelled()) setSelectionError(error.message);
+      if (!stale()) setSelectionError(error.message);
     } finally {
-      if (!isCancelled()) setBotsLoading(false);
+      if (!stale()) setBotsLoading(false);
     }
   };
 
   useEffect(() => {
     let cancelled = false;
-    loadPlayers(() => cancelled);
+    loadPlayers(() => cancelled,false);
     return () => {
       cancelled = true;
     };

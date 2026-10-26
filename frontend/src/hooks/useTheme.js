@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 function initialTheme() {
   const saved = localStorage.getItem('battlecode-theme');
@@ -13,5 +13,6 @@ export default function useTheme() {
     document.documentElement.style.colorScheme = theme;
     localStorage.setItem('battlecode-theme', theme);
   }, [theme]);
-  return { theme, toggleTheme: () => setTheme((value) => value === 'dark' ? 'light' : 'dark') };
+  const toggleTheme=useCallback(()=>setTheme(value=>value==='dark'?'light':'dark'),[]);
+  return { theme, toggleTheme };
 }

@@ -95,6 +95,7 @@ export default function Sidebar({ activeTab, setActiveTab, onlineCount = 1, isCo
                   onClick={() => setActiveTab(item.id)}
                   onPointerEnter={event => { if (event.pointerType === 'mouse') onPreloadTab?.(item.id); }}
                   onFocus={() => onPreloadTab?.(item.id)}
+                  onPointerDown={() => onPreloadTab?.(item.id)}
                   className={`nav-item relative group ${active ? 'is-active' : ''}`}
                 >
                   <span className="nav-icon">

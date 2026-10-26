@@ -4,7 +4,8 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execSync, execFileSync } = require('child_process');
+const { execFile } = require('child_process');
+const execFileAsync = require('node:util').promisify(execFile);
 const { query } = require('../config/db');
 const { STORAGE_ROOT, isBotAvailable, resolveBotPath } = require('./botStorage');
 const { getPythonCommand } = require('../game/pythonRunner');
@@ -25,12 +26,12 @@ function ensureUserStorageDir(userId) {
  * Verify Python syntax using `python -m py_compile`
  * @param {string} filePath
  */
-function validatePythonSyntax(filePath) {
+async function validatePythonSyntax(filePath) {
   try {
     // Try python or python3
-    execFileSync(getPythonCommand(), ['-m','py_compile',filePath], {
+    await execFileAsync(getPythonCommand(), ['-m','py_compile',filePath], {
       timeout: 3000,
-      stdio: 'pipe',
+      windowsHide: true,
     });
     return { valid: true };
   } catch (err) {
@@ -67,7 +68,7 @@ async function saveUploadedBot({ userId, botName, file, tactic = 'FLAG_RUSHER' }
   }
 
   // Validate Python Syntax
-  const syntaxCheck = validatePythonSyntax(targetPath);
+  const syntaxCheck = await validatePythonSyntax(targetPath);
   if (!syntaxCheck.valid) {
     // Remove invalid file
     try {
@@ -104,13 +105,15 @@ async function saveGitBot({ userId, botName, gitUrl }) {
 
   const userDir = ensureUserStorageDir(userId);
   const repoDirName = `git_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-  const repoPath = path.join(userDir, repoDirName);
+  const repoPath = path.resolve(userDir, repoDirName);
+  if(path.dirname(repoPath)!==path.resolve(userDir))throw new Error('Invalid repository storage path');
 
   try {
     console.log(`[BotService] Cloning ${gitUrl} into ${repoPath}...`);
-    execSync(`git clone --depth 1 "${gitUrl}" "${repoPath}"`, {
+    await execFileAsync('git',['clone','--depth','1','--',gitUrl,repoPath], {
       timeout: 15000,
-      stdio: 'pipe',
+      windowsHide: true,
+      env:{...process.env,GIT_TERMINAL_PROMPT:'0'},
     });
   } catch (gitErr) {
     const error = new Error(`Không thể git clone kho lưu trữ: ${gitErr.stderr ? gitErr.stderr.toString() : gitErr.message}`);
@@ -141,7 +144,7 @@ async function saveGitBot({ userId, botName, gitUrl }) {
 
   if (!entrypoint) {
     try {
-      fs.rmSync(repoPath, { recursive: true, force: true });
+      await fs.promises.rm(repoPath, { recursive: true, force: true });
     } catch {}
     const error = new Error('Không tìm thấy file Python (.py) nào trong thư mục gốc của repository (Cần bot.py hoặc main.py).');
     error.statusCode = 400;
@@ -149,10 +152,10 @@ async function saveGitBot({ userId, botName, gitUrl }) {
   }
 
   // Validate syntax
-  const syntaxCheck = validatePythonSyntax(entrypoint);
+  const syntaxCheck = await validatePythonSyntax(entrypoint);
   if (!syntaxCheck.valid) {
     try {
-      fs.rmSync(repoPath, { recursive: true, force: true });
+      await fs.promises.rm(repoPath, { recursive: true, force: true });
     } catch {}
     const error = new Error(`File ${path.basename(entrypoint)} có lỗi cú pháp Python:\n${syntaxCheck.error}`);
     error.statusCode = 400;
@@ -174,17 +177,25 @@ async function saveGitBot({ userId, botName, gitUrl }) {
  */
 async function getUserBots(userId) {
   const sql = `
-    SELECT b.*,
-           COUNT(m.id)::int AS total_matches,
-           COUNT(CASE WHEN m.winner_id = b.user_id THEN 1 END)::int AS matches_won
+    SELECT b.id,b.user_id,b.name,b.source_type,b.file_path_or_git_url,b.status,b.error_count,
+           b.is_active,b.tactic,b.created_at,b.updated_at,
+           (b.source_type='file' AND octet_length(b.source_code)>0) AS has_source,
+           stats.total_matches,stats.matches_won
     FROM "Bots" b
-    LEFT JOIN "Matches" m ON m.player1_bot_id = b.id OR m.player2_bot_id = b.id
+    CROSS JOIN LATERAL (
+      SELECT COUNT(*)::int AS total_matches,
+             COUNT(*) FILTER(WHERE m.winner_id=b.user_id)::int AS matches_won
+      FROM (
+        SELECT winner_id FROM "Matches" WHERE player1_bot_id=b.id
+        UNION ALL
+        SELECT winner_id FROM "Matches" WHERE player2_bot_id=b.id AND player1_bot_id IS DISTINCT FROM b.id
+      ) m
+    ) stats
     WHERE b.user_id = $1
-    GROUP BY b.id
     ORDER BY b.created_at DESC;
   `;
   const res = await query(sql, [userId]);
-  return res.rows.map(({ source_code, ...bot }) => ({ ...bot, is_available:isBotAvailable({...bot,source_code}) }));
+  return res.rows.map(({ source_code,has_source, ...bot }) => ({ ...bot, is_available:Boolean(has_source || isBotAvailable({...bot,source_code})) }));
 }
 
 /**
@@ -252,16 +263,18 @@ async function activateBot(botId, userId) {
 async function getPlayers() {
   const result = await query(`
     SELECT u.id, u.username, u.elo_rating, b.id AS bot_id, b.name AS bot_name,
-           b.user_id, b.source_type, b.file_path_or_git_url, b.source_code
+           b.user_id, b.source_type, b.file_path_or_git_url, b.has_source
     FROM "Users" u
     LEFT JOIN LATERAL (
-      SELECT * FROM "Bots" WHERE user_id = u.id AND is_active = true AND status = 'active'
+      SELECT id,name,user_id,source_type,file_path_or_git_url,updated_at,
+        (source_type='file' AND octet_length(source_code)>0) AS has_source
+      FROM "Bots" WHERE user_id = u.id AND is_active = true AND status = 'active'
       ORDER BY updated_at DESC, id LIMIT 1
     ) b ON true
     ORDER BY u.elo_rating DESC, u.username, u.id
   `);
   return result.rows.map(row => {
-    const ready = Boolean(row.bot_id && isBotAvailable({...row,id:row.bot_id}));
+    const ready = Boolean(row.bot_id && (row.has_source || isBotAvailable({...row,id:row.bot_id})));
     return {id:row.id,username:row.username,elo_rating:row.elo_rating,
       bot:row.bot_id ? {id:row.bot_id,name:row.bot_name} : null,
       ready, reason:ready ? null : row.bot_id ? 'Bot chính cần tải lại file.' : 'Người chơi chưa chọn bot chính.'};
@@ -286,7 +299,7 @@ async function createCodeBot({ userId, botName, code, tactic = 'FLAG_RUSHER', bo
   fs.writeFileSync(targetPath, code, 'utf-8');
 
   // Validate syntax
-  const syntaxCheck = validated ? {valid:true} : validatePythonSyntax(targetPath);
+  const syntaxCheck = validated ? {valid:true} : await validatePythonSyntax(targetPath);
   if (!syntaxCheck.valid) {
     try {
       fs.unlinkSync(targetPath);
@@ -321,7 +334,7 @@ async function createCodeBot({ userId, botName, code, tactic = 'FLAG_RUSHER', bo
 async function getCommunityBots() {
   const sql = `
     SELECT b.id, b.user_id, b.name, b.tactic, b.source_type, b.status, b.is_active, b.created_at,
-           b.file_path_or_git_url, b.source_code,
+           b.file_path_or_git_url,(b.source_type='file' AND octet_length(b.source_code)>0) AS has_source,
            u.username AS owner_name, u.elo_rating AS owner_elo
     FROM "Bots" b
     JOIN "Users" u ON u.id = b.user_id
@@ -329,8 +342,8 @@ async function getCommunityBots() {
     ORDER BY u.elo_rating DESC, b.created_at DESC;
   `;
   const res = await query(sql);
-  return res.rows.map(({source_code,file_path_or_git_url,...bot}) => ({...bot,
-    is_available:isBotAvailable({...bot,source_code,file_path_or_git_url}),
+  return res.rows.map(({source_code,has_source,file_path_or_git_url,...bot}) => ({...bot,
+    is_available:Boolean(has_source || isBotAvailable({...bot,source_code,file_path_or_git_url})),
   }));
 }
 

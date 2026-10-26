@@ -153,6 +153,8 @@ model Match {
 
   @@index([player1_id])
   @@index([player2_id])
+  @@index([player1_bot_id])
+  @@index([player2_bot_id])
   @@index([tournament_id])
   @@map("Matches")
 }

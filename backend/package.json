@@ -4,6 +4,8 @@
   "description": "Tactical Rock-Paper-Scissors Arena Backend Server with Real-time WebSockets and BullMQ",
   "main": "src/server.js",
   "scripts": {
+    "test:nonblocking-validation": "node src/bot/testNonBlockingValidation.js",
+    "test:navigation-reads": "node src/bot/testNavigationReads.js",
     "test:replay-retention": "node src/admin/testReplayRetention.js",
     "test:standings-performance": "node src/tournament/testStandingsPerformance.js",
     "test:resilience": "node src/support/testSupport.js",

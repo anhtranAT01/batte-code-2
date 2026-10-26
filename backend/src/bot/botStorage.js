@@ -24,7 +24,7 @@ function existingBotPath(bot) {
 }
 
 function isBotAvailable(bot) {
-  return Boolean(existingBotPath(bot) || (bot.source_type === 'file' && bot.source_code));
+  return Boolean((bot.source_type === 'file' && bot.source_code) || existingBotPath(bot));
 }
 
 function resolveBotPath(bot) {

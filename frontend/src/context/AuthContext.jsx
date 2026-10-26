@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import {invalidateScreenData} from '../lib/screenData';
 
 const AuthContext = createContext(null);
 
@@ -74,15 +75,16 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    invalidateScreenData();
     setToken(null);
     setUser(null);
     localStorage.removeItem('rps_token');
     localStorage.removeItem('rps_profile');
   };
 
-  const getAuthHeaders = () => {
+  const getAuthHeaders = useCallback(() => {
     return token ? { Authorization: `Bearer ${token}` } : {};
-  };
+  },[token]);
 
   return (
     <AuthContext.Provider

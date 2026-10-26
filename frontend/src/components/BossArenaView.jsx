@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import {readScreenData,peekScreenData} from '../lib/screenData';
 import { useAuth } from '../context/AuthContext';
 import GameBoard from './GameBoard';
 import { runDuel, applyDuelEvent } from '../lib/duelStream';
@@ -52,7 +53,7 @@ export default function BossArenaView({ onSelectReplay }) {
 
   const [selectedBoss, setSelectedBoss] = useState(bosses[1]);
   const [boardSize, setBoardSize] = useState(9);
-  const [myBots, setMyBots] = useState([]);
+  const [myBots, setMyBots] = useState(()=>peekScreenData('/api/bots/my-bots',getAuthHeaders()) || []);
   const [selectedBotId, setSelectedBotId] = useState('template_alphabeta');
   const selectedBotName = myBots.find(bot => bot.id === selectedBotId)?.name || {
     template_alphabeta:'Minimax Alpha-Beta Pruning Bot',template_astar:'A* Flag Rusher Bot',
@@ -80,12 +81,11 @@ export default function BossArenaView({ onSelectReplay }) {
   // Fetch student bots
   useEffect(() => {
     let cancelled = false;
+    setMyBots(peekScreenData('/api/bots/my-bots',getAuthHeaders()) || []);
     if (user) {
-      fetch('/api/bots/my-bots', { headers: getAuthHeaders() })
-        .then((res) => (res.ok ? res.json() : { data: [] }))
-        .then((data) => {
+      readScreenData('/api/bots/my-bots', { headers: getAuthHeaders() })
+        .then((list) => {
           if (cancelled) return;
-          const list = data.data || [];
           setMyBots(list);
           setSelectedBotId((current) => current.startsWith('template_') || list.some((bot) => bot.id === current)
             ? current : 'template_alphabeta');

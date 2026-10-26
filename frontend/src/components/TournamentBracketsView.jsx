@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { apiUrl } from '../lib/api';
 import {outbox, subscribeOutbox} from '../lib/outbox';
+import {readScreenData,peekScreenData} from '../lib/screenData';
 
 // Only the clock updates each second; standings and brackets stay unchanged.
 function TournamentCountdown({ scheduledStartAt }) {
@@ -29,14 +30,14 @@ export default function TournamentBracketsView({ onSelectReplay, onNavigateStatu
   // 2 Core Tournament Modes: 'ALL_IN' | 'BRANCHES'
   const [tournamentMode, setTournamentMode] = useState('ALL_IN');
 
-  const [tournaments, setTournaments] = useState([]);
-  const [selectedTourneyId, setSelectedTourneyId] = useState(null);
+  const [tournaments, setTournaments] = useState(()=>peekScreenData('/api/tournaments') || []);
+  const [selectedTourneyId, setSelectedTourneyId] = useState(()=>peekScreenData('/api/tournaments')?.[0]?.id || null);
   const [standingsData, setStandingsData] = useState(null);
   const standingsRequest = useRef(null);
   const selectedTourneyRef = useRef(selectedTourneyId);
   selectedTourneyRef.current = selectedTourneyId;
-  const [myBots, setMyBots] = useState([]);
-  const [selectedBotId, setSelectedBotId] = useState('');
+  const [myBots, setMyBots] = useState(()=>peekScreenData('/api/bots/my-bots',getAuthHeaders()) || []);
+  const [selectedBotId, setSelectedBotId] = useState(()=>{const bots=peekScreenData('/api/bots/my-bots',getAuthHeaders()) || [];return (bots.find(bot=>bot.is_active) || bots[0])?.id || '';});
   const selectedBot = myBots.find(bot => bot.id === selectedBotId);
   const selectedTournament = tournaments.find(tournament => tournament.id === selectedTourneyId);
   const [loading, setLoading] = useState(false);
@@ -67,20 +68,21 @@ export default function TournamentBracketsView({ onSelectReplay, onNavigateStatu
 
   // Load tournaments & my bots
   useEffect(() => {
-    fetchTournaments();
+    let mounted=true;
+    fetchTournaments(false);
+    setMyBots(peekScreenData('/api/bots/my-bots',getAuthHeaders()) || []);
     if (user) {
-      fetch('/api/bots/my-bots', { headers: getAuthHeaders() })
-        .then((res) => (res.ok ? res.json() : { data: [] }))
-        .then((d) => {
-          const bots = d.data || [];
+      readScreenData('/api/bots/my-bots', { headers: getAuthHeaders() })
+        .then((bots) => {
+          if(!mounted)return;
           setMyBots(bots);
           const active = bots.find((b) => b.is_active);
-          if (active) setSelectedBotId(active.id);
-          else if (bots.length > 0) setSelectedBotId(bots[0].id);
+          setSelectedBotId(current=>bots.some(bot=>bot.id===current)?current:(active || bots[0])?.id || '');
         })
         .catch(console.warn);
     }
-  }, [user]);
+    return ()=>{mounted=false;};
+  }, [user?.id]);
 
   // Keep selected bracket match synced with available brackets or user's current assignment
   useEffect(() => {
@@ -179,17 +181,13 @@ export default function TournamentBracketsView({ onSelectReplay, onNavigateStatu
     }
   }, [tournamentMode, tournaments]);
 
-  const fetchTournaments = async () => {
+  const fetchTournaments = async (force=true) => {
     try {
-      const res = await fetch('/api/tournaments');
-      if (res.ok) {
-        const data = await res.json();
-        const list = data.data || [];
+        const list = await readScreenData('/api/tournaments',{force});
         setTournaments(list);
         if (list.length > 0 && !selectedTourneyId) {
           setSelectedTourneyId(list[0].id);
         }
-      }
     } catch (err) {
       console.warn('[Tournament] List fetch error:', err);
     }

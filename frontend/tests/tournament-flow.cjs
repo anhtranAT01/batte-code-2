@@ -16,6 +16,8 @@ let queued = null;
 let lastScrolledId = null;
 let rowBuilds = 0;
 let outboxListener;
+const screenModule={exports:{}};
+new Function('module','exports',transformSync(fs.readFileSync(path.resolve(__dirname,'../src/lib/screenData.js'),'utf8'),{format:'cjs'}).code)(screenModule,screenModule.exports);
 global.window = { addEventListener() {}, removeEventListener() {} };
 global.document = {
   addEventListener() {},
@@ -36,6 +38,7 @@ function component(name) {
     if (id === '../context/AuthContext') return { useAuth: () => auth };
     if (id === './DeviceSafety' || id === './Icons') return { __esModule: true, default: () => null };
     if (id === '../lib/api') return { apiUrl: (endpoint) => `/api${endpoint}` };
+    if (id === '../lib/screenData') return screenModule.exports;
     if (id === '../lib/outbox') {
       return {
         outbox: {

@@ -1,3 +1,4 @@
+import {invalidateScreenData} from './screenData';
 const configuredApiOrigin = (import.meta.env.VITE_API_URL || '').trim().replace(/\/$/, '');
 
 export function apiUrl(path = '') {
@@ -6,20 +7,28 @@ export function apiUrl(path = '') {
 }
 
 export function installApiFetch() {
-  if (!configuredApiOrigin || window.__rpsApiFetchInstalled) return;
+  if (window.__rpsApiFetchInstalled) return;
 
   const nativeFetch = window.fetch.bind(window);
-  window.fetch = (input, init) => {
-    if (typeof input === 'string') return nativeFetch(apiUrl(input), init);
+  window.fetch = async (input, init) => {
+    const original=input;
+    if (typeof input === 'string') input=apiUrl(input);
 
     if (input instanceof Request) {
       const requestUrl = new URL(input.url, window.location.origin);
       if (requestUrl.origin === window.location.origin && requestUrl.pathname.startsWith('/api')) {
-        return nativeFetch(new Request(apiUrl(`${requestUrl.pathname}${requestUrl.search}`), input), init);
+        input=new Request(apiUrl(`${requestUrl.pathname}${requestUrl.search}`), input);
       }
     }
 
-    return nativeFetch(input, init);
+    const requestUrl=new URL(typeof original==='string'?original:original instanceof URL?original.href:original.url,window.location.origin);
+    const method=(init?.method || (original instanceof Request?original.method:'GET')).toUpperCase();
+    const mutation=requestUrl.pathname.startsWith('/api/') && ['POST','PUT','PATCH','DELETE'].includes(method)
+      && [window.location.origin,configuredApiOrigin].includes(requestUrl.origin);
+    if(mutation)invalidateScreenData();
+    const response=await nativeFetch(input, init);
+    if(mutation && response.ok)invalidateScreenData();
+    return response;
   };
 
   window.__rpsApiFetchInstalled = true;

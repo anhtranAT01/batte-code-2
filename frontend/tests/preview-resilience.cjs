@@ -2,6 +2,9 @@
 const express=require('../../backend/node_modules/express');
 const fs=require('fs'),path=require('path');
 const app=express();app.use(express.json({limit:'3mb'}));
+const apiHits={};
+app.get('/fixture/metrics',(req,res)=>res.json(apiHits));
+app.use('/api',(req,res,next)=>{apiHits[req.path]=(apiHits[req.path] || 0)+1;const delay=Number(process.env.PREVIEW_API_DELAY_MS)||0;if(delay)setTimeout(next,delay);else next();});
 const user={id:'11111111-1111-4111-8111-111111111111',username:'OfflineTester',role:process.env.PREVIEW_ROLE==='ADMIN'?'ADMIN':'STUDENT',elo_rating:1200};
 let replayRetentionDays=0;
 let available=true;
@@ -19,7 +22,7 @@ app.get('/api/game/leaderboard',(req,res)=>res.json({success:true,data:peers.map
 app.get('/api/tournaments',(req,res)=>res.json({success:true,data:tourneys}));
 app.get('/api/tournaments/:id/standings',(req,res)=>res.json({success:true,data:{tournament:tourneys.find(t=>t.id===req.params.id),standings:peers.map((p,i)=>({...p,userId:p.id,teamName:p.username,points:9-i*3,wins:3-i,losses:i,elo:p.elo_rating,botName:'Heuristic'}))}}));
 app.get('/api/bots/my-bots',(req,res)=>res.json({success:true,data:[{id:'b-1',name:'Heuristic — Chiến thuật cướp cờ',is_active:true,status:'active',is_available:true}]}));
-app.get('/api/bots/players',(req,res)=>res.json({success:true,data:peers.map(p=>({...p,ready:true,active_bot:{id:'b-'+p.id,name:'Heuristic'}}))}));
+app.get('/api/bots/players',(req,res)=>res.json({success:true,data:peers.map(p=>({...p,ready:true,bot:{id:'b-'+p.id,name:'Heuristic'}}))}));
 app.get('/api/bots/templates',(req,res)=>res.json({data:[{id:'heuristic_starter',name:'Heuristic Starter',filename:'heuristic.py',code:fs.readFileSync(path.resolve(__dirname,'../../sample-bots/heuristic.py'),'utf8')}]}));
 app.get('/api/support/submissions',(req,res)=>res.json({data:[...receipts.values()]}));
 const executor=require('../../backend/src/game/duelExecutor');
@@ -39,7 +42,24 @@ app.get('/api/*',(req,res)=>res.json({data:[]}));
 const root=path.resolve(__dirname,'../dist');
 app.get(['/', '/index.html'],(req,res)=>{
   const fixture=`<script>${process.env.PREVIEW_THEME==='light'?"localStorage.setItem('battlecode-theme','light');":''}localStorage.setItem('rps_token','fixture-token');localStorage.setItem('rps_profile',JSON.stringify({token:'fixture-token',user:${JSON.stringify(user)}}));</script><button style="position:fixed;bottom:10px;right:10px;z-index:9999;background:#f97316;color:black;padding:8px" onclick="fetch('/fixture/toggle',{method:'POST'}).then(r=>r.json()).then(d=>this.textContent=d.available?'TEST: API online':'TEST: API offline')">TEST: Toggle API</button>`;
-  res.send(fs.readFileSync(path.join(root,'index.html'),'utf8').replace('<head>','<head>'+fixture));
+  const metrics=process.env.PREVIEW_NAV_METRICS==='1'?`<script>
+    let observer,sequence=0;
+    document.addEventListener('click',event=>{
+      const button=event.target.closest('button[data-nav]');if(!button)return;
+      const tab=button.dataset.nav,expected={pvp:'Đấu bot PvP',boss:'Thử thách chiến thuật',tournament:'Giải đấu BattleCode',bots:'Kho Bot'}[tab];
+      if(!expected)return;observer?.disconnect();const start=performance.now(),id=++sequence;let screenMs=null,scheduled=false;
+      document.documentElement.dataset.fixtureNavigation=JSON.stringify({id,tab,screenMs:null,readyMs:null});
+      const check=()=>{scheduled=false;const main=document.querySelector('main');if(!main?.textContent.toLowerCase().includes(expected.toLowerCase()))return;
+        screenMs??=Math.round(performance.now()-start);
+        const play=[...main.querySelectorAll('button')].find(node=>node.textContent.includes('KHỞI TRANH ĐẤU BOT'));
+        const ready=tab!=='pvp'||(play&&!play.disabled);
+        document.documentElement.dataset.fixtureNavigation=JSON.stringify({id,tab,screenMs,readyMs:ready?Math.round(performance.now()-start):null});
+        if(ready)observer.disconnect();};
+      const schedule=()=>{if(!scheduled){scheduled=true;requestAnimationFrame(check);}};
+      observer=new MutationObserver(schedule);observer.observe(document.getElementById('root'),{subtree:true,childList:true,attributes:true,characterData:true});schedule();
+    },true);
+  </script>`:'';
+  res.send(fs.readFileSync(path.join(root,'index.html'),'utf8').replace('<head>','<head>'+fixture+metrics));
 });
 app.use(express.static(root));
 const port=Number(process.env.PREVIEW_PORT)||5197;

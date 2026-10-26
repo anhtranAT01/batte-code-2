@@ -85,6 +85,7 @@ async function main() {
   console.log('PASS: all players are selectable, unready players explain readiness, official bots are read-only, PvP sends only the player ID');
 
   global.fetch = async () => response(players.slice(0,2));
+  helper(path.resolve(__dirname,'../src/lib/screenData.js')).invalidateScreenData();
   await act(async () => { tree = create(React.createElement(PvP,{preselectedOpponent:{id:'one',username:'One'}})); });
   assert.equal(tree.root.findByType('select').props.value,'one');
   assert.equal(button(tree,'Đổi ngẫu nhiên').props.disabled,true);

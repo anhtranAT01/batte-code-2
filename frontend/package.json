@@ -4,6 +4,7 @@
   "type": "module",
   "description": "Tactical Rock-Paper-Scissors Arena Web UI - React, TailwindCSS, Socket.io",
   "scripts": {
+    "test:navigation": "node tests/navigation-performance.cjs",
     "test:replay": "node tests/replay-retention.cjs",
     "test:offline": "node tests/offline-queue.cjs",
     "test:offline-e2e": "node tests/offline-outbox-e2e.cjs",
