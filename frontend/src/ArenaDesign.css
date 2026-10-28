@@ -104,7 +104,7 @@
 html[data-theme='light'] .welcome-mini-board .mini-blue { color:#2563eb; }
 html[data-theme='light'] .welcome-mini-board .mini-red { color:#bb3557; }
 @media(min-width:1024px) {
-  .training-view .training-workspace { grid-template-columns:minmax(270px,.8fr) minmax(0,1.3fr); gap:18px; }
+  .training-view .training-workspace { grid-template-columns:minmax(0,1.25fr) minmax(300px,1fr); gap:18px; }
   .training-view .training-board-panel { position:sticky; top:0; }
   .training-view .learning-header h1 { font-size:28px; margin-block:8px; }
   .training-view .learning-header p { font-size:12px; }
