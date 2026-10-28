@@ -82,7 +82,7 @@
 .training-view .lesson-option { padding:13px 16px; border-radius:12px; gap:6px; }
 .training-view .lesson-option-description { font-size:11px; }
 .training-view .learning-panel { padding:18px; border-radius:15px; }
-.training-view .lesson-board { padding:12px; max-width:300px; margin-inline:auto; }
+.training-view .lesson-board { padding:12px; width:100%; max-width:none; margin-inline:auto; }
 .training-view .lesson-grid,.training-view .lesson-grid-row { gap:4px; }
 .training-view .lesson-panel-heading { margin-bottom:14px; }
 .training-view .lesson-panel-heading h2 { font-size:15px; }
