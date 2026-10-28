@@ -44,7 +44,7 @@ const artwork = {
     clone: <g strokeLinecap="round"><path d="M20 7v26M7 20h26" stroke="#7e6cd6" strokeWidth="8"/><path d="M19 7v25M7 19h25" stroke="#b3a1ff" strokeWidth="4"/></g>,
     flag: <g stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"><path d="M10 35V5m0 1c8-7 14 7 23 0v17c-9 7-15-7-23 0" fill="currentColor" fillOpacity=".2"/><path d="M5 35h12"/></g>,
 };
-function BoardGlyph({ kind, className = '' }) {
+export function BoardGlyph({ kind, className = '' }) {
   return <svg className={`board-glyph ${className}`} viewBox="0 0 40 40" aria-hidden="true" focusable="false">{artwork[kind] || artwork.flag}</svg>;
 }
 

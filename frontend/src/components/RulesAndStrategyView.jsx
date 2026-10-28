@@ -1,175 +1,46 @@
 import React from 'react';
+import Icon from './Icons';
+import {BoardGlyph} from './GameBoard';
+import './LearningViews.css';
 
-export default function RulesAndStrategyView({ onGoToTemplates }) {
-  return (
-    <div className="view-shell animate-fadeIn max-w-5xl mx-auto">
-      {/* Title Header */}
-      <div className="page-header">
-        <h1 className="text-2xl font-black text-white tracking-wide flex items-center gap-2">
-          <span>Luật thi đấu và chiến thuật</span>
-        </h1>
-        <p className="text-sm text-slate-400 mt-1">
-          Nắm luật chơi, điều kiện thắng và cách xây dựng chiến thuật hiệu quả.
-        </p>
+const matchups=[{winner:'scissors',loser:'paper',title:'Kéo thắng Giấy',description:'Kéo loại bỏ Giấy (Bao), dù là bên tấn công hay phòng thủ.',tone:'blue'},
+  {winner:'rock',loser:'scissors',title:'Búa thắng Kéo',description:'Búa khắc chế Kéo. Tránh đưa quân Kéo vào vùng đối thủ có Búa.',tone:'violet'},
+  {winner:'paper',loser:'rock',title:'Giấy thắng Búa',description:'Giấy (Bao) khắc chế Búa, hoàn thành vòng tương khắc ba hệ.',tone:'rose'}];
+const items=[{kind:'potion',tone:'violet',title:'Đồng hóa',badge:'ĐỔI PHE',text:'Khi quân có buff này thắng giao tranh, quân địch bị ăn có thể trở thành đồng minh thay vì bị loại bỏ.'},
+  {kind:'speed',tone:'cyan',title:'Tăng tốc',badge:'ĐI 2 Ô',text:'Cho phép di chuyển 2 ô theo hướng ngang, dọc hoặc chéo trong một lượt. Dùng để áp sát cờ hoặc đổi vị trí bất ngờ.'},
+  {kind:'clone',tone:'green',title:'Thêm quân',badge:'+1 QUÂN',text:'Tạo thêm một quân cùng loại ở ô trống kề bên khi có chỗ. Giúp tăng lực lượng và khả năng kiểm soát bàn cờ.'}];
+function SectionHeading({number,title,description}){return <div className="rules-section-heading"><span>{number}</span><div><h2>{title}</h2>{description && <p>{description}</p>}</div></div>;}
+export default function RulesAndStrategyView({onGoToTemplates}){
+  return <div className="view-shell learning-view rules-view">
+    <header className="learning-header"><div><span className="learning-kicker"><Icon name="rules" size={15} /> CẨM NANG ĐẤU TRƯỜNG</span><h1>Luật chơi, dễ nhớ hơn</h1><p>Nắm vòng tương khắc, xác định mục tiêu và dùng vật phẩm đúng lúc. Bắt đầu từ ba quy tắc dưới đây.</p></div><span className="learning-tag">Kéo · Búa · Giấy</span></header>
+    <section className="learning-panel rules-section" aria-label="Ma trận tương khắc">
+      <SectionHeading number="01" title="Mỗi quân có một khắc tinh" description="Kết quả giao tranh phụ thuộc loại quân, không phụ thuộc bên nào đi trước." />
+      <div className="rules-card-grid">{matchups.map(item=><article key={item.winner} className="rule-card rule-combat-card" data-tone={item.tone}>
+        <div className="rule-matchup" aria-hidden="true"><span className="rule-piece is-winner"><BoardGlyph kind={item.winner} /></span><span className="rule-beats"><Icon name="chevronRight" size={19} /><small>thắng</small></span><span className="rule-piece"><BoardGlyph kind={item.loser} /></span></div>
+        <h3>{item.title}</h3><p>{item.description}</p>
+      </article>)}</div>
+      <div className="rules-callout" data-tone="gold"><Icon name="info" size={18} /><p><strong>Cùng loại thì cả hai bị loại.</strong> Búa gặp Búa, Kéo gặp Kéo hoặc Giấy gặp Giấy đều dẫn đến hủy diệt lẫn nhau.</p></div>
+    </section>
+    <section className="learning-panel rules-section" aria-label="Điều kiện chiến thắng">
+      <SectionHeading number="02" title="Cướp cờ là mục tiêu ưu tiên" description="Không cần ăn hết quân đối phương mới có thể giành chiến thắng." />
+      <div className="rules-card-grid">
+        <article className="rule-card rule-win-card" data-tone="rose"><div className="rule-card-icon"><BoardGlyph kind="flag" /><span className="learning-tag">THẮNG NGAY</span></div><h3>Chạm cờ đối phương</h3><p>Đưa một quân của bạn tới ô căn cứ đối thủ để thắng ngay. Trên bàn 9×9:</p><div className="rules-base-row"><span>Phe Xanh →</span><code>(8, 8)</code></div><div className="rules-base-row"><span>Phe Đỏ →</span><code>(0, 0)</code></div><p className="rule-small-note">Bàn 8×8 dùng góc (7, 7) thay cho (8, 8).</p></article>
+        <article className="rule-card rule-win-card" data-tone="blue"><div className="rule-card-icon"><Icon name="target" size={28} /><span className="learning-tag">LOẠI QUÂN</span></div><h3>Đối thủ hết quân</h3><p>Khi đối thủ không còn quân trên bàn, bạn thắng. Nếu cả hai cùng hết quân, trận đấu kết thúc hòa.</p><div className="rule-example">Quan sát loại quân địch trước khi chọn nước ăn quân.</div></article>
+        <article className="rule-card rule-win-card" data-tone="gold"><div className="rule-card-icon"><Icon name="cpu" size={28} /><span className="learning-tag">GIỚI HẠN LƯỢT</span></div><h3>Bảo toàn lực lượng</h3><p>Giới hạn lượt tùy chế độ chơi. Khi hết lượt, bên còn nhiều quân hơn giành chiến thắng; bằng quân thì hòa.</p><div className="rule-example">Theo dõi số quân và kết quả chính thức trong trận hoặc replay.</div></article>
       </div>
-
-      {/* Section 1: Combat Matrix */}
-      <div className="p-6 rounded-2xl bg-[#0e1322]/80 border border-white/5 backdrop-blur-md space-y-4">
-        <h2 className="text-base font-bold text-white flex items-center gap-2">
-          <span>1. Ma Trận Tương Khắc Kéo - Búa - Bao</span>
-        </h2>
-        <p className="text-xs text-slate-300 leading-relaxed">
-          Mỗi đấu thủ điều khiển một đội quân gồm các quân cờ thuộc 3 hệ. Khi di chuyển vào ô có quân cờ của đối phương, giao tranh sẽ lập tức diễn ra theo quy luật:
-        </p>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-          <div className="p-4 rounded-xl bg-gradient-to-br from-indigo-950/40 to-slate-900 border border-indigo-500/20 text-center space-y-2">
-            <div className="rule-matchup"><b>S</b><span>thắng</span><b>P</b></div>
-            <h4 className="font-bold text-sm text-white">Kéo Ăn Bao</h4>
-            <p className="text-[11px] text-slate-400">
-              Quân Kéo tấn công hoặc bị tấn công bởi Bao đều giành chiến thắng và loại bỏ quân Bao.
-            </p>
-          </div>
-
-          <div className="p-4 rounded-xl bg-gradient-to-br from-purple-950/40 to-slate-900 border border-purple-500/20 text-center space-y-2">
-            <div className="rule-matchup"><b>R</b><span>thắng</span><b>S</b></div>
-            <h4 className="font-bold text-sm text-white">Búa Ăn Kéo</h4>
-            <p className="text-[11px] text-slate-400">
-              Quân Búa đập nát quân Kéo. Búa là khắc tinh tuyệt đối của các đợt càn quét bằng Kéo.
-            </p>
-          </div>
-
-          <div className="p-4 rounded-xl bg-gradient-to-br from-pink-950/40 to-slate-900 border border-pink-500/20 text-center space-y-2">
-            <div className="rule-matchup"><b>P</b><span>thắng</span><b>R</b></div>
-            <h4 className="font-bold text-sm text-white">Bao Ăn Búa</h4>
-            <p className="text-[11px] text-slate-400">
-              Quân Bao bao trùm lấy Búa. Hoàn tất vòng lặp tương khắc chiến thuật cân bằng.
-            </p>
-          </div>
-        </div>
-
-        <div className="p-3 rounded-xl bg-white/5 border border-white/5 text-xs text-amber-300 font-medium">
-          Lưu ý: Khi 2 quân cùng hệ giao chiến (Búa vs Búa, Kéo vs Kéo, Bao vs Bao), kết quả là <strong>Hòa (Mutual Destruction)</strong> - cả 2 quân cờ đều bị tiêu diệt khỏi bàn cờ!
-        </div>
+    </section>
+    <section className="learning-panel rules-section" aria-label="Vật phẩm chiến thuật">
+      <SectionHeading number="03" title="Ba vật phẩm có thể đổi thế trận" description="Nhận diện biểu tượng trên bàn cờ và lựa chọn thời điểm sử dụng." />
+      <div className="rules-card-grid">{items.map(item=><article className="rule-card rule-item-card" data-tone={item.tone} key={item.kind}><div className="rule-card-icon"><BoardGlyph kind={item.kind} /><span className="learning-tag">{item.badge}</span></div><h3>{item.title}</h3><p>{item.text}</p></article>)}</div>
+    </section>
+    <section className="learning-panel rules-section" aria-label="Gợi ý lập trình bot">
+      <SectionHeading number="04" title="Từ luật chơi đến một bot tốt hơn" description="Học từng phần, thử nghiệm rồi mới kết hợp các chiến thuật." />
+      <div className="rule-strategy-list">
+        <article><span className="rule-strategy-index">A*</span><div><h3>Tìm đường tới cờ</h3><p>Dùng f(n) = g(n) + h(n), tránh vật cản và các quân khắc chế. Với di chuyển 8 hướng có cùng chi phí, khoảng cách Chebyshev là một cách ước tính phù hợp.</p></div></article>
+        <article><span className="rule-strategy-index">AB</span><div><h3>Nhìn trước phản ứng của đối thủ</h3><p>Minimax kết hợp Alpha-Beta giúp so sánh nước đi và bỏ qua nhánh kém. Hàm Heuristic cần cân bằng quân số, tương khắc và khoảng cách tới cờ.</p></div></article>
+        <article><span className="rule-strategy-index">1s</span><div><h3>Chừa thời gian an toàn</h3><p>Máy chấm giới hạn thời gian tính mỗi lượt. Với mức 1 giây, hãy dừng tìm kiếm sớm hơn, chẳng hạn khoảng 0,85 giây, và luôn có một nước đi hợp lệ dự phòng.</p></div></article>
       </div>
-
-      {/* Section 2: Win Conditions */}
-      <div className="p-6 rounded-2xl bg-[#0e1322]/80 border border-white/5 backdrop-blur-md space-y-4">
-        <h2 className="text-base font-bold text-white flex items-center gap-2">
-          <span>2. Điều Kiện Giành Chiến Thắng</span>
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="p-4 rounded-xl bg-gradient-to-br from-rose-950/40 to-[#090d18] border border-rose-500/30 space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="feature-code">BASE</span>
-              <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 font-bold text-[10px]">
-                MỤC TIÊU SỐ 1 - THẮNG NGAY
-              </span>
-            </div>
-            <h4 className="font-bold text-sm text-white">Cướp Cờ Đối Phương (Flag Capture)</h4>
-            <p className="text-xs text-slate-300 leading-relaxed">
-              Bên nào đưa được quân cờ của mình tiến vào <strong>ô Căn cứ Cờ của đối thủ</strong> trước sẽ <strong>chiến thắng ngay lập tức</strong> mà không cần tiêu diệt hết quân:
-            </p>
-            <ul className="text-[11px] text-slate-400 space-y-1 list-disc pl-4">
-              <li><strong className="text-sky-400">Phe 1 (Xanh)</strong>: Cướp ô cờ Phe 2 tại <code className="text-rose-400 bg-rose-950/60 px-1 py-0.5 rounded font-mono font-bold">(8, 8)</code></li>
-              <li><strong className="text-rose-400">Phe 2 (Đỏ)</strong>: Cướp ô cờ Phe 1 tại <code className="text-sky-400 bg-sky-950/60 px-1 py-0.5 rounded font-mono font-bold">(0, 0)</code></li>
-            </ul>
-          </div>
-
-          <div className="p-4 rounded-xl bg-[#090d18] border border-white/5 space-y-2">
-            <span className="feature-code">KO</span>
-            <h4 className="font-bold text-sm text-white">Quét Sạch Toàn Bộ Quân</h4>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Tiêu diệt 100% quân cờ của đối thủ trên bàn cờ. Đối phương không còn quân nào để di chuyển sẽ lập tức xử thua.
-            </p>
-          </div>
-
-          <div className="p-4 rounded-xl bg-[#090d18] border border-white/5 space-y-2">
-            <span className="text-2xl">⏳</span>
-            <h4 className="font-bold text-sm text-white">Hết Lượt Tối Đa</h4>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Khi đạt tới giới hạn lượt tối đa (200 lượt), bên nào bảo toàn được số lượng quân cờ nhiều hơn sẽ giành chiến thắng.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Section 3: The 3 Power-Up Potions */}
-      <div className="p-6 rounded-2xl bg-[#0e1322]/80 border border-white/5 backdrop-blur-md space-y-4">
-        <h2 className="text-base font-bold text-white flex items-center gap-2">
-          <span>3. Ba Bình Vật Phẩm Chiến Lược (Power-Ups)</span>
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="p-4 rounded-xl bg-gradient-to-b from-purple-950/30 to-transparent border border-purple-500/20 space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="feature-code">SYNC</span>
-              <h4 className="font-bold text-sm text-purple-300">Bình Đồng Hóa (Infection)</h4>
-            </div>
-            <p className="text-xs text-slate-300 leading-relaxed">
-              Quân cờ nhặt được bình này khi ăn một quân địch sẽ <strong>biến quân địch thành đồng minh</strong> gia nhập đội quân của mình thay vì bị tiêu diệt!
-            </p>
-          </div>
-
-          <div className="p-4 rounded-xl bg-gradient-to-b from-cyan-950/30 to-transparent border border-cyan-500/20 space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="feature-code">2X</span>
-              <h4 className="font-bold text-sm text-cyan-300">Bình Tăng Tốc (Speed)</h4>
-            </div>
-            <p className="text-xs text-slate-300 leading-relaxed">
-              Kích hoạt khả năng <strong>nhảy 2 bước trong một lượt</strong> (theo hướng ngang, dọc hoặc đường chéo), giúp mở rộng tầm kiểm soát và phản công bất ngờ.
-            </p>
-          </div>
-
-          <div className="p-4 rounded-xl bg-gradient-to-b from-emerald-950/30 to-transparent border border-emerald-500/20 space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="feature-code">+1</span>
-              <h4 className="font-bold text-sm text-emerald-300">Bình Sinh Sản (Clone)</h4>
-            </div>
-            <p className="text-xs text-slate-300 leading-relaxed">
-              Ngay khi giẫm vào ô có bình Sinh Sản, quân cờ sẽ tự động <strong>nhân đôi tạo thêm 1 quân cờ đồng loại</strong> ở ô kề bên trống!
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Section 4: AI Algorithm Recommendations */}
-      <div className="p-6 rounded-2xl bg-gradient-to-br from-indigo-950/40 via-purple-950/20 to-[#0e1322] border border-indigo-500/30 backdrop-blur-md space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-white flex items-center gap-2">
-            <span>4. Gợi Ý Chiến Thuật & Thuật Toán AI Cho Học Sinh</span>
-          </h2>
-          <button
-            onClick={onGoToTemplates}
-            className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-colors flex items-center gap-1.5 shadow-md"
-          >
-            <span>Lấy Bản Mẫu Code</span>
-            <span>→</span>
-          </button>
-        </div>
-
-        <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
-          <div className="p-3.5 rounded-xl bg-[#090d18] border border-white/5 space-y-1">
-            <div className="font-bold text-indigo-300 text-sm">A. Thuật toán Minimax kết hợp Tỉa nhánh Alpha-Beta</div>
-            <p className="text-slate-400">
-              Dự đoán trước 2 đến 3 nước đi của đối thủ. Xây dựng hàm đánh giá Heuristic tính tổng điểm lực lượng (Material Balance), cộng điểm ưu thế vị trí, trừ điểm khi tiến vào vùng nguy hiểm có quân địch khắc chế.
-            </p>
-          </div>
-
-          <div className="p-3.5 rounded-xl bg-[#090d18] border border-white/5 space-y-1">
-            <div className="font-bold text-cyan-300 text-sm">B. Thuật toán Tìm đường A* Lao Cờ (A* Flag Rusher)</div>
-            <p className="text-slate-400">
-              Sử dụng hàm đánh giá $f(n) = g(n) + h(n)$ với khoảng cách Manhattan tới hàng đích của đối thủ. Đặt trọng số né tránh chướng ngại vật và các quân địch khắc chế ta để tìm đường chạy cướp cờ an toàn nhất.
-            </p>
-          </div>
-
-          <div className="p-3.5 rounded-xl bg-[#090d18] border border-white/5 space-y-1">
-            <div className="font-bold text-amber-300 text-sm">C. Chống Lỗi Timeout (1.0 giây) & Vòng Lặp Vô Hạn (Infinite Loop)</div>
-            <p className="text-slate-400">
-              Máy chấm phân tán (Judge Worker) đặt thời gian giới hạn nghiêm ngặt <strong>1.0 giây cho mỗi lượt tính toán</strong>. Nếu lặp lại trạng thái bàn cờ 5 lần liên tiếp sẽ bị xử thua do lặp vô hạn. Hãy cài đặt bộ đếm thời gian an toàn khoảng 0.85 giây trong code Python!
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+      {onGoToTemplates && <div className="rules-next-action"><span>Sẵn sàng thử một chiến thuật?</span><button type="button" className="primary-action" onClick={onGoToTemplates}>Mở bot mẫu <Icon name="chevronRight" size={16} /></button></div>}
+    </section>
+  </div>;
 }

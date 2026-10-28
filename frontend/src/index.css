@@ -575,6 +575,20 @@ html[data-theme='light'] .game-board-shell {
 .selection-summary { margin-top: 8px; color: var(--muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
 .view-loading { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 240px; color: var(--muted); font-size: 13px; }
 .loading-orbit { width: 22px; height: 22px; border: 2px solid var(--line-strong); border-top-color: var(--brand); border-radius: 50%; }
+
+@media (max-width: 1023px) {
+  .app-header-new .system-pill { display: none; }
+}
+
+@media (max-width: 640px) {
+  .app-header-new { padding-inline: 12px; gap: 10px; }
+  .app-header-new .route-context { flex: 1; min-width: 0; overflow: hidden; }
+  .app-header-new .route-context > span { display: none; }
+  .app-header-new .route-context strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+  .app-header-new .account-copy { display: none; }
+  .app-header-new .account-summary { padding: 0; border: 0; background: transparent; }
+  .app-header-new > div:last-child { gap: 6px; flex-shrink: 0; }
+}
 button, input, select, textarea, .nav-item, .cyber-card, .board-cell-pro {
   transition-property: color, background-color, border-color, box-shadow, transform, opacity;
 }

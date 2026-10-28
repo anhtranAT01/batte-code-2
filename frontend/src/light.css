@@ -78,6 +78,24 @@ html[data-theme='light'] .health-badge { color: #92400e; }
 html[data-theme='light'] .health-badge.is-ok { color: #047857; }
 html[data-theme='light'] .board-coordinate { opacity: .85; }
 html[data-theme='light'] .tier-card { background: #fff; box-shadow: var(--shadow); }
+
+/* Legacy arena/result cards also need light backgrounds, not only dark text. */
+html[data-theme='light'] .app-main :is(
+  [class*='from-indigo-950'], [class*='from-purple-950'], [class*='from-blue-950'],
+  [class*='from-red-950'], [class*='from-rose-950'], [class*='from-pink-950'],
+  [class*='from-cyan-950'], [class*='from-amber-950']
+) { background-image: none; background-color: var(--surface); }
+html[data-theme='light'] :is([class*='bg-purple-950/'],[class*='bg-indigo-950/']) { background-color: #f2edfa; }
+html[data-theme='light'] :is([class*='bg-rose-950/'],[class*='bg-red-950/']) { background-color: #fff0f3; }
+html[data-theme='light'] :is([class*='bg-blue-950/'],[class*='bg-sky-950/'],[class*='bg-cyan-950/']) { background-color: #edf5ff; }
+html[data-theme='light'] :is([class*='bg-amber-950/'],[class*='bg-orange-950/']) { background-color: #fff5e6; }
+html[data-theme='light'] :is([class*='bg-emerald-950/'],[class*='bg-green-950/']) { background-color: #eaf7f0; }
+html[data-theme='light'] :is([class*='text-purple-200/'],[class*='text-purple-300/']) { color: #6d28d9; }
+html[data-theme='light'] :is([class*='text-blue-200/'],[class*='text-blue-300/']) { color: #1d4ed8; }
+html[data-theme='light'] :is([class*='text-red-200/'],[class*='text-red-300/']) { color: #be123c; }
+html[data-theme='light'] :is([class*='text-amber-200/'],[class*='text-amber-300/']) { color: #92400e; }
+html[data-theme='light'] .app-main .text-xs { font-size: 13px; line-height: 1.65; }
+html[data-theme='light'] .app-main .text-\[11px\] { font-size: 12px; line-height: 1.65; }
 html[data-theme='light'] .boss-card {
   --boss-accent: #1d4ed8;
   background: #fff; opacity: 1; backdrop-filter: none; border-color: var(--line);

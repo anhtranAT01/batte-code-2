@@ -40,6 +40,15 @@ app.post('/api/game/bot-vs-bot',async(req,res)=>{
 app.post('/api/support/submissions',(req,res)=>{const data={id:req.body.id,name:req.body.name,status:'accepted',received_at:new Date().toISOString(),message:'Mock server received'};receipts.set(data.id,data);res.status(202).json({success:true,data});});
 app.get('/api/*',(req,res)=>res.json({data:[]}));
 const root=path.resolve(__dirname,'../dist');
+app.get('/fixture/responsive',(req,res)=>{
+  const width=[390,768,1024].includes(Number(req.query.width))?Number(req.query.width):390;
+  const view=['training','rules','boss','pvp'].includes(req.query.view)?req.query.view:'training';
+  res.send(`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Responsive QA · ${width}px</title><style>html,body{margin:0;height:100%;background:#dfe5ed}body{display:grid;place-items:center}iframe{display:block;width:${width}px;max-width:100%;height:calc(100vh - 24px);border:0;border-radius:12px;box-shadow:0 5px 40px #64748b44}</style></head><body><iframe title="Giao diện ${width}px" src="/?fixture_view=${view}"></iframe><script>
+    const frame=document.querySelector('iframe');frame.addEventListener('load',()=>{const doc=frame.contentDocument;
+      const capture=()=>{const main=doc.querySelector('main'),view=doc.querySelector('.learning-view');document.documentElement.dataset.responsiveQa=JSON.stringify({viewport:frame.clientWidth,mainWidth:main?.clientWidth,mainScrollWidth:main?.scrollWidth,viewWidth:view?.clientWidth,viewScrollWidth:view?.scrollWidth,cells:doc.querySelectorAll('.lesson-cell').length});};
+      new MutationObserver(capture).observe(doc.documentElement,{subtree:true,childList:true,attributes:true});capture();});
+  </script></body></html>`);
+});
 app.get(['/', '/index.html'],(req,res)=>{
   const fixture=`<script>${process.env.PREVIEW_THEME==='light'?"localStorage.setItem('battlecode-theme','light');":''}localStorage.setItem('rps_token','fixture-token');localStorage.setItem('rps_profile',JSON.stringify({token:'fixture-token',user:${JSON.stringify(user)}}));</script><button style="position:fixed;bottom:10px;right:10px;z-index:9999;background:#f97316;color:black;padding:8px" onclick="fetch('/fixture/toggle',{method:'POST'}).then(r=>r.json()).then(d=>this.textContent=d.available?'TEST: API online':'TEST: API offline')">TEST: Toggle API</button>`;
   const metrics=process.env.PREVIEW_NAV_METRICS==='1'?`<script>
@@ -59,7 +68,10 @@ app.get(['/', '/index.html'],(req,res)=>{
       observer=new MutationObserver(schedule);observer.observe(document.getElementById('root'),{subtree:true,childList:true,attributes:true,characterData:true});schedule();
     },true);
   </script>`:'';
-  res.send(fs.readFileSync(path.join(root,'index.html'),'utf8').replace('<head>','<head>'+fixture+metrics));
+  const view=['training','rules','boss','pvp'].includes(req.query.fixture_view)?req.query.fixture_view:null;
+  const initialView=view?`<script>document.addEventListener('DOMContentLoaded',()=>{const open=()=>{const button=document.querySelector('[data-nav="${view}"]');if(button){observer.disconnect();button.click();}};const observer=new MutationObserver(open);observer.observe(document.getElementById('root'),{childList:true,subtree:true});open();});</script>`:'';
+  const fixtureHtml=process.env.PREVIEW_CONTROLS==='0'?fixture.replace(/<button[\s\S]*<\/button>/,''):fixture;
+  res.send(fs.readFileSync(path.join(root,'index.html'),'utf8').replace('<head>','<head>'+fixtureHtml+metrics+initialView));
 });
 app.use(express.static(root));
 const port=Number(process.env.PREVIEW_PORT)||5197;
