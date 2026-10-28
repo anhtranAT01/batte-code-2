@@ -58,6 +58,8 @@ async function main(){
   await act(async()=>{tree=create(React.createElement(Settings,{getAuthHeaders:()=>({Authorization:'test'})}));});
   const input=()=>tree.root.findByProps({id:'replay-retention-days'});
   assert.equal(input().props.value,'0');
+  assert.match(text(tree.toJSON()),/Thời gian lưu replay PvP/);
+  assert.match(text(tree.toJSON()),/Trận đấu với máy luôn tự hết hạn sau 24 giờ/);
   await act(async()=>input().props.onChange({target:{value:'1.5'}}));
   await act(async()=>tree.root.findByType('form').props.onSubmit({preventDefault(){}}));
   assert.equal(saves.length,0);

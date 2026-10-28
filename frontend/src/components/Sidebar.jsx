@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import Icon from './Icons';
 
@@ -11,9 +11,9 @@ export default function Sidebar({ activeTab, setActiveTab, onlineCount = 1, isCo
       group: 'Thi đấu & Đấu trường',
       items: [
         { id: 'leaderboard', label: 'Tổng quan & Xếp hạng', icon: 'trophy' },
-        { id: 'pvp', label: 'Đấu bot PvP trực tiếp', icon: 'swords', badge: 'LIVE' },
+        { id: 'pvp', label: 'Đấu bot PvP', icon: 'swords', badge: 'LIVE' },
         { id: 'boss', label: 'Thử thách Boss AI', icon: 'boss' },
-        { id: 'tournament', label: 'Đấu trường Giải đấu', icon: 'tournament', badge: 'CÚP' },
+        { id: 'tournament', label: 'Giải đấu', icon: 'tournament', badge: 'CÚP' },
         { id: 'training', label: 'Luyện thuật toán AI', icon: 'algorithm', badge: 'LAB' },
         { id: 'rules', label: 'Luật chơi & Chiến thuật', icon: 'rules' },
       ],
@@ -69,7 +69,7 @@ export default function Sidebar({ activeTab, setActiveTab, onlineCount = 1, isCo
           onClick={() => setIsCollapsed(!isCollapsed)}
           className="hidden md:flex text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors"
           title={isCollapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'}
-          aria-label="Thu gọn thanh điều hướng"
+          aria-label={isCollapsed?'Mở rộng thanh điều hướng':'Thu gọn thanh điều hướng'}
         >
           <Icon name={isCollapsed ? 'chevronRight' : 'chevronLeft'} size={16} />
         </button>
@@ -90,6 +90,8 @@ export default function Sidebar({ activeTab, setActiveTab, onlineCount = 1, isCo
                 <button
                   key={item.id}
                   data-nav={item.id}
+                  aria-current={active?'page':undefined}
+                  aria-label={item.label}
                   type="button"
                   title={item.label}
                   onClick={() => setActiveTab(item.id)}
@@ -112,7 +114,7 @@ export default function Sidebar({ activeTab, setActiveTab, onlineCount = 1, isCo
                     <span
                       className={`hidden md:inline-flex px-1.5 py-0.5 text-[9px] font-black rounded-md tracking-wider ${
                         item.badge === 'LIVE'
-                          ? 'bg-red-500/20 text-red-400 border border-red-500/40 animate-pulse'
+                          ? 'bg-red-500/20 text-red-400 border border-red-500/40'
                           : item.badge === 'CÚP'
                           ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
                           : item.badge === 'LAB'

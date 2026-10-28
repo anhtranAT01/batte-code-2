@@ -22,6 +22,7 @@ async function deployDatabase() {
   await pool.query(fs.readFileSync(path.join(__dirname,'resilience.sql'),'utf8'));
   await pool.query(fs.readFileSync(path.join(__dirname,'replayRetention.sql'),'utf8'));
   await pool.query(fs.readFileSync(path.join(__dirname,'replayRetention24h.sql'),'utf8'));
+  await pool.query(fs.readFileSync(path.join(__dirname,'replayRetentionScopes.sql'),'utf8'));
   await pool.query(fs.readFileSync(path.join(__dirname,'navigationPerformance.sql'),'utf8'));
 
   console.log('[Deploy] Supabase database schema is ready.');

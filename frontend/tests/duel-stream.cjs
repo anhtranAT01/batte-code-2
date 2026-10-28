@@ -95,6 +95,8 @@ async function main() {
   assert.equal(seek().props.value,7,'Pausing freezes the view while the server continues');
   await act(async()=>tree.root.findAllByType('button').find(n=>text(n.props.children).includes('Về trực tiếp')).props.onClick());
   assert.equal(seek().props.value,11,'Return to live jumps to the latest snapshot');
+  await act(async()=>sendSteps(200));
+  assert.equal(tree.root.findAll(n=>n.props['data-live-log-step']!==undefined).length,50,'Live logs stay bounded for large matches');
   await act(async()=>seek().props.onChange({target:{value:'2'}}));
   await act(async()=>sendSteps(2));
   assert.equal(seek().props.value,2,'Manual seek stays put during incoming progress');

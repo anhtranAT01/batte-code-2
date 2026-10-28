@@ -17,11 +17,13 @@ function TournamentCountdown({ scheduledStartAt }) {
     }, 1000);
     return () => clearInterval(timer);
   }, [target]);
-  if (!Number.isFinite(target)) return <div className="text-xs text-slate-400 italic">Chưa thiết lập thời gian bắt đầu</div>;
+  if (!Number.isFinite(target)) return <div className="tournament-clock-empty"><span>CHỜ LỊCH THI ĐẤU</span><strong>Chưa có giờ khởi tranh</strong><p>Ban tổ chức sẽ cập nhật lịch tại đây.</p></div>;
   const seconds = Math.max(0, Math.ceil((target - now) / 1000));
   const days = Math.floor(seconds / 86400);
   const clock = [Math.floor(seconds / 3600) % 24, Math.floor(seconds / 60) % 60, seconds % 60].map(value => String(value).padStart(2, '0')).join(':');
-  return <div className="font-mono text-2xl font-black text-amber-400 tracking-wider">⏱️ {seconds ? `${days ? `${days} ngày ` : ''}${clock}` : 'Đã đến giờ bắt đầu!'}</div>;
+  return <div className="tournament-clock" role="timer" aria-label={`Còn ${days} ngày ${clock}`}>
+    {seconds ? <><span className="clock-caption">ĐẾM NGƯỢC KHỞI TRANH</span><div className="clock-digits">{[days,Math.floor(seconds/3600)%24,Math.floor(seconds/60)%60,seconds%60].map((value,index)=><div key={index}><strong>{String(value).padStart(2,'0')}</strong><small>{['NGÀY','GIỜ','PHÚT','GIÂY'][index]}</small></div>)}</div></> : <strong>Đã đến giờ bắt đầu!</strong>}
+  </div>;
 }
 
 export default function TournamentBracketsView({ onSelectReplay, onNavigateStatus }) {
@@ -411,7 +413,7 @@ export default function TournamentBracketsView({ onSelectReplay, onNavigateStatu
   });
 
   return (
-    <div className="view-shell animate-fadeIn max-w-7xl mx-auto">
+    <div className="view-shell tournament-view animate-fadeIn max-w-7xl mx-auto">
       {/* Page Header */}
       <div className="page-header">
         <div>
@@ -468,8 +470,9 @@ export default function TournamentBracketsView({ onSelectReplay, onNavigateStatu
       </div>
 
       {/* TWO PROMINENT MAIN TOURNAMENT MODES (USER REQUEST) */}
-      <div className="p-1.5 rounded-2xl bg-[#090d18] border border-white/10 flex flex-col sm:flex-row gap-2 shadow-2xl">
+      <div className="tournament-modes">
         <button
+          aria-pressed={tournamentMode === 'ALL_IN'}
           onClick={() => setTournamentMode('ALL_IN')}
           className={`flex-1 py-4 px-6 rounded-xl font-black text-sm flex items-center justify-center gap-3 transition-all ${
             tournamentMode === 'ALL_IN'
@@ -478,7 +481,7 @@ export default function TournamentBracketsView({ onSelectReplay, onNavigateStatu
           }`}
         >
           <div className="text-left">
-            <div className="font-extrabold uppercase tracking-wide">Mục 1: Thi Đấu Toàn Thể (All-in Grand Arena)</div>
+            <div className="font-extrabold uppercase tracking-wide">Thi đấu toàn thể · All-in</div>
             <div className="text-[11px] font-normal text-indigo-200 mt-0.5 opacity-90">
               Chế độ mở cho toàn thể sinh viên các Khoa. Nộp bot tự động chấm điểm và xếp hạng trên bảng điểm chung.
             </div>
@@ -486,6 +489,7 @@ export default function TournamentBracketsView({ onSelectReplay, onNavigateStatu
         </button>
 
         <button
+          aria-pressed={tournamentMode === 'BRANCHES'}
           onClick={() => setTournamentMode('BRANCHES')}
           className={`flex-1 py-4 px-6 rounded-xl font-black text-sm flex items-center justify-center gap-3 transition-all ${
             tournamentMode === 'BRANCHES'
@@ -494,7 +498,7 @@ export default function TournamentBracketsView({ onSelectReplay, onNavigateStatu
           }`}
         >
           <div className="text-left">
-            <div className="font-extrabold uppercase tracking-wide">Mục 2: Các Giải Đấu Riêng Lẻ & Nhánh Đấu (Branch Tournaments)</div>
+            <div className="font-extrabold uppercase tracking-wide">Đấu loại trực tiếp · Nhánh đấu</div>
             <div className="text-[11px] font-normal text-amber-200 mt-0.5 opacity-90">
               Đăng ký tham gia vào từng nhánh cụ thể (Tứ kết - Bán kết - Chung kết) theo Khoa, Lớp, hoặc Cup AI.
             </div>
@@ -517,9 +521,9 @@ export default function TournamentBracketsView({ onSelectReplay, onNavigateStatu
       )}
 
       {/* Main Tournament Selector & Details */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="tournament-control-grid">
         {/* Tournament Selector */}
-        <div className="p-5 rounded-2xl bg-[#0e1322]/80 border border-white/5 backdrop-blur-md space-y-3">
+        <div className="tournament-control-card tournament-selector space-y-3">
           <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
             {tournamentMode === 'ALL_IN' ? 'Chọn Giải Đấu Toàn Thể' : 'Chọn Giải Đấu Nhánh Riêng Lẻ'}
           </label>
@@ -557,7 +561,7 @@ export default function TournamentBracketsView({ onSelectReplay, onNavigateStatu
         </div>
 
         {/* Schedule & Countdown */}
-        <div className="p-5 rounded-2xl bg-[#0e1322]/80 border border-white/5 backdrop-blur-md flex flex-col justify-between">
+        <div className="tournament-control-card tournament-schedule">
           <div>
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
@@ -582,9 +586,10 @@ export default function TournamentBracketsView({ onSelectReplay, onNavigateStatu
 
           {/* Admin Schedule Picker */}
           {isAdmin && (
-            <form onSubmit={handleUpdateSchedule} className="mt-3 pt-3 border-t border-white/5 flex gap-2">
+            <form onSubmit={handleUpdateSchedule} className="tournament-schedule-form">
               <input
                 type="datetime-local"
+                aria-label="Thời gian khởi tranh"
                 value={scheduleTimeInput}
                 onChange={(e) => setScheduleTimeInput(e.target.value)}
                 className="flex-1 py-1 px-2 rounded-lg bg-[#090d18] border border-white/10 text-white text-[11px] focus:outline-none focus:border-indigo-500"
@@ -601,7 +606,7 @@ export default function TournamentBracketsView({ onSelectReplay, onNavigateStatu
 
         {/* Student Bot Registration Card */}
         {/* Student Bot Registration & Team Choice Card */}
-        <div className="p-5 rounded-2xl bg-[#0e1322]/80 border border-white/5 backdrop-blur-md flex flex-col justify-between space-y-4">
+        <div className="tournament-control-card tournament-registration space-y-4">
           <div>
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">

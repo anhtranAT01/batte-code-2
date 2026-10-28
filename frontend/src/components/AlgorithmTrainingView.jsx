@@ -50,12 +50,6 @@ export default function AlgorithmTrainingView({onGoToBots}) {
         <div className="lesson-panel-heading"><div><span className="learning-kicker">QUAN SÁT TRÊN BÀN CỜ</span><h2>{selectedAlgo.badge}</h2></div><span className="learning-tag">Ví dụ minh họa</span></div>
         <TrainingBoard lesson={selectedAlgo} step={step} />
         <div className="lesson-timeline" aria-label="Chọn bước minh họa">{steps.map((item,index)=><button key={index} type="button" aria-label={`Bước ${index+1}: ${item.title}`} aria-current={index===currentStep?'step':undefined} onClick={()=>goTo(index)}><span>{index+1}</span><i aria-hidden="true" /></button>)}</div>
-        <p className="lesson-demo-note"><Icon name="info" size={14} />Bàn 7×7 dùng để học nguyên lý. Đây là các tình huống dựng sẵn, không phải một trận thi đấu hay kết quả tìm kiếm trực tiếp.</p>
-      </section>
-      <aside className="training-explanation">
-        <section className="learning-panel lesson-explanation" aria-label="Giải thích bước hiện tại">
-          <span className="learning-kicker">BƯỚC {currentStep+1} / {steps.length}</span><h2>{step.title}</h2><p className="lesson-step-description">{step.desc}</p>
-          <div className="lesson-metrics">{Object.entries(step.stats).map(([key,value])=><div key={key}><span>{LABELS[key] || key}</span><strong>{value}</strong></div>)}</div>
         <div className="lesson-playback" aria-label="Điều khiển bài học">
           <div className="lesson-playback-buttons">
             <button type="button" className="icon-button" onClick={()=>goTo(0)} aria-label="Bắt đầu lại từ bước 1" title="Bắt đầu lại"><Icon name="rotateCcw" size={17} /></button>
@@ -65,6 +59,12 @@ export default function AlgorithmTrainingView({onGoToBots}) {
           </div>
           <label className="lesson-speed">Tốc độ<select aria-label="Tốc độ bài học" value={speedMs} onChange={event=>setSpeedMs(Number(event.target.value))}><option value="2000">Chậm · 2 giây</option><option value="1400">Vừa · 1,4 giây</option><option value="800">Nhanh · 0,8 giây</option></select></label>
         </div>
+        <p className="lesson-demo-note"><Icon name="info" size={14} />Bàn 7×7 dùng để học nguyên lý. Đây là các tình huống dựng sẵn, không phải một trận thi đấu hay kết quả tìm kiếm trực tiếp.</p>
+      </section>
+      <aside className="training-explanation">
+        <section className="learning-panel lesson-explanation" aria-label="Giải thích bước hiện tại">
+          <span className="learning-kicker">BƯỚC {currentStep+1} / {steps.length}</span><h2>{step.title}</h2><p className="lesson-step-description">{step.desc}</p>
+          <div className="lesson-metrics">{Object.entries(step.stats).map(([key,value])=><div key={key}><span>{LABELS[key] || key}</span><strong>{value}</strong></div>)}</div>
           {selectedAlgo.id==='minimax' && <div className="lesson-branch-comparison"><span>Nhánh A <b>{currentStep>0?'+12':'?'}</b></span><span className={currentStep>=2?'is-pruned':''}>Nhánh B <b>{currentStep>=2?'≤ +8 · Tỉa':'?'}</b></span></div>}
         </section>
         <section className="learning-panel lesson-code-panel" aria-label="Mã giả thuật toán">

@@ -120,7 +120,7 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
     [];
 
   return (
-    <div className={`view-shell animate-fadeIn ${isFullScreen ? 'fixed inset-0 z-50 bg-navy-950 p-6 overflow-y-auto' : ''}`}>
+    <div className={`view-shell pvp-view animate-fadeIn ${isFullScreen ? 'fixed inset-0 z-50 bg-navy-950 p-6 overflow-y-auto' : ''}`}>
       {/* Header */}
       <div className="page-header">
         <div>
@@ -129,7 +129,7 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
               <span>Đấu Bot PvP Trực Tiếp</span>
             </h1>
             <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white uppercase tracking-wider shadow-glow-cyan animate-pulse">
-              100% ĐẤU THỦ THẬT
+              BOT CỦA HAI NGƯỜI CHƠI
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-1 leading-relaxed">
@@ -187,7 +187,7 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
         /* Match Setup Screen */
         <div className="space-y-6">
           {/* Opponent Selector Card */}
-          <div className="cyber-card p-5 space-y-3 border-blue-500/30">
+          <div className="pvp-opponent-panel cyber-card p-5 space-y-3 border-blue-500/30">
             <label htmlFor="pvp-opponent" className="block text-xs font-black uppercase tracking-wider text-blue-400">
               Chọn Đối Thủ Thi Đấu (Phe Đỏ)
             </label>
@@ -243,9 +243,9 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
           </div>
 
           {/* Commander Duelists Matchup HUD Cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-11 gap-4 items-center">
+          <div className="pvp-versus-grid">
             {/* Player 1 Card (Blue Team) */}
-            <div className="lg:col-span-5 p-6 rounded-2xl bg-gradient-to-br from-blue-950/40 via-navy-900 to-navy-950 border border-blue-500/40 shadow-xl space-y-4">
+            <div className="pvp-player-card is-blue">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black uppercase tracking-wider text-blue-400 flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-glow-blue animate-pulse" />
@@ -290,14 +290,14 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
             </div>
 
             {/* VS Badge */}
-            <div className="lg:col-span-1 flex flex-col items-center justify-center py-2">
+            <div className="pvp-versus-mark">
               <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-amber-500 via-red-500 to-purple-600 flex items-center justify-center text-black font-black text-sm shadow-xl shadow-red-500/30 ring-4 ring-navy-950">
                 VS
               </div>
             </div>
 
             {/* Player 2 Card (Red Team) */}
-            <div className="lg:col-span-5 p-6 rounded-2xl bg-gradient-to-br from-red-950/40 via-navy-900 to-navy-950 border border-red-500/40 shadow-xl space-y-4">
+            <div className="pvp-player-card is-red">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black uppercase tracking-wider text-red-400 flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-glow-red animate-pulse" />
@@ -337,7 +337,7 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
           </div>
 
           {/* Match Settings & Launch Button */}
-          <div className="cyber-card p-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+          <div className="pvp-launch-panel cyber-card p-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
             <div>
               <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-2">
                 Kích Thước Bàn Cờ Thi Đấu
@@ -572,12 +572,15 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
               <span className="text-xs font-mono text-cyan-400 font-bold">{replaySteps.length} Nước</span>
             </div>
 
+            <p className="text-[10px] text-slate-400 py-2">Tối đa 50 lượt gần vị trí đang xem. Tua bàn cờ để xem lượt cũ.</p>
             <div className="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin font-mono text-xs">
-              {replaySteps.slice(0, currentStepIdx + 1).map((step, idx) => {
+              {replaySteps.slice(Math.max(0,currentStepIdx-49), currentStepIdx + 1).map((step, visibleIndex) => {
+                const idx=Math.max(0,currentStepIdx-49)+visibleIndex;
                 const isP1 = step.player === 1;
                 return (
                   <div
                     key={idx}
+                    data-live-log-step={step.step}
                     className={`p-2.5 rounded-xl border leading-relaxed transition-all ${
                       step.combat
                         ? 'bg-purple-950/40 border-purple-500/30 text-purple-200'

@@ -1,12 +1,13 @@
 const {query,pool} = require('../config/db');
 const {totalTurnsSql} = require('../game/replaySummary');
-const KEY = 'replay_retention';
+const {replayExpiresSql} = require('../game/replayPolicy');
+const KEY = 'pvp_replay_retention';
 const INTERVAL_MS = 5 * 60_000;
 const BATCH_SIZE = 100;
 
 async function getSettings() {
   const {rows} = await query('SELECT key,value FROM "SystemSettings" WHERE key IN ($1,$2)',[KEY,'replay_cleanup_status']);
-  return {days:rows.find(row=>row.key===KEY)?.value?.days ?? 1,
+  return {days:rows.find(row=>row.key===KEY)?.value?.days ?? 0,machineDays:1,scope:'PVP',
     lastCleanup:rows.find(row=>row.key==='replay_cleanup_status')?.value ?? null,checkIntervalMinutes:5};
 }
 async function saveSettings(days) {
@@ -29,19 +30,19 @@ async function cleanupBatch() {
     await client.query("SET LOCAL lock_timeout = '2s'");
     const setting = await client.query('SELECT value FROM "SystemSettings" WHERE key=$1 FOR SHARE',[KEY]);
     const days = setting.rows[0]?.value?.days;
-    if (!Number.isInteger(days) || days <= 0 || days > 3650) { await client.query('COMMIT'); return {removed:0,enabled:false}; }
     const result = await client.query(`WITH expired AS (
       SELECT m.id FROM "Matches" m
       WHERE m.replay_expired_at IS NULL AND m.win_reason IS NOT NULL
-        AND COALESCE(m.judged_at,m.created_at) <= NOW() - ($1::int * INTERVAL '1 day')
+        AND COALESCE(m.judged_at,m.created_at) <= NOW() - INTERVAL '1 day'
+        AND ${replayExpiresSql()} <= NOW()
       ORDER BY COALESCE(m.judged_at,m.created_at),m.id
-      LIMIT $2 FOR UPDATE OF m SKIP LOCKED
+      LIMIT $1 FOR UPDATE OF m SKIP LOCKED
     ) UPDATE "Matches" m SET
       replay_json=(CASE WHEN jsonb_typeof(m.replay_json)='object'
         THEN m.replay_json - ARRAY['steps','initialBoard','mapConfig'] ELSE '{}'::jsonb END)
         || jsonb_build_object('totalTurns',${totalTurnsSql('m')}),
       replay_expired_at=NOW()
-      FROM expired WHERE m.id=expired.id RETURNING m.id`,[days,BATCH_SIZE]);
+      FROM expired WHERE m.id=expired.id RETURNING m.id`,[BATCH_SIZE]);
     const removed = result.rowCount;
     await client.query(`INSERT INTO "SystemSettings"(key,value) VALUES('replay_cleanup_status',$1::jsonb)
       ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value`,[JSON.stringify({checkedAt:new Date().toISOString(),removed,days})]);

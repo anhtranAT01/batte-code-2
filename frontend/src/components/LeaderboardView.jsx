@@ -135,94 +135,25 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
 
   // Find user's stats if logged in
   const currentUserRecord = user ? leaderboard.find((p) => p.id === user.id) : null;
-  const totalMatchesCount = recentMatches.length;
-  const totalPlayersCount = leaderboard.length;
 
   return (
-    <div className="view-shell animate-fadeIn space-y-8">
-      {/* 1. HERO SECTION & PLATFORM INTRO */}
-      <section className="relative overflow-hidden rounded-3xl border border-blue-500/20 bg-gradient-to-br from-navy-950 via-navy-900 to-navy-950 p-6 sm:p-10 shadow-2xl">
-        {/* Ambient tech glow circles */}
-        <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 max-w-3xl space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/15 border border-blue-400/30 text-blue-300 text-xs font-black tracking-wider uppercase">
-            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-            Đấu Trường AI Bot Chiến Thuật 2026
-          </div>
-
-          <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
-            Nền Tảng Thi Đấu <br />
-            <span className="bg-gradient-to-r from-blue-400 via-cyan-300 to-purple-400 bg-clip-text text-transparent">
-              Trí Tuệ Nhân Tạo & Esports
-            </span>
-          </h1>
-
-          <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl">
-            Lập trình Bot AI bằng Python, điều khiển đội quân Kéo - Búa - Bao trên bàn cờ 9×9 thời gian thực.
-            Tranh tài leo hạng Elo, so tài thuật toán A*, Minimax và ghi danh vô địch giải đấu.
-          </p>
-
-          {/* Call to Actions */}
-          <div className="flex flex-wrap items-center gap-3 pt-2">
-            {onNavigateTab && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => onNavigateTab('pvp')}
-                  className="primary-action px-5 py-3 text-sm shadow-glow-blue"
-                >
-                  <Icon name="swords" size={17} />
-                  <span>Bắt Đầu Thi Đấu Ngay</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onNavigateTab('tournament')}
-                  className="secondary-action px-5 py-3 text-sm"
-                >
-                  <Icon name="trophy" size={17} className="text-amber-400" />
-                  <span>Khám Phá Giải Đấu</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onNavigateTab('training')}
-                  className="px-4 py-2.5 rounded-xl border border-purple-500/30 bg-purple-950/20 hover:bg-purple-950/40 text-purple-300 text-xs font-bold transition-colors flex items-center gap-2"
-                >
-                  <Icon name="algorithm" size={15} />
-                  <span>Luyện Thuật Toán AI</span>
-                </button>
-              </>
-            )}
-          </div>
+    <div className="view-shell overview-view animate-fadeIn space-y-8">
+      <section className="arena-welcome">
+        <div className="welcome-copy">
+          <span className="arena-eyebrow"><Icon name="swords" size={15} /> BATTLECODE / ĐẤU TRƯỜNG THUẬT TOÁN</span>
+          <h1>Viết chiến thuật.<br /><em>Làm chủ bàn cờ.</em></h1>
+          <p>Biến những dòng Python thành nước đi quyết định. Thử sức với Boss AI, so tài cùng người chơi và chinh phục các giải đấu.</p>
+          {onNavigateTab && <div className="welcome-actions">
+            <button type="button" className="primary-action" onClick={()=>onNavigateTab('pvp')}><Icon name="swords" size={17} />Bắt Đầu Thi Đấu Ngay<Icon name="chevronRight" size={16} /></button>
+            <button type="button" className="secondary-action" onClick={()=>onNavigateTab('training')}><Icon name="algorithm" size={16} />Luyện Thuật Toán AI</button>
+            <button type="button" className="welcome-link" onClick={()=>onNavigateTab('tournament')}>Khám Phá Giải Đấu ↗</button>
+          </div>}
+          <div className="welcome-facts"><span><b>Python</b> Ngôn ngữ bot</span><span><b>8×8 · 9×9</b> Bàn thi đấu</span><span><b>Elo</b> Xếp hạng kỹ năng</span></div>
         </div>
-
-        {/* Live Platform Pulse Counters */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mt-8 pt-6 border-t border-white/10 relative z-10">
-          <div className="p-3.5 rounded-xl bg-navy-950/60 border border-white/5">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Kỳ Thủ Tham Gia</span>
-            <strong className="text-xl sm:text-2xl font-black text-cyan-400 font-mono mt-0.5 block">
-              {totalPlayersCount > 0 ? `${totalPlayersCount} Đấu Thủ` : '1,000+ Thí sinh'}
-            </strong>
-          </div>
-          <div className="p-3.5 rounded-xl bg-navy-950/60 border border-white/5">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Trận Đã Khởi Tranh</span>
-            <strong className="text-xl sm:text-2xl font-black text-blue-400 font-mono mt-0.5 block">
-              {totalMatchesCount > 0 ? `${totalMatchesCount * 12}+ Trận` : '5,420+ Trận'}
-            </strong>
-          </div>
-          <div className="p-3.5 rounded-xl bg-navy-950/60 border border-white/5">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Bàn Cờ Chiến Thuật</span>
-            <strong className="text-xl sm:text-2xl font-black text-purple-400 font-mono mt-0.5 block">
-              9×9 Chuẩn Quốc Gia
-            </strong>
-          </div>
-          <div className="p-3.5 rounded-xl bg-navy-950/60 border border-white/5">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Máy Chấm Tự Động</span>
-            <strong className="text-xl sm:text-2xl font-black text-emerald-400 font-mono mt-0.5 block flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400" /> Sẵn Sàng 24/7
-            </strong>
-          </div>
+        <div className="welcome-visual" aria-hidden="true">
+          <div className="welcome-visual-label"><Icon name="code" size={16} /><span>YOUR CODE. YOUR STRATEGY.</span></div>
+          <div className="welcome-mini-board">{Array.from({length:36},(_,i)=><span key={i} className={[0,2,4,8,12].includes(i)?'mini-blue':[23,27,31,33,35].includes(i)?'mini-red':i===14||i===21?'mini-wall':''}>{[0,4,31,35].includes(i)?'✊':[2,12,23,33].includes(i)?'✂':i===8||i===27?'▤':i===14||i===21?'▪':''}</span>)}</div>
+          <div className="welcome-code"><span>def</span> choose_move(state):<br />&nbsp; <span>return</span> your_best_strategy</div>
         </div>
       </section>
 

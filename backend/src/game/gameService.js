@@ -200,7 +200,7 @@ async function getReplay(matchId) {
 
     if (res.rows.length > 0) {
       if(res.rows.length > 1) throw Object.assign(new Error('Mã trận khớp nhiều trận. Hãy nhập đầy đủ mã trận.'),{statusCode:400});
-      if(res.rows[0].replay_expired_at) throw Object.assign(new Error('Replay đã được tự xóa theo thời gian lưu do Admin thiết lập. Kết quả trận đấu vẫn được giữ.'),{statusCode:410});
+      if(res.rows[0].replay_expired_at) throw Object.assign(new Error('Replay đã hết thời gian lưu trữ. Kết quả trận đấu vẫn được giữ.'),{statusCode:410});
       const match = normalizeMatch(res.rows[0]);
       let replay = match.replay_json;
       if (typeof replay === 'string') {

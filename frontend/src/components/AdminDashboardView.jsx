@@ -804,7 +804,7 @@ export default function AdminDashboardView({ onSelectReplay }) {
 }
 
 export function ReplayRetentionSettings({getAuthHeaders}) {
-  const [settings,setSettings]=useState(null),[days,setDays]=useState('1');
+  const [settings,setSettings]=useState(null),[days,setDays]=useState('0');
   const [busy,setBusy]=useState(false),[message,setMessage]=useState('');
   const headersRef=useRef(getAuthHeaders);headersRef.current=getAuthHeaders;
   const load=async(signal)=>{
@@ -814,7 +814,7 @@ export function ReplayRetentionSettings({getAuthHeaders}) {
       const result=await res.json();
       if(!res.ok)throw new Error(result.message || 'Không tải được cấu hình lưu replay.');
       if(signal?.aborted)return;
-      setSettings(result.data);setDays(String(result.data.days ?? 1));
+      setSettings(result.data);setDays(String(result.data.days ?? 0));
     } catch(error){if(error.name!=='AbortError')setMessage(error.message);}
   };
   useEffect(()=>{const controller=new AbortController();load(controller.signal);return()=>controller.abort();},[]);
@@ -822,7 +822,7 @@ export function ReplayRetentionSettings({getAuthHeaders}) {
     event.preventDefault();
     const value=Number(days);
     if(!days.trim() || !Number.isInteger(value) || value<0 || value>3650){setMessage('Nhập số ngày nguyên từ 0 đến 3650.');return;}
-    if(value>0 && !window.confirm(`Tự xóa dữ liệu phát lại của các trận đã kết thúc quá ${value} ngày? Replay đã xóa không khôi phục được. Kết quả, Elo và bảng điểm vẫn được giữ. Các replay cũ đủ hạn cũng sẽ được dọn.`))return;
+    if(value>0 && !window.confirm(`Tự xóa replay PvP đã kết thúc quá ${value} ngày? Replay đã xóa không khôi phục được. Kết quả, Elo và bảng điểm vẫn được giữ. Các replay PvP cũ đủ hạn cũng sẽ được dọn.`))return;
     setBusy(true);setMessage('');
     try {
       const res=await fetch('/api/admin/replay-retention',{method:'PUT',headers:{...headersRef.current(),'Content-Type':'application/json'},body:JSON.stringify({days:value})});
@@ -832,9 +832,9 @@ export function ReplayRetentionSettings({getAuthHeaders}) {
     } catch(error){setMessage(error.message);}finally{setBusy(false);}
   };
   return <section className="p-4 border-b border-white/10 space-y-3" aria-label="Thời gian lưu replay">
-    <div><h3 className="font-bold text-white">Tự dọn replay</h3><p className="text-xs text-slate-400 mt-1">Mặc định lưu replay 1 ngày (24 giờ) sau khi trận kết thúc. Hết hạn sẽ không mở lại được; dữ liệu bàn cờ được dọn mỗi 5 phút. Giữ mã trận, kết quả, Elo và bảng điểm; trận đang chạy vẫn xem trực tiếp.</p></div>
+    <div><h3 className="font-bold text-white">Thời gian lưu replay PvP</h3><p className="text-xs text-slate-400 mt-1">Chỉ Admin được đặt thời gian lưu trận giữa hai người chơi; mặc định không tự xóa. Trận đấu với máy luôn tự hết hạn sau 24 giờ. Dọn mỗi 5 phút, giữ mã trận, kết quả, Elo và bảng điểm.</p></div>
     <form onSubmit={save} className="flex flex-wrap items-end gap-3">
-      <label className="text-xs text-slate-300" htmlFor="replay-retention-days">Số ngày lưu (0 = không tự xóa)
+      <label className="text-xs text-slate-300" htmlFor="replay-retention-days">Số ngày lưu PvP (0 = không tự xóa)
         <input id="replay-retention-days" type="number" min="0" max="3650" step="1" required value={days} disabled={!settings || busy} onChange={event=>setDays(event.target.value)} className="block mt-1 w-48 rounded-lg bg-navy-950 border border-white/10 p-2" />
       </label>
       <button type="submit" disabled={!settings || busy} className="primary-action text-xs disabled:opacity-50">{busy?'Đang lưu…':'Lưu thời gian'}</button>

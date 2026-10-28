@@ -10,7 +10,7 @@ let replayRetentionDays=0;
 let available=true;
 const receipts=new Map();
 const peers=[user,{id:'22222222-2222-4222-8222-222222222222',username:'CyberWarriors',elo_rating:1520},{id:'33333333-3333-4333-8333-333333333333',username:'AlphaTeam',elo_rating:1380}];
-const tourneys=[{id:'t-1',name:'Giải đấu thuật toán sinh viên 2026',mode:'ALL_IN',status:'UPCOMING',max_participants:1000},{id:'t-2',name:'Cúp chiến thuật — Vòng loại mùa thu',mode:'BRANCHES',status:'UPCOMING',max_participants:16}];
+const tourneys=[{id:'t-1',name:'Giải đấu thuật toán sinh viên 2026',mode:'ALL_IN',status:'UPCOMING',scheduledStartAt:new Date(Date.now()+172800000).toISOString(),max_participants:1000},{id:'t-2',name:'Cúp chiến thuật — Vòng loại mùa thu',mode:'BRANCHES',status:'UPCOMING',max_participants:16}];
 app.post('/fixture/toggle',(req,res)=>{available=!available;res.json({available});});
 app.use('/api',(req,res,next)=>available?next():res.status(503).json({message:'Simulated outage'}));
 app.get('/api/auth/me',(req,res)=>res.json({data:user}));
@@ -42,7 +42,7 @@ app.get('/api/*',(req,res)=>res.json({data:[]}));
 const root=path.resolve(__dirname,'../dist');
 app.get('/fixture/responsive',(req,res)=>{
   const width=[390,768,1024].includes(Number(req.query.width))?Number(req.query.width):390;
-  const view=['training','rules','boss','pvp'].includes(req.query.view)?req.query.view:'training';
+  const view=['training','rules','boss','pvp','tournament','leaderboard'].includes(req.query.view)?req.query.view:'training';
   res.send(`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Responsive QA · ${width}px</title><style>html,body{margin:0;height:100%;background:#dfe5ed}body{display:grid;place-items:center}iframe{display:block;width:${width}px;max-width:100%;height:calc(100vh - 24px);border:0;border-radius:12px;box-shadow:0 5px 40px #64748b44}</style></head><body><iframe title="Giao diện ${width}px" src="/?fixture_view=${view}"></iframe><script>
     const frame=document.querySelector('iframe');frame.addEventListener('load',()=>{const doc=frame.contentDocument;
       const capture=()=>{const main=doc.querySelector('main'),view=doc.querySelector('.learning-view');document.documentElement.dataset.responsiveQa=JSON.stringify({viewport:frame.clientWidth,mainWidth:main?.clientWidth,mainScrollWidth:main?.scrollWidth,viewWidth:view?.clientWidth,viewScrollWidth:view?.scrollWidth,cells:doc.querySelectorAll('.lesson-cell').length});};
@@ -68,7 +68,7 @@ app.get(['/', '/index.html'],(req,res)=>{
       observer=new MutationObserver(schedule);observer.observe(document.getElementById('root'),{subtree:true,childList:true,attributes:true,characterData:true});schedule();
     },true);
   </script>`:'';
-  const view=['training','rules','boss','pvp'].includes(req.query.fixture_view)?req.query.fixture_view:null;
+  const view=['training','rules','boss','pvp','tournament','leaderboard'].includes(req.query.fixture_view)?req.query.fixture_view:null;
   const initialView=view?`<script>document.addEventListener('DOMContentLoaded',()=>{const open=()=>{const button=document.querySelector('[data-nav="${view}"]');if(button){observer.disconnect();button.click();}};const observer=new MutationObserver(open);observer.observe(document.getElementById('root'),{childList:true,subtree:true});open();});</script>`:'';
   const fixtureHtml=process.env.PREVIEW_CONTROLS==='0'?fixture.replace(/<button[\s\S]*<\/button>/,''):fixture;
   res.send(fs.readFileSync(path.join(root,'index.html'),'utf8').replace('<head>','<head>'+fixtureHtml+metrics+initialView));

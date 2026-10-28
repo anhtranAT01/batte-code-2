@@ -260,7 +260,7 @@ async function run() {
 
   // 1. Click switch to Mục 2: Nhánh Đấu
   const branchModeBtn = tree.root.findAllByType('button').find((b) =>
-    text(b.props.children).includes('Mục 2: Các Giải Đấu Riêng Lẻ & Nhánh Đấu')
+    text(b.props.children).includes('Đấu loại trực tiếp · Nhánh đấu')
   );
   assert.ok(branchModeBtn, 'Branch mode button must exist');
   await act(async () => {

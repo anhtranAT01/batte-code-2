@@ -414,12 +414,15 @@ export default function BossArenaView({ onSelectReplay }) {
               <span>Diễn Biến Từng Nước Đi Của Bot</span>
             </h3>
 
+            <p className="text-[10px] text-slate-400 py-2">Tối đa 50 lượt gần vị trí đang xem. Tua bàn cờ để xem lượt cũ.</p>
             <div className="flex-1 overflow-y-auto py-3 space-y-2 scrollbar-thin font-mono text-xs">
-              {replaySteps.slice(0, currentStepIdx + 1).map((step, idx) => {
+              {replaySteps.slice(Math.max(0,currentStepIdx-49), currentStepIdx + 1).map((step, visibleIndex) => {
+                const idx=Math.max(0,currentStepIdx-49)+visibleIndex;
                 const isP1 = step.player === 1;
                 return (
                   <div
                     key={idx}
+                    data-live-log-step={step.step}
                     className={`p-2.5 rounded-lg border leading-relaxed ${
                       step.combat
                         ? step.combat.outcome === 'WIN'

@@ -26,23 +26,30 @@ async function main(){
     await db.exec(policyMigration);
     assert.equal((await sql('SELECT value FROM "SystemSettings" WHERE key=\'replay_retention\'')).rows[0].value.days,7,'Redeploy preserves subsequent Admin changes');
     await sql('UPDATE "SystemSettings" SET value=\'{"days":1}\' WHERE key=\'replay_retention\'');
+    const scopeMigration=fs.readFileSync(path.join(__dirname,'../scripts/replayRetentionScopes.sql'),'utf8');
+    await db.exec(scopeMigration);await db.exec(scopeMigration);
+    assert.equal((await sql('SELECT value FROM "SystemSettings" WHERE key=\'replay_retention\'')).rows[0].value.days,0,'Retire the global policy so old instances cannot keep deleting PvP during deploy');
     const admin=randomUUID(),student=randomUUID(),teacher=randomUUID(),completed=randomUUID(),ongoing=randomUUID(),upcoming=randomUUID();
     for(const [id,role] of [[admin,'ADMIN'],[student,'STUDENT'],[teacher,'TEACHER']])await sql('INSERT INTO "Users"(id,username,password_hash,role)VALUES($1,$2,\'test\',$3)',[id,role,role]);
     for(const [id,status] of [[completed,'COMPLETED'],[ongoing,'ONGOING'],[upcoming,'UPCOMING']])await sql('INSERT INTO "Tournaments"(id,name,status,settings_json)VALUES($1,\'Fixture\',$2,$3)',[id,status,JSON.stringify({participants:[{userId:student,username:'STUDENT',elo:1200,points:0}]})]);
     const heavy={mode:'PRACTICE',p1Name:'STUDENT',p2Name:'Boss fixture',winner:2,steps:Array.from({length:200},(_,i)=>({step:i+1,boardSnapshot:Array.from({length:9},()=>Array.from({length:9},()=>({type:'ROCK',player:1})))})),initialBoard:[[1]],mapConfig:{size:9}};
-    const add=async({age=30,judgeAge=age,reason='FLAG_CAPTURE',tournament=null,replay=heavy}={})=>{
-      const id=randomUUID();await sql(`INSERT INTO "Matches"(id,player1_id,map_id,win_reason,replay_json,created_at,judged_at,tournament_id,duration_ms)
-        VALUES($1,$2,(SELECT id FROM "Maps" LIMIT 1),$3,$4,NOW()-($5*INTERVAL '1 day'),NOW()-($6*INTERVAL '1 day'),$7,100)`,[id,student,reason,JSON.stringify(replay),age,judgeAge,tournament]);return id;
+    const add=async({age=30,judgeAge=age,reason='FLAG_CAPTURE',tournament=null,replay=heavy,opponent=null}={})=>{
+      const id=randomUUID();await sql(`INSERT INTO "Matches"(id,player1_id,map_id,win_reason,replay_json,created_at,judged_at,tournament_id,duration_ms,player2_id)
+        VALUES($1,$2,(SELECT id FROM "Maps" LIMIT 1),$3,$4,NOW()-($5*INTERVAL '1 day'),NOW()-($6*INTERVAL '1 day'),$7,100,$8)`,[id,student,reason,JSON.stringify(replay),age,judgeAge,tournament,opponent]);return id;
     };
-    const old=await add(),legacy=await add({tournament:completed,replay:[{step:1},{step:2},{step:3}],reason:'DRAW'});
+    const old=await add({age:2}),legacy=await add({tournament:completed,opponent:student,replay:[{step:1},{step:2},{step:3}],reason:'DRAW'});
     const protectedIds=[await add({age:0.99}),await add({reason:null}),await add({age:30,judgeAge:0.99})];
     const tournamentExpired=[await add({tournament:ongoing}),await add({tournament:upcoming})];
+    const pvpIds=[await add({age:2,opponent:teacher,replay:{...heavy,mode:'PVP'}}),
+      await add({age:2,opponent:teacher,replay:[{step:1}]}),
+      await add({age:2,replay:{...heavy,mode:'PVP'}})];
     const retention=require('./replayRetention'),service=require('../game/gameService');
     const tournament=require('../tournament/tournament.service');
     const before=await tournament.getTournamentStandings(completed);
     const identities=(await sql('SELECT id,winner_id,win_reason,p1_elo_change,p2_elo_change FROM "Matches" ORDER BY id')).rows;
     const sizeBefore=Number((await sql('SELECT sum(pg_column_size(replay_json)) AS bytes FROM "Matches"')).rows[0].bytes);
-    assert.equal((await retention.getSettings()).days,1);
+    assert.equal((await retention.getSettings()).days,0);
+    assert.equal((await retention.getSettings()).machineDays,1);
     await assert.rejects(service.getReplay(old),error=>error.statusCode===410,'The deadline is enforced before cleanup runs');
     assert.equal((await sql('SELECT replay_expired_at FROM "Matches" WHERE id=$1',[old])).rows[0].replay_expired_at,null);
     assert.ok((await service.getRecentMatches(100)).find(row=>row.id===old).replay_expired_at);
@@ -56,8 +63,8 @@ async function main(){
     } finally {await sql('ROLLBACK');}
     assert.ok(await service.getReplay(protectedIds[1]),'An unfinished live match never expires');
     await retention.saveSettings(0);
-    assert.equal((await service.getReplay(old)).steps.length,200,'Admin can disable expiry before cleanup');
-    assert.deepEqual(await retention.cleanupBatch(),{removed:0,enabled:false});
+    await assert.rejects(service.getReplay(old),error=>error.statusCode===410,'Machine expiry cannot be disabled by the PvP setting');
+    for(const id of pvpIds)assert.ok(await service.getReplay(id),'PvP including legacy and deleted opponents stays accessible by default');
     for(const value of [-1,1.5,3651,'7',null])await assert.rejects(retention.saveSettings(value),error=>error.statusCode===400);
     await retention.saveSettings(7);
     assert.equal((await retention.cleanupBatch()).removed,4);
@@ -68,7 +75,7 @@ async function main(){
     assert.equal(rows.find(row=>row.id===old).replay_json.totalTurns,200);
     assert.ok(!('steps' in rows.find(row=>row.id===old).replay_json));
     assert.equal(rows.find(row=>row.id===legacy).replay_json.totalTurns,3);
-    for(const id of protectedIds)assert.equal(rows.find(row=>row.id===id).replay_expired_at,null);
+    for(const id of [...protectedIds,...pvpIds])assert.equal(rows.find(row=>row.id===id).replay_expired_at,null);
     for(const id of tournamentExpired)assert.ok(rows.find(row=>row.id===id).replay_expired_at,'Completed matches expire even if the tournament continues');
     assert.deepEqual((await sql('SELECT id,winner_id,win_reason,p1_elo_change,p2_elo_change FROM "Matches" ORDER BY id')).rows,identities);
     assert.deepEqual(await tournament.getTournamentStandings(completed),before,'Standings must remain identical after replay cleanup');
@@ -79,8 +86,16 @@ async function main(){
     assert.equal((await retention.cleanupBatch()).removed,100);
     assert.equal((await retention.cleanupBatch()).removed,100);
     assert.equal((await retention.cleanupBatch()).removed,5);
-    await retention.saveSettings(0);await add({replay:[{step:1}]});
-    assert.equal((await retention.cleanupBatch()).removed,0);
+    await retention.saveSettings(0);
+    const retainedPvP=await add({opponent:teacher,replay:{...heavy,mode:'PVP'}});
+    await add({replay:[{step:1}]});
+    assert.equal((await retention.cleanupBatch()).removed,1,'Only the machine replay is removed when PvP expiry is disabled');
+    assert.ok(await service.getReplay(retainedPvP));
+    await retention.saveSettings(1);await db.exec(scopeMigration);
+    assert.equal((await retention.getSettings()).days,1,'Redeploy preserves Admin PvP policy');
+    for(const id of pvpIds)await assert.rejects(service.getReplay(id),error=>error.statusCode===410);
+    assert.equal((await retention.cleanupBatch()).removed,4,'PvP expires only after Admin sets its retention');
+    await retention.saveSettings(0);
 
     const express=require('express'),jwt=require('jsonwebtoken'),app=express();app.use(express.json());
     app.use('/api/admin',require('./admin.routes'));
@@ -109,7 +124,7 @@ async function main(){
     const realNow=Date.now;
     try {Date.now=()=>realNow()+60*60_000+1;assert.equal(await service.getReplay(practice.matchId),null,'Abandoned practice sessions leave RAM');}
     finally {Date.now=realNow;}
-    console.log(`PASS: one-time 24h migration preserves Admin overrides; read-time expiry before cleanup; unfinished matches protected; completed tournament matches expire; disabled policy; current-admin permissions; bounded batches; metadata/standings preserved; HTTP 410; gzip ${unpacked.length} -> ${response.bytes.length} bytes. Initial replay storage ${sizeBefore} bytes.`);
+    console.log(`PASS: separate machine 24h / Admin-only PvP policy; default PvP retention; legacy/deleted opponent classification; idempotent migrations; read-time expiry before cleanup; unfinished matches protected; completed tournament matches expire; disabled policy; current-admin permissions; bounded batches; metadata/standings preserved; HTTP 410; gzip ${unpacked.length} -> ${response.bytes.length} bytes. Initial replay storage ${sizeBefore} bytes.`);
   }finally{if(server)await new Promise(resolve=>server.close(resolve));await db.close();}
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});
