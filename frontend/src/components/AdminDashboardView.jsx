@@ -804,7 +804,7 @@ export default function AdminDashboardView({ onSelectReplay }) {
 }
 
 export function ReplayRetentionSettings({getAuthHeaders}) {
-  const [settings,setSettings]=useState(null),[days,setDays]=useState('0');
+  const [settings,setSettings]=useState(null),[days,setDays]=useState('1');
   const [busy,setBusy]=useState(false),[message,setMessage]=useState('');
   const headersRef=useRef(getAuthHeaders);headersRef.current=getAuthHeaders;
   const load=async(signal)=>{
@@ -814,7 +814,7 @@ export function ReplayRetentionSettings({getAuthHeaders}) {
       const result=await res.json();
       if(!res.ok)throw new Error(result.message || 'Không tải được cấu hình lưu replay.');
       if(signal?.aborted)return;
-      setSettings(result.data);setDays(String(result.data.days ?? 0));
+      setSettings(result.data);setDays(String(result.data.days ?? 1));
     } catch(error){if(error.name!=='AbortError')setMessage(error.message);}
   };
   useEffect(()=>{const controller=new AbortController();load(controller.signal);return()=>controller.abort();},[]);
@@ -832,7 +832,7 @@ export function ReplayRetentionSettings({getAuthHeaders}) {
     } catch(error){setMessage(error.message);}finally{setBusy(false);}
   };
   return <section className="p-4 border-b border-white/10 space-y-3" aria-label="Thời gian lưu replay">
-    <div><h3 className="font-bold text-white">Tự dọn replay</h3><p className="text-xs text-slate-400 mt-1">Xóa dữ liệu từng nước cờ để tiết kiệm dung lượng; giữ mã trận, kết quả, Elo và bảng điểm. Bỏ qua trận chưa kết thúc và giải đang diễn ra hoặc sắp diễn ra.</p></div>
+    <div><h3 className="font-bold text-white">Tự dọn replay</h3><p className="text-xs text-slate-400 mt-1">Mặc định lưu replay 1 ngày (24 giờ) sau khi trận kết thúc. Hết hạn sẽ không mở lại được; dữ liệu bàn cờ được dọn mỗi 5 phút. Giữ mã trận, kết quả, Elo và bảng điểm; trận đang chạy vẫn xem trực tiếp.</p></div>
     <form onSubmit={save} className="flex flex-wrap items-end gap-3">
       <label className="text-xs text-slate-300" htmlFor="replay-retention-days">Số ngày lưu (0 = không tự xóa)
         <input id="replay-retention-days" type="number" min="0" max="3650" step="1" required value={days} disabled={!settings || busy} onChange={event=>setDays(event.target.value)} className="block mt-1 w-48 rounded-lg bg-navy-950 border border-white/10 p-2" />

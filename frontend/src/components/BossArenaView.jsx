@@ -3,6 +3,7 @@ import {readScreenData,peekScreenData} from '../lib/screenData';
 import { useAuth } from '../context/AuthContext';
 import GameBoard from './GameBoard';
 import { runDuel, applyDuelEvent } from '../lib/duelStream';
+import {useLivePlayback} from '../lib/useLivePlayback';
 import { invalidatePublicData } from '../lib/publicData';
 
 export default function BossArenaView({ onSelectReplay }) {
@@ -64,12 +65,7 @@ export default function BossArenaView({ onSelectReplay }) {
 
   // Auto match execution states
   const [autoMatchData, setAutoMatchData] = useState(null);
-  const [currentStepIdx, setCurrentStepIdx] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [playSpeed, setPlaySpeed] = useState(1); // 1x, 2x, 4x
-  const timerRef = useRef(null);
   const requestRef = useRef(null);
-  const playbackRef = useRef({totalSteps:0,loading:false});
   const [queuePosition,setQueuePosition] = useState(null);
   useEffect(() => () => requestRef.current?.abort(), []);
   const leaveMatch = () => { requestRef.current?.abort(); setAutoMatchData(null); };
@@ -95,32 +91,10 @@ export default function BossArenaView({ onSelectReplay }) {
     return () => { cancelled = true; };
   }, [user?.id]);
 
-  // Autoplay step timer
   const replaySteps = autoMatchData?.replay?.steps || [];
   const totalSteps = replaySteps.length;
-  playbackRef.current = {totalSteps,loading};
-
-  useEffect(() => {
-    if (autoMatchData && isPlaying) {
-      const intervalMs = Math.max(150, 700 / playSpeed);
-      timerRef.current = setInterval(() => {
-        setCurrentStepIdx((prev) => {
-          if (prev >= playbackRef.current.totalSteps - 1) {
-            if (!playbackRef.current.loading) setIsPlaying(false);
-            return prev;
-          }
-          return prev + 1;
-        });
-      }, intervalMs);
-    } else {
-      if (timerRef.current) clearInterval(timerRef.current);
-    }
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [Boolean(autoMatchData), isPlaying, playSpeed]);
-
+  const {currentStepIdx,setCurrentStepIdx,isPlaying,setIsPlaying,playSpeed,setPlaySpeed,
+    followLive,returnToLive,resetPlayback,togglePlayback} = useLivePlayback({totalSteps,loading,active:Boolean(autoMatchData)});
   // Start Automated Bot Duel
   const handleStartAutoDuel = async () => {
     requestRef.current?.abort();
@@ -130,8 +104,7 @@ export default function BossArenaView({ onSelectReplay }) {
     setLoading(true);
     setMatchError('');
     setAutoMatchData(null);
-    setCurrentStepIdx(0);
-    setIsPlaying(true);
+    resetPlayback();
 
     try {
       const result = await runDuel('/api/game/bot-vs-bot', {
@@ -326,13 +299,17 @@ export default function BossArenaView({ onSelectReplay }) {
                 <span className="text-slate-400">({autoMatchData.p1BotName})</span>
               </div>
               <div className="px-3 py-1 rounded bg-[#090d18] border border-white/10 font-mono font-bold text-amber-400">
-                Lượt: {currentStepIdx + 1} / {totalSteps}
+                Lượt: {totalSteps ? currentStepIdx + 1 : 0} / {totalSteps}
               </div>
               <div className="flex items-center gap-2">
                 <span className="font-bold text-white">{autoMatchData.p2Name}</span>
                 <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
               </div>
             </div>
+
+            <p role="status" className="w-full mb-3 text-sm font-semibold text-emerald-400">
+              {matchError ? 'Luồng trực tiếp bị gián đoạn' : loading ? (followLive ? '● Trực tiếp · Theo dõi lượt mới nhất' : 'Đang xem lại · Trận vẫn tiếp tục chạy') : 'Trận đã kết thúc · Có thể xem lại các nước đi'}
+            </p>
 
             {/* Visual Board */}
             <GameBoard
@@ -364,23 +341,22 @@ export default function BossArenaView({ onSelectReplay }) {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center justify-between pt-1">
-                <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                <div className="flex flex-wrap items-center gap-2">
                   <button
-                    onClick={() => setIsPlaying(!isPlaying)}
+                    onClick={togglePlayback}
                     className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md transition-colors flex items-center gap-1.5"
                   >
-                    <span>{isPlaying ? '⏸️ Tạm Dừng' : '▶️ Tự Động Chạy'}</span>
+                    <span>{followLive ? (loading ? '⏸️ Tạm dừng xem' : '▶️ Xem lại từ đầu') : isPlaying ? '⏸️ Tạm Dừng' : '▶️ Tự Động Chạy'}</span>
                   </button>
 
                   <button
                     onClick={() => {
-                      setCurrentStepIdx(Math.max(0,totalSteps - 1));
-                      setIsPlaying(false);
+                      returnToLive();
                     }}
                     className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold"
                   >
-                    Tua Tới Kết Thúc ⏭️
+                    {loading ? 'Về trực tiếp ●' : 'Tới lượt cuối ⏭️'}
                   </button>
                 </div>
 

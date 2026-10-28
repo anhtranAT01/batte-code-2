@@ -6,7 +6,7 @@ const BATCH_SIZE = 100;
 
 async function getSettings() {
   const {rows} = await query('SELECT key,value FROM "SystemSettings" WHERE key IN ($1,$2)',[KEY,'replay_cleanup_status']);
-  return {days:rows.find(row=>row.key===KEY)?.value?.days ?? 0,
+  return {days:rows.find(row=>row.key===KEY)?.value?.days ?? 1,
     lastCleanup:rows.find(row=>row.key==='replay_cleanup_status')?.value ?? null,checkIntervalMinutes:5};
 }
 async function saveSettings(days) {
@@ -15,6 +15,7 @@ async function saveSettings(days) {
   }
   await query(`INSERT INTO "SystemSettings"(key,value) VALUES($1,$2::jsonb)
     ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value`,[KEY,JSON.stringify({days})]);
+  require('../game/arenaReads').invalidateArenaReads();
   return getSettings();
 }
 
@@ -32,8 +33,7 @@ async function cleanupBatch() {
     const result = await client.query(`WITH expired AS (
       SELECT m.id FROM "Matches" m
       WHERE m.replay_expired_at IS NULL AND m.win_reason IS NOT NULL
-        AND COALESCE(m.judged_at,m.created_at) < NOW() - ($1::int * INTERVAL '1 day')
-        AND NOT EXISTS(SELECT 1 FROM "Tournaments" t WHERE t.id=m.tournament_id AND t.status IN ('UPCOMING','ONGOING'))
+        AND COALESCE(m.judged_at,m.created_at) <= NOW() - ($1::int * INTERVAL '1 day')
       ORDER BY COALESCE(m.judged_at,m.created_at),m.id
       LIMIT $2 FOR UPDATE OF m SKIP LOCKED
     ) UPDATE "Matches" m SET

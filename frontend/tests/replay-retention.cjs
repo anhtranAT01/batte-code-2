@@ -14,10 +14,11 @@ function load(name){
 const Replay=load('ReplayViewer').default,Settings=load('AdminDashboardView').ReplayRetentionSettings;
 const text=n=>Array.isArray(n)?n.map(text).join(''):n&&typeof n==='object'?text(n.children || n.props?.children):String(n??'');
 const button=(tree,label)=>tree.root.findAllByType('button').find(n=>text(n.props.children).includes(label));
-const fixture={matchId:'fixture',steps:Array.from({length:320},(_,i)=>({step:i+1,player:1,boardSnapshot:[[i]]}))};
+const fixture={matchId:'fixture',replayExpiresAt:'2026-10-30T10:00:00Z',steps:Array.from({length:320},(_,i)=>({step:i+1,player:1,boardSnapshot:[[i]]}))};
 async function main(){
   let tree;
   await act(async()=>{tree=create(React.createElement(Replay,{initialReplay:fixture}));});
+  assert.match(text(tree.toJSON()),/Replay được lưu đến/,'Display the deadline returned by the server policy');
   const visibleSteps=()=>tree.root.findAllByType('span').filter(n=>text(n.props.children).startsWith('Bước #')).map(n=>text(n.props.children));
   assert.equal(visibleSteps().length,50);
   assert.ok(visibleSteps()[0].startsWith('Bước #1 '));

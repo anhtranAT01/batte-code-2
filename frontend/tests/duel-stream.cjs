@@ -83,6 +83,21 @@ async function main() {
   assert.equal(tree.root.findAllByProps({'data-board':true}).length,1,'Board visible before final response');
   assert.match(text(tree.toJSON()),/Bot đang tính tiếp/);
   assert.ok(!text(tree.toJSON()).includes('BOSS ĐÃ CHIẾN THẮNG'),'No premature result during buffering');
+  const sendSteps=async(count)=>{
+    sender.enqueue(encode({type:'steps',data:{steps:Array.from({length:count},(_,i)=>({...step,step:i+1})),totalTurns:count}}));
+    await tick();
+  };
+  await act(async()=>sendSteps(8));
+  const seek=()=>tree.root.findByProps({type:'range'});
+  assert.equal(seek().props.value,7,'Live follows the newest batch immediately without playback lag');
+  await act(async()=>tree.root.findAllByType('button').find(n=>text(n.props.children).includes('Tạm dừng xem')).props.onClick());
+  await act(async()=>sendSteps(4));
+  assert.equal(seek().props.value,7,'Pausing freezes the view while the server continues');
+  await act(async()=>tree.root.findAllByType('button').find(n=>text(n.props.children).includes('Về trực tiếp')).props.onClick());
+  assert.equal(seek().props.value,11,'Return to live jumps to the latest snapshot');
+  await act(async()=>seek().props.onChange({target:{value:'2'}}));
+  await act(async()=>sendSteps(2));
+  assert.equal(seek().props.value,2,'Manual seek stays put during incoming progress');
   await act(async () => {
     tree.root.findAllByType('button').find(n => text(n.props.children).includes('Chọn Boss')).props.onClick();
     await running;
@@ -91,7 +106,28 @@ async function main() {
   assert.equal(tree.root.findAllByProps({'data-board':true}).length,0);
   assert.equal(tree.root.findAllByProps({role:'alert'}).length,0,'Intentional cancellation has no error banner');
   act(() => tree.unmount());
-  console.log('PASS: board renders before match completion, buffers without false winner, and leaving cancels the request');
+  console.log('PASS: board renders before completion, live follows newest snapshots, pause/seek/return-live work while streaming, and leaving cancels the request');
+
+  const {useLivePlayback}=load(path.resolve(__dirname,'../src/lib/useLivePlayback.js'));
+  let playback;
+  function PlaybackHarness(props){playback=useLivePlayback(props);return null;}
+  await act(async()=>{tree=create(React.createElement(PlaybackHarness,{totalSteps:20,loading:true,active:true}));});
+  assert.equal(playback.currentStepIdx,19);
+  await act(async()=>playback.setCurrentStepIdx(index=>index-1));
+  assert.equal(playback.currentStepIdx,18,'Single-step controls start at the visible live index');
+  await act(async()=>playback.returnToLive());
+  await act(async()=>tree.update(React.createElement(PlaybackHarness,{totalSteps:30,loading:false,active:true})));
+  assert.equal(playback.currentStepIdx,29,'Completion shows the final board immediately');
+  assert.equal(playback.isPlaying,false);
+  await act(async()=>playback.togglePlayback());
+  assert.equal(playback.currentStepIdx,0,'Completed match only replays when explicitly requested');
+  assert.equal(playback.isPlaying,true);
+  await act(async()=>playback.resetPlayback());
+  await act(async()=>tree.update(React.createElement(PlaybackHarness,{totalSteps:0,loading:true,active:true})));
+  assert.equal(playback.currentStepIdx,0);
+  assert.equal(playback.followLive,true,'A new match resets to live following');
+  await act(async()=>tree.unmount());
+  console.log('PASS: shared Boss/PvP playback steps from visible live position, shows final board, replays explicitly and resets for a new match');
 
   const Boundary = load(path.resolve(__dirname,'../src/components/ViewBoundary.jsx')).default;
   const unavailableView = () => { throw new Error('Failed to fetch dynamically imported module'); };

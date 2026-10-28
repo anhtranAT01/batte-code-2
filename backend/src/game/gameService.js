@@ -8,6 +8,7 @@ const { generateMap } = require('./mapGenerator');
 const { query } = require('../config/db');
 const crypto = require('crypto');
 const { normalizeMatch } = require('./matchHistory');
+const { replayExpiresSql,replayExpiredSql } = require('./replayPolicy');
 
 // In-memory active game sessions
 const activeMatches = new Map();
@@ -182,7 +183,8 @@ async function getReplay(matchId) {
     const byNumber = /^\d{1,19}$/.test(number) && BigInt(number) <= 9223372036854775807n;
     const byUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input);
     const res = await query(
-      `SELECT m.id, m.match_number, m.player1_id, m.player2_id, m.player2_bot_id, m.winner_id, m.win_reason, m.duration_ms, m.replay_json,m.replay_expired_at,
+      `SELECT m.id, m.match_number, m.player1_id, m.player2_id, m.player2_bot_id, m.winner_id, m.win_reason, m.duration_ms, m.replay_json,
+              ${replayExpiredSql()} AS replay_expired_at,${replayExpiresSql()} AS replay_expires_at,
               u1.username AS p1_username, u2.username AS p2_username,
               b1.name AS p1_bot_name, b2.name AS p2_bot_name,
               uw.username AS winner_username
@@ -219,6 +221,7 @@ async function getReplay(matchId) {
           winnerName: match.winner_username,
           winReason: match.win_reason,
           durationMs: match.duration_ms,
+          replayExpiresAt: match.replay_expires_at,
         };
       }
 
@@ -227,6 +230,7 @@ async function getReplay(matchId) {
           matchId: match.id,
           matchNumber: match.match_number,
           steps: replay,
+          replayExpiresAt: match.replay_expires_at,
           initialBoard: replay[0]?.boardSnapshot || [],
           p1Name: match.p1_username || 'Phe Xanh (P1)',
           p2Name: match.p2_username || 'Phe Đỏ (P2)',

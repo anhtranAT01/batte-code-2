@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import GameBoard from './GameBoard';
 import { runDuel, applyDuelEvent } from '../lib/duelStream';
+import {useLivePlayback} from '../lib/useLivePlayback';
 import { invalidatePublicData } from '../lib/publicData';
 import Icon from './Icons';
 import {readScreenData,peekScreenData} from '../lib/screenData';
@@ -16,14 +17,9 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
   const [botsLoading, setBotsLoading] = useState(()=>!peekScreenData('/api/bots/players'));
   const [selectionError, setSelectionError] = useState('');
   const [autoMatchData, setAutoMatchData] = useState(null);
-  const [currentStepIdx, setCurrentStepIdx] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [playSpeed, setPlaySpeed] = useState(1);
   const [isFullScreen, setIsFullScreen] = useState(false);
-  const timerRef = useRef(null);
   const requestRef = useRef(null);
   const playersRequest=useRef(0);
-  const playbackRef = useRef({ totalSteps: 0, loading: false });
   const [queuePosition, setQueuePosition] = useState(null);
 
   useEffect(() => () => requestRef.current?.abort(), []);
@@ -76,35 +72,13 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
 
   const replaySteps = autoMatchData?.replay?.steps || [];
   const totalSteps = replaySteps.length;
-  playbackRef.current = { totalSteps, loading };
+  const {currentStepIdx,setCurrentStepIdx,isPlaying,setIsPlaying,playSpeed,setPlaySpeed,
+    followLive,returnToLive,resetPlayback,togglePlayback} = useLivePlayback({totalSteps,loading,active:Boolean(autoMatchData)});
 
   const opponents = players.filter((player) => player.id !== user?.id);
   const selectedOpponent = opponents.find((player) => player.id === selectedOpponentId);
   const ownProfile = players.find((player) => player.id === user?.id);
   const canStart = Boolean(user && ownProfile?.ready && selectedOpponent?.ready);
-
-  // Autoplay step timer
-  useEffect(() => {
-    if (autoMatchData && isPlaying) {
-      const intervalMs = Math.max(120, 700 / playSpeed);
-      timerRef.current = setInterval(() => {
-        setCurrentStepIdx((prev) => {
-          if (prev >= playbackRef.current.totalSteps - 1) {
-            if (!playbackRef.current.loading) setIsPlaying(false);
-            return prev;
-          }
-          return prev + 1;
-        });
-      }, intervalMs);
-    } else {
-      if (timerRef.current) clearInterval(timerRef.current);
-    }
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [Boolean(autoMatchData), isPlaying, playSpeed]);
-
   const handlePickRandomOpponent = () => {
     const others = opponents.filter((player) => player.id !== selectedOpponentId);
     if (others.length) setSelectedOpponentId(others[Math.floor(Math.random() * others.length)].id);
@@ -119,8 +93,7 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
     setLoading(true);
     setSelectionError('');
     setAutoMatchData(null);
-    setCurrentStepIdx(0);
-    setIsPlaying(true);
+    resetPlayback();
     try {
       const result = await runDuel('/api/game/pvp', {
         body: { opponentUserId: selectedOpponentId, boardSize },
@@ -432,7 +405,7 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
                   Lượt Đấu
                 </span>
                 <strong className="text-base font-black font-mono text-cyan-400">
-                  {currentStepIdx} / {totalSteps}
+                  {totalSteps ? currentStepIdx + 1 : 0} / {totalSteps}
                 </strong>
               </div>
 
@@ -448,6 +421,10 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
                 <span className="w-3 h-3 rounded-full bg-red-500 shadow-glow-red animate-pulse" />
               </div>
             </div>
+
+            <p role="status" className="w-full mb-3 text-sm font-semibold text-emerald-400">
+              {selectionError ? 'Luồng trực tiếp bị gián đoạn' : loading ? (followLive ? '● Trực tiếp · Theo dõi lượt mới nhất' : 'Đang xem lại · Trận vẫn tiếp tục chạy') : 'Trận đã kết thúc · Có thể xem lại các nước đi'}
+            </p>
 
             {/* Central Game Board */}
             <GameBoard
@@ -476,7 +453,7 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
                     onClick={() => {
@@ -502,11 +479,11 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
                   </button>
                   <button
                     type="button"
-                    onClick={() => setIsPlaying(!isPlaying)}
+                    onClick={togglePlayback}
                     className="primary-action px-4 text-xs font-black shadow-glow-blue"
                   >
                     <Icon name={isPlaying ? 'pause' : 'play'} size={15} />
-                    <span>{isPlaying ? 'Tạm Dừng' : 'Tự Động Chạy'}</span>
+                    <span>{followLive ? (loading ? 'Tạm dừng xem' : 'Xem lại từ đầu') : isPlaying ? 'Tạm Dừng' : 'Tự Động Chạy'}</span>
                   </button>
                   <button
                     type="button"
@@ -523,12 +500,11 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
                   <button
                     type="button"
                     onClick={() => {
-                      setCurrentStepIdx(Math.max(0, totalSteps - 1));
-                      setIsPlaying(false);
+                      returnToLive();
                     }}
                     className="secondary-action text-xs"
                   >
-                    <span>Tua Tới Kết Thúc</span>
+                    <span>{loading ? 'Về trực tiếp ●' : 'Tới lượt cuối'}</span>
                   </button>
                 </div>
 

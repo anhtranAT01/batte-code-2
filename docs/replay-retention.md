@@ -1,12 +1,16 @@
 # Replay: lưu trữ và hiệu năng
 
-Trong **Admin → Trận đấu → Tự dọn replay**, nhập số ngày lưu rồi bấm **Lưu thời gian**. `0` tắt tự xóa; phạm vi hợp lệ 0–3650 ngày. Mặc định là `0` để Admin chủ động bật. Bật hoặc rút ngắn thời gian cũng áp dụng cho replay cũ đã đủ hạn; giao diện yêu cầu xác nhận vì dữ liệu phát lại đã dọn không khôi phục được.
+Trong **Admin → Trận đấu → Tự dọn replay**, nhập số ngày lưu rồi bấm **Lưu thời gian**. `0` tắt tự xóa; phạm vi hợp lệ 0–3650 ngày. Mặc định là `1`: replay hết hạn sau đúng 24 giờ kể từ khi trận kết thúc. Admin vẫn có thể thay đổi thời gian hoặc tắt chính sách. Bật hoặc rút ngắn thời gian cũng áp dụng cho replay cũ đã đủ hạn; giao diện yêu cầu xác nhận vì dữ liệu phát lại đã dọn không khôi phục được.
 
-Thời gian được tính từ lúc chấm xong (`judged_at`), dự phòng bằng ngày tạo cho dữ liệu cũ. Không dọn trận chưa có kết quả, hoặc trận thuộc giải UPCOMING/ONGOING. Các giải này được xét lại khi kết thúc/hủy. Mỗi API instance kiểm tra sau khi khởi động 1 phút, sau đó mỗi 5 phút; khi còn tồn đọng, xử lý từng lô 100 trận, nghỉ 1 giây giữa các lô. Dùng khóa hàng `SKIP LOCKED`, transaction ngắn, giới hạn thời gian truy vấn để không dọn trùng hoặc khóa toàn bộ bảng. Tiến trình có thể phục hồi sau khi khởi động lại.
+Thời gian được tính từ lúc chấm xong (`judged_at`), dự phòng bằng ngày tạo cho dữ liệu cũ. Không dọn trận chưa có kết quả. Trận đã kết thúc trong giải đang diễn ra cũng áp dụng cùng thời hạn; bảng điểm giải vẫn được giữ. Mỗi API instance kiểm tra sau khi khởi động 1 phút, sau đó mỗi 5 phút; khi còn tồn đọng, xử lý từng lô 100 trận, nghỉ 1 giây giữa các lô. Dùng khóa hàng `SKIP LOCKED`, transaction ngắn, giới hạn thời gian truy vấn để không dọn trùng hoặc khóa toàn bộ bảng. Tiến trình có thể phục hồi sau khi khởi động lại.
 
-Chỉ bỏ `steps`, `initialBoard`, `mapConfig`; giữ dòng Matches, mã trận, người chơi, kết quả, Elo, thông tin hiển thị, tổng lượt và dữ liệu bảng điểm. Đánh dấu `replay_expired_at` để danh sách báo hết hạn và API trả HTTP 410. Không xóa bot hay bài nộp. PostgreSQL tái sử dụng vùng lưu trữ sau autovacuum; kích thước ổ đĩa được nhà cung cấp báo có thể chưa giảm ngay. Không chạy VACUUM FULL trong luồng xử lý người chơi.
+Chỉ bỏ `steps`, `initialBoard`, `mapConfig`; giữ dòng Matches, mã trận, người chơi, kết quả, Elo, thông tin hiển thị, tổng lượt và dữ liệu bảng điểm. API kiểm tra thời hạn ngay khi đọc (HTTP 410), không chờ tiến trình dọn. Danh sách trận trả `replay_expires_at` và trạng thái hết hạn theo cùng chính sách. Khi dọn xong, đánh dấu `replay_expired_at`. Không xóa bot hay bài nộp. PostgreSQL tái sử dụng vùng lưu trữ sau autovacuum; kích thước ổ đĩa được nhà cung cấp báo có thể chưa giảm ngay. Không chạy VACUUM FULL trong luồng xử lý người chơi.
 
-Migration `backend/src/scripts/replayRetention.sql` chạy tự động trong bước deploy database hiện có, sau `resilience.sql`; có thể chạy lại an toàn. Quyền API GET/PUT `/api/admin/replay-retention` kiểm tra cả JWT và quyền ADMIN hiện tại trong DB. Giáo viên/sinh viên không được đổi chính sách.
+Migration `backend/src/scripts/replayRetention.sql` chạy tự động trong bước deploy database hiện có, sau `resilience.sql`; có thể chạy lại an toàn. `replayRetention24h.sql` chuyển cả cài đặt hiện có sang 1 ngày đúng một lần; marker đảm bảo những lần deploy sau không ghi đè thay đổi của Admin. Deploy bản này cũng áp dụng cho replay cũ đã đủ 24 giờ. Quyền API GET/PUT `/api/admin/replay-retention` kiểm tra cả JWT và quyền ADMIN hiện tại trong DB. Giáo viên/sinh viên không được đổi chính sách.
+
+## Xem trực tiếp trận bot
+
+Đấu Boss và PvP nhận bàn cờ qua luồng NDJSON trong khi máy chấm chạy. Mặc định hiển thị ngay snapshot mới nhất, không xếp hàng phát từng bước chậm hơn máy chấm. Người xem có thể tạm dừng/tua lại mà trận vẫn tiếp tục, rồi bấm **Về trực tiếp** để về lượt mới nhất. Khi kết thúc có thể chủ động xem lại từ đầu. Tốc độ 1x/2x/4x chỉ điều khiển phát lại. Hạn lưu phía máy chủ không thu hồi những bản người dùng đã tải về.
 
 ## Các thay đổi giúp tải và phát nhanh hơn
 
@@ -21,6 +25,8 @@ Migration `backend/src/scripts/replayRetention.sql` chạy tự động trong b�
 
 `npm run test:replay` (frontend): 320 bước, giới hạn 50 dòng, phân trang/tua, hủy tải cũ, replay hết hạn, xác nhận/cancel/lưu/tắt chính sách.
 
-`npm run test:replay-retention` (backend), với `TEST_PGLITE_MODULE` trỏ đến PGlite: PostgreSQL tạm trên máy, không dùng DATABASE_URL hay Redis thật. Bao gồm migration chạy hai lần, mặc định tắt, quyền Admin hiện tại, giới hạn đầu vào, ngưỡng thời gian, bảo vệ giải đang thi và trận chưa kết thúc, lô 100/100/5, giữ kết quả/tổng lượt/bảng điểm, HTTP 410 và gzip. Fixture lặp bàn cờ 447.428 byte còn khoảng 5.818 byte qua gzip; dữ liệu thực tế có tỷ lệ khác.
+`npm run test:replay-retention` (backend), với `TEST_PGLITE_MODULE` trỏ đến PGlite: PostgreSQL tạm trên máy, không dùng DATABASE_URL hay Redis thật. Bao gồm migration chạy lại an toàn, mặc định 24 giờ/chuyển cài đặt cũ/bảo toàn thay đổi Admin sau deploy, hết hạn ngay cả trước khi dọn, quyền Admin hiện tại, giới hạn đầu vào, bảo vệ trận chưa kết thúc, lô 100/100/5, giữ kết quả/tổng lượt/bảng điểm, HTTP 410 và gzip. Fixture lặp bàn cờ 447.428 byte còn khoảng 5.818 byte qua gzip; dữ liệu thực tế có tỷ lệ khác.
 
 `npm run test:standings-performance` (backend): fixture 1.000 người/3.500 trận, kiểm tra thống kê giống cách tính cũ. Trung vị 7 lượt đo trên máy phát triển: vòng lặp cũ 28,25 ms, gom trận mới 2,53 ms. Chỉ đo phần tính toán trên fixture trong RAM; không phải cam kết độ trễ toàn bộ hệ thống hoặc sức chứa Render.
+
+`node tests/duel-stream.cjs` (frontend): nhận snapshot trước khi trận kết thúc, bám lượt mới nhất, tạm dừng/tua/về trực tiếp trong khi luồng vẫn chạy và hủy khi rời màn hình.

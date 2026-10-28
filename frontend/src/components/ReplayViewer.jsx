@@ -140,6 +140,9 @@ export default function ReplayViewer({ initialReplay = null, onBack = null }) {
                   'Tua từng bước cờ, theo dõi biến động thế trận, bình phép và phát hiện lỗi vòng lặp vô hạn'
                 )}
               </p>
+              {replay?.replayExpiresAt && <p className="text-xs text-slate-400 mt-1">
+                Replay được lưu đến {new Date(replay.replayExpiresAt).toLocaleString('vi-VN')}. Kết quả trận vẫn được giữ sau khi replay hết hạn.
+              </p>}
             </div>
           </div>
 
