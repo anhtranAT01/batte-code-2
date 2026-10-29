@@ -19,3 +19,6 @@ redis_data/
 
 # Private credentials for explicitly requested demo runs
 .local-demo/
+# User requested keeping live demo reports local
+docs/live-demo-results.json
+docs/live-demo-run.md
