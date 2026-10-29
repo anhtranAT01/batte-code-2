@@ -47,7 +47,7 @@ async function main(){
     act(()=>tree.unmount());assert.equal(timers.size,0);
   }finally{global.setTimeout=setTimeoutOriginal;global.clearTimeout=clearTimeoutOriginal;}
   act(()=>{tree=create(React.createElement(Rules,{onGoToTemplates:()=>navigations++}));});
-  assert.equal(tree.root.findAllByType('section').length,4);
+  assert.equal(tree.root.findAllByType('section').length,6);
   for(const title of ['Kéo thắng Giấy','Búa thắng Kéo','Giấy thắng Búa'])assert.ok(text(tree.toJSON()).includes(title));
   assert.ok(text(tree.toJSON()).includes('(7, 7)'));
   act(()=>tree.root.findAllByType('button').find(n=>text(n).trim()==='Mở bot mẫu').props.onClick());assert.equal(navigations,2);act(()=>tree.unmount());
