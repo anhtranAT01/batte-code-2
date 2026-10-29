@@ -233,6 +233,7 @@ async function getTournamentStandings(tournamentId) {
   const matchesRes = await query(
     `SELECT m.id, m.player1_id, m.player2_id, m.winner_id, m.win_reason,
             m.duration_ms, m.p1_elo_change, m.p2_elo_change, m.has_infinite_loop_error,
+            CASE m.replay_json->>'winner' WHEN '1' THEN 1 WHEN '2' THEN 2 ELSE NULL END AS winner_side,
             ${totalTurnsSql()} AS total_turns
      FROM "Matches" m
      WHERE m.tournament_id = $1`,
@@ -272,7 +273,7 @@ async function getTournamentStandings(tournamentId) {
       if (m.winner_id === p.userId) {
         wins++;
         if (m.duration_ms > 0) winDurations.push(m.duration_ms);
-      } else if (m.winner_id && m.winner_id !== p.userId) {
+      } else if ((m.winner_id && m.winner_id !== p.userId) || (!m.player2_id && Number(m.winner_side) === 2)) {
         losses++;
       } else if (m.win_reason === 'DRAW') {
         draws++;
