@@ -90,7 +90,14 @@ async function verify() {
   const list=await api('/api/tournaments',null,null,'GET');
   for(const t of list.filter(t=>state.tournaments?.some(s=>s.id===t.id))) {
     const standings=await api(`/api/tournaments/${t.id}/standings`,null,null,'GET');
-    state.snapshots.push({id:t.id,name:t.name,status:t.status,brackets:t.brackets_json,standings});
+    const ids=t.mode==='BRANCHES'?(t.brackets_json||[]).map(m=>m.matchId):(t.settings_json?.participants||[]).map(p=>p.lastMatchId);
+    const replays=[];
+    for(const id of ids.filter(Boolean)) {
+      const replay=await api(`/api/game/replay/${id}`,null,null,'GET');
+      assert.equal(replay.tournamentId,t.id);assert.ok(replay.steps?.length>0);
+      replays.push({matchId:id,matchNumber:replay.matchNumber,winner:replay.winner,winReason:replay.winReason,totalTurns:replay.steps.length,p1Name:replay.p1Name,p2Name:replay.p2Name});
+    }
+    state.snapshots.push({id:t.id,name:t.name,status:t.status,brackets:t.brackets_json,standings,replays});
     console.log(`VERIFIED ${t.name} ${t.status}`);
   }
   save();
