@@ -300,6 +300,7 @@ async function runAutomatedBotDuel({
   boardSize = 9,
   difficulty = 'medium',
   onProgress, signal, requestKey,
+  tournamentId = null,
 }) {
   const matchId = crypto.randomUUID();
   const validSize = boardSize === 8 ? 8 : 9;
@@ -351,7 +352,7 @@ async function runAutomatedBotDuel({
     systemBot2 = getPracticeBot(bot2Level, 2);
   }
 
-  const metadata = {mode:player2UserId ? 'PVP' : 'PRACTICE',p1Name:userName,
+  const metadata = {mode:tournamentId ? 'TOURNAMENT' : player2UserId ? 'PVP' : 'PRACTICE',tournamentId,p1Name:userName,
     p2Name:player2Username || bot2Name,p1BotName:bot1Name,p2BotName:bot2Name};
   const simulated = await duelExecutor.run({matchId,size:validSize,difficulty,participants:{
     1:{name:bot1Name,level:template1?.bot.level,scriptPath:bot1ScriptPath},
@@ -369,8 +370,8 @@ async function runAutomatedBotDuel({
   try {
     const winnerId = game.winner === 1 ? userId : (game.winner === 2 && player2UserId ? player2UserId : null);
     const persisted = await query(
-      `INSERT INTO "Matches" (id, player1_id, player2_id, player1_bot_id, player2_bot_id, map_id, winner_id, win_reason, duration_ms, replay_json,judged_at)
-       VALUES ($1, $2, $3, $4, $5, (SELECT id FROM "Maps" LIMIT 1), $6, $7, $8, $9,NOW())
+      `INSERT INTO "Matches" (id, player1_id, player2_id, player1_bot_id, player2_bot_id, map_id, winner_id, win_reason, duration_ms, replay_json,judged_at,tournament_id)
+       VALUES ($1, $2, $3, $4, $5, (SELECT id FROM "Maps" LIMIT 1), $6, $7, $8, $9,NOW(),$10)
        ON CONFLICT (id) DO NOTHING RETURNING match_number;`,
       [
         matchId,
@@ -382,6 +383,7 @@ async function runAutomatedBotDuel({
         game.winReason || 'CHECKMATE',
         durationMs,
         JSON.stringify(replayJson),
+        tournamentId,
       ]
     );
     if (persisted.rows[0]?.match_number) replayJson.matchNumber = persisted.rows[0].match_number;
@@ -402,6 +404,7 @@ async function runAutomatedBotDuel({
       );
     }
   } catch (dbErr) {
+    if(tournamentId)throw dbErr;
     console.warn('[AutoMatch DB Warning]:', dbErr.message);
   }
 

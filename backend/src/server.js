@@ -87,7 +87,7 @@ app.use('/api/support',require('./support/support.routes'));
 // System Health Check
 app.get('/api/health', async (req, res) => {
   const health=await require('./support/systemHealth').check();
-  res.set('Cache-Control','no-store').status(health.database==='online'?200:503).json(health);
+  res.set('Cache-Control','no-store').status(health.database==='online'?200:503).json({...health,capabilities:{realBracketMatches:true}});
 });
 
 // Real-time WebSocket connection handling

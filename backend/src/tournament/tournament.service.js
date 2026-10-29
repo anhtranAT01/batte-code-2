@@ -261,6 +261,7 @@ async function getTournamentStandings(tournamentId) {
     let infiniteLoopErrors = 0;
 
     for (const m of matchesByPlayer.get(p.userId) || []) {
+      if(!m.win_reason)continue;
       const isP1 = m.player1_id === p.userId;
       const isP2 = m.player2_id === p.userId;
 
@@ -291,7 +292,7 @@ async function getTournamentStandings(tournamentId) {
       }
     }
 
-    const calculatedPoints = wins * 1 + draws * 0.5 + (p.points > (wins + draws * 0.5) ? (p.points - wins - draws * 0.5) : 0);
+    const calculatedPoints = Math.max(wins * (settings.scoringRules?.winPoints ?? 1) + draws * (settings.scoringRules?.drawPoints ?? 0.5), Number(p.points) || 0);
     const winRate = matchesPlayed > 0 ? Math.round((wins / matchesPlayed) * 100) : 0;
     const avgWinDurationMs =
       winDurations.length > 0

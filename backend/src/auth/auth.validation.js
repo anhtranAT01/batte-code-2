@@ -17,7 +17,7 @@ const registerSchema = z.object({
   adminRegistrationSecret: z.string().max(256).optional(),
   studentId:z.string().trim().min(3).max(50).regex(/^[a-zA-Z0-9_-]+$/),
   teamName:z.string().trim().min(2).max(100),
-  email:z.string().trim().toLowerCase().email().max(254),
+  email:z.string().trim().toLowerCase().email({message:'Email không đúng định dạng. Vui lòng kiểm tra lại email, tài khoản và mật khẩu.'}).max(254),
   consent:z.literal(true,{errorMap:()=>({message:'Bạn cần đồng ý quy chế và việc xử lý dữ liệu để đăng ký.'})}),
 });
 

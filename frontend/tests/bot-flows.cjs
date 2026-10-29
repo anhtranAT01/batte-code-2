@@ -150,6 +150,18 @@ async function main() {
   act(() => tree.unmount());
   console.log('PASS: privileged signup requests a separate secret; student signup never sends it');
 
+  auth = {...auth,register:async () => { throw new Error('Email đã được sử dụng.'); }};
+  await act(async () => { tree = create(React.createElement(AuthModal,{isOpen:true,initialMode:'register',onClose(){}})); });
+  await act(async () => { tree.root.findByProps({type:'email'}).props.onInvalid(); });
+  assert.ok(JSON.stringify(tree.toJSON()).includes('kiểm tra lại email, tài khoản và mật khẩu'));
+  await act(async () => { tree.root.findByProps({type:'email'}).props.onChange({target:{value:'fixed@example.com'}}); });
+  assert.ok(!JSON.stringify(tree.toJSON()).includes('Email không hợp lệ.'));
+  await act(async () => { await tree.root.findByType('form').props.onSubmit({preventDefault(){}}); });
+  assert.ok(JSON.stringify(tree.toJSON()).includes('Email đã được sử dụng.'));
+  assert.ok(JSON.stringify(tree.toJSON()).includes('kiểm tra lại email, tài khoản và mật khẩu'));
+  act(() => tree.unmount());
+  console.log('PASS: invalid/duplicate email shows email, account and password guidance; editing clears stale error');
+
   global.fetch = async () => response([
     {id:'boss-win',p1_username:'trex',p2_username:'Boss AI',winner_username:'Boss AI',winner_side:2,result_known:true,win_reason:'FLAG_CAPTURE'},
     {id:'draw',p1_username:'trex',p2_username:'Boss AI',winner_side:null,result_known:true,win_reason:'DRAW'},

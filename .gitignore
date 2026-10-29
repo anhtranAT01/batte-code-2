@@ -16,3 +16,6 @@ storage/bots/
 # Docker data mounts (if any created locally)
 postgres_data/
 redis_data/
+
+# Private credentials for explicitly requested demo runs
+.local-demo/

@@ -239,6 +239,7 @@ async function batchGradeTournament(req, res, next) {
           userName: p.username,
           bot1Id: p.botId,
           bot2Level: testBossLevel,
+          tournamentId: id,
           boardSize: settings.boardSize || 9,
           difficulty: 'medium',
         });
@@ -450,64 +451,27 @@ async function assignBracketSlot(req, res, next) {
  * Automatically execute all pending bracket matches
  */
 async function runBracketMatches(req, res, next) {
+  const {pool} = require('../config/db');
+  const client = await pool.connect();
+  let locked = false;
   try {
-    const { id } = req.params;
-    const tourneyRes = await query('SELECT * FROM "Tournaments" WHERE id = $1', [id]);
-    const tourney = tourneyRes.rows[0];
-    if (!tourney) return res.status(404).json({ success: false, message: 'Không tìm thấy giải đấu.' });
-
-    let brackets = tourney.brackets_json || [];
-    let updatedCount = 0;
-
-    for (let i = 0; i < brackets.length; i++) {
-      const match = brackets[i];
-      if (match.status !== 'COMPLETED' && match.p1?.name && match.p2?.name && !match.p1.name.includes('Thắng') && !match.p2.name.includes('Thắng')) {
-        const p1Score = Math.random() > 0.4 ? 1 : 0;
-        const p2Score = p1Score === 1 ? 0 : 1;
-        match.p1.score = p1Score;
-        match.p2.score = p2Score;
-        match.winner = p1Score > p2Score ? match.p1.name : match.p2.name;
-        match.status = 'COMPLETED';
-        updatedCount++;
-
-        // Propagate winner to next round
-        if (match.id === 'b_qf1' || match.id === 'bracket_qf1') {
-          const sf1 = brackets.find(b => b.id === 'b_sf1' || b.id === 'bracket_sf1');
-          if (sf1) sf1.p1 = { name: match.winner, bot: match.p1.name === match.winner ? match.p1.bot : match.p2.bot, score: null };
-        } else if (match.id === 'b_qf2' || match.id === 'bracket_qf2') {
-          const sf1 = brackets.find(b => b.id === 'b_sf1' || b.id === 'bracket_sf1');
-          if (sf1) sf1.p2 = { name: match.winner, bot: match.p1.name === match.winner ? match.p1.bot : match.p2.bot, score: null };
-        } else if (match.id === 'b_qf3' || match.id === 'bracket_qf3') {
-          const sf2 = brackets.find(b => b.id === 'b_sf2' || b.id === 'bracket_sf2');
-          if (sf2) sf2.p1 = { name: match.winner, bot: match.p1.name === match.winner ? match.p1.bot : match.p2.bot, score: null };
-        } else if (match.id === 'b_qf4' || match.id === 'bracket_qf4') {
-          const sf2 = brackets.find(b => b.id === 'b_sf2' || b.id === 'bracket_sf2');
-          if (sf2) sf2.p2 = { name: match.winner, bot: match.p1.name === match.winner ? match.p1.bot : match.p2.bot, score: null };
-        } else if (match.id === 'b_sf1' || match.id === 'bracket_sf1') {
-          const fn = brackets.find(b => b.id === 'b_fn1' || b.id === 'bracket_fn1');
-          if (fn) fn.p1 = { name: match.winner, bot: match.p1.name === match.winner ? match.p1.bot : match.p2.bot, score: null };
-        } else if (match.id === 'b_sf2' || match.id === 'bracket_sf2') {
-          const fn = brackets.find(b => b.id === 'b_fn1' || b.id === 'bracket_fn1');
-          if (fn) fn.p2 = { name: match.winner, bot: match.p1.name === match.winner ? match.p1.bot : match.p2.bot, score: null };
-        }
-      }
-    }
-
-    await query('UPDATE "Tournaments" SET brackets_json = $1, status = \'ONGOING\', updated_at = NOW() WHERE id = $2', [
-      JSON.stringify(brackets),
-      id,
-    ]);
-
-    return res.status(200).json({
-      success: true,
-      message: `Đã tự động mô phỏng xong các trận đấu trong nhánh! Đã cập nhật kết quả và đẩy người thắng vào vòng kế tiếp.`,
-      data: brackets,
+    const {id} = req.params;
+    locked = (await client.query('SELECT pg_try_advisory_lock(hashtext($1)) AS locked', [id])).rows[0].locked;
+    if(!locked)return res.status(409).json({success:false,message:'Giải này đang được chấm. Vui lòng chờ hoàn tất.'});
+    const tournament=(await client.query('SELECT * FROM "Tournaments" WHERE id=$1',[id])).rows[0];
+    if(!tournament)return res.status(404).json({success:false,message:'Không tìm thấy giải đấu.'});
+    const result=await require('../tournament/runRealBrackets').runRealBrackets({
+      tournament,
+      play:gameService.runAutomatedBotDuel,
+      checkpoint:async(brackets,status)=>client.query('UPDATE "Tournaments" SET brackets_json=$1,status=$2,updated_at=NOW() WHERE id=$3',[JSON.stringify(brackets),status,id]),
     });
-  } catch (err) {
-    next(err);
+    return res.json({success:true,message:`Đã chạy ${result.played} trận bot thật. ${result.completed?'Giải đấu đã hoàn tất.':'Trận hòa hoặc ô chưa đủ người cần được xử lý trước vòng tiếp theo.'}`,data:result.brackets});
+  } catch(error) {next(error);}
+  finally {
+    try {if(locked)await client.query('SELECT pg_advisory_unlock(hashtext($1))',[req.params.id]);}
+    finally {client.release();}
   }
 }
-
 module.exports = {
   listMatches,
   deleteMatch,

@@ -46,7 +46,10 @@ export default function AuthModal({ isOpen, initialMode = 'login', onClose }) {
       }
       onClose();
     } catch (err) {
-      setError(err.message || 'Thao tác không thành công.');
+      const hint = mode === 'REGISTER'
+        ? 'Vui lòng kiểm tra lại email, tài khoản và mật khẩu.'
+        : 'Vui lòng kiểm tra lại tài khoản/email và mật khẩu.';
+      setError(`${err.message || 'Thao tác không thành công.'} ${hint}`);
     } finally {
       setLoading(false);
     }
@@ -218,10 +221,11 @@ export default function AuthModal({ isOpen, initialMode = 'login', onClose }) {
                   <input
                     type="email"
                     required
+                    onInvalid={() => setError('Email không hợp lệ. Vui lòng kiểm tra lại email, tài khoản và mật khẩu.')}
                     maxLength={254}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-navy-900/90 border border-white/10 text-white text-sm"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => { setEmail(e.target.value); setError(''); }}
                     placeholder="email@example.com"
                   />
                   <p className="text-[11px] text-slate-400 mt-1">Mỗi email và MSSV chỉ được gắn với một tài khoản duy nhất.</p>

@@ -4,7 +4,8 @@ const { GamePiece } = require('./piece');
 
 // Test the real duel service without a database or Python installation.
 const db = require('../config/db');
-db.query = async () => ({ rows: [] });
+const savedMatches=[];
+db.query = async (sql,args) => {if(sql.includes('INSERT INTO "Matches"'))savedMatches.push(args);return { rows: [] };};
 const python = require('./pythonRunner');
 python.executePythonBot = async () => { throw new Error('Built-in template unexpectedly invoked Python'); };
 const { getTemplateBot, playBotTurn } = require('./botDuel');
@@ -55,7 +56,9 @@ async function main() {
     ['template_alphabeta','EASY'], ['template_astar','MEDIUM'],
     ['template_speed','HARD'], ['template_heuristic','GRANDMASTER'],
   ]) {
-    const result = await runAutomatedBotDuel({bot1Id,bot2Level,boardSize,difficulty:'hard'});
+    const result = await runAutomatedBotDuel({bot1Id,bot2Level,boardSize,difficulty:'hard',tournamentId:'test-tournament'});
+    assert.equal(savedMatches.at(-1)[9],'test-tournament');
+    assert.equal(result.replay.mode,'TOURNAMENT');
     assert.ok(result.totalTurns > 0);
     assert.ok(result.winReason);
     if (bot1Id === 'template_alphabeta' && boardSize === 9) {
@@ -79,6 +82,7 @@ async function main() {
   }
   }
   console.log('PASS: eight full service duels complete on 8x8/9x9 with the selected algorithms and no fallback');
+  console.log('PASS: actual duel records and replay metadata retain the owning tournament ID');
   console.log(JSON.stringify(traces,null,2));
   await assert.rejects(runAutomatedBotDuel({bot1Id:'missing'}),/Không tìm thấy/);
   await assert.rejects(runAutomatedBotDuel({bot1Id:'template_astar',bot2Id:'missing'}),/Không tìm thấy/);
