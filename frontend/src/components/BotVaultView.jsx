@@ -180,7 +180,7 @@ export default function BotVaultView({onNavigateStatus}) {
   };
 
   return (
-    <div className="view-shell animate-fadeIn max-w-7xl mx-auto">
+    <div className="view-shell bot-vault-view animate-fadeIn max-w-7xl mx-auto">
       <p className="text-xs mb-3" role="status">{draftStatus}</p>
       {/* Header */}
       <div className="page-header">

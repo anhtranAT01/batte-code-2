@@ -6,6 +6,7 @@ import { installApiFetch } from './lib/api';
 import './index.css';
 import './light.css';
 import './ArenaDesign.css';
+import './PremiumGaming.css';
 
 if(import.meta.env.PROD&&'serviceWorker' in navigator){
   window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(error=>console.warn('Offline cache unavailable',error)));

@@ -40,7 +40,7 @@ export default function AlgorithmTrainingView({onGoToBots}) {
     <div className="lesson-picker" aria-label="Chọn thuật toán để học">
       {ALGORITHMS.map((algo,index)=><button type="button" key={algo.id} className="lesson-option" data-tone={['blue','violet','green'][index]} aria-pressed={selectedAlgo.id===algo.id}
         onClick={()=>{setIsPlaying(false);setSelectedAlgo(algo);setCurrentStep(0);}}>
-        <span className="lesson-option-top"><span className="learning-tag">{algo.difficulty}</span><span className="lesson-option-index">0{index+1}</span></span>
+        <span className="lesson-option-top"><span className="lesson-option-symbol" aria-hidden="true"><Icon name={['target','bracket','sparkles'][index]} size={21}/></span><span className="learning-tag">{algo.difficulty}</span><span className="lesson-option-index">0{index+1}</span></span>
         <strong>{SHORT_NAMES[index]}</strong><span className="lesson-option-description">{SHORT_SUMMARIES[index]}</span>
         <span className="lesson-option-bottom">{algo.steps.length} bước minh họa <Icon name={selectedAlgo.id===algo.id?'check':'chevronRight'} size={16} /></span>
       </button>)}

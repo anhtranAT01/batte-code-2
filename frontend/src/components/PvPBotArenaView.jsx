@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import GameBoard from './GameBoard';
+import {MatchOutcome} from './ArenaPresentation';
 import { runDuel, applyDuelEvent } from '../lib/duelStream';
 import {useLivePlayback} from '../lib/useLivePlayback';
 import { invalidatePublicData } from '../lib/publicData';
@@ -422,7 +423,7 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
               </div>
             </div>
 
-            <p role="status" className="w-full mb-3 text-sm font-semibold text-emerald-400">
+            <p role="status" className="match-stream-status w-full mb-3 text-sm font-semibold text-emerald-400">
               {selectionError ? 'Luồng trực tiếp bị gián đoạn' : loading ? (followLive ? '● Trực tiếp · Theo dõi lượt mới nhất' : 'Đang xem lại · Trận vẫn tiếp tục chạy') : 'Trận đã kết thúc · Có thể xem lại các nước đi'}
             </p>
 
@@ -531,10 +532,9 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
 
             {/* Victory Announcement Box */}
             {!loading && !selectionError && totalSteps > 0 && currentStepIdx >= totalSteps - 1 && (
-              <div className="p-6 rounded-2xl bg-gradient-to-r from-blue-950 via-navy-900 to-purple-950 border border-cyan-400/40 text-center space-y-3 shadow-2xl animate-fadeIn">
-                <span className="text-3xl">🏆</span>
+              <MatchOutcome tone={autoMatchData.winner===1?'victory':autoMatchData.winner===2?'defeat':'draw'}>
                 <h3 className="font-black text-xl text-white tracking-tight">
-                  CHIẾN THẮNG: {autoMatchData.winnerName}!
+                  {autoMatchData.winner == null ? 'HAI BOT HÒA NHAU' : `CHIẾN THẮNG: ${autoMatchData.winnerName}!`}
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-300 max-w-lg mx-auto leading-relaxed">
                   Lý do thắng: <strong className="text-amber-300">
@@ -558,7 +558,7 @@ export default function PvPBotArenaView({ onSelectReplay, preselectedOpponent = 
                     <span>Mở Trình Phân Tích Replay Chi Tiết</span>
                   </button>
                 )}
-              </div>
+              </MatchOutcome>
             )}
           </div>
 

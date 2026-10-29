@@ -18,6 +18,7 @@ function load(filename, imports = {}) {
 }
 const cache = load('../src/lib/publicData.js');
 const Leaderboard = load('../src/components/LeaderboardView.jsx', {
+  './ArenaPresentation': require('./load-arena-presentation.cjs'),
   '../context/AuthContext': { useAuth: () => ({ user: { id: 'me', username: 'Me' } }) },
   '../lib/publicData': cache,
   '../lib/matchLabel': load('../src/lib/matchLabel.js'),

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {readScreenData,peekScreenData} from '../lib/screenData';
 import { useAuth } from '../context/AuthContext';
 import GameBoard from './GameBoard';
+import {MatchOutcome} from './ArenaPresentation';
 import { runDuel, applyDuelEvent } from '../lib/duelStream';
 import {useLivePlayback} from '../lib/useLivePlayback';
 import { invalidatePublicData } from '../lib/publicData';
@@ -137,7 +138,7 @@ export default function BossArenaView({ onSelectReplay }) {
     [];
 
   return (
-    <div className="view-shell animate-fadeIn max-w-7xl mx-auto">
+    <div className="view-shell boss-view animate-fadeIn max-w-7xl mx-auto">
       {/* Header */}
       <div className="page-header">
         <div>
@@ -208,7 +209,7 @@ export default function BossArenaView({ onSelectReplay }) {
 
                   <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs font-medium">
                     <span className="text-slate-400">Độ khó:</span>
-                    <span className="text-white uppercase font-bold">{boss.difficulty}</span>
+                    <span className="text-white uppercase font-bold">{({easy:'Dễ',medium:'Vừa',hard:'Khó'})[boss.difficulty] || boss.difficulty}</span>
                   </div>
                 </div>
               );
@@ -307,7 +308,7 @@ export default function BossArenaView({ onSelectReplay }) {
               </div>
             </div>
 
-            <p role="status" className="w-full mb-3 text-sm font-semibold text-emerald-400">
+            <p role="status" className="match-stream-status w-full mb-3 text-sm font-semibold text-emerald-400">
               {matchError ? 'Luồng trực tiếp bị gián đoạn' : loading ? (followLive ? '● Trực tiếp · Theo dõi lượt mới nhất' : 'Đang xem lại · Trận vẫn tiếp tục chạy') : 'Trận đã kết thúc · Có thể xem lại các nước đi'}
             </p>
 
@@ -379,9 +380,9 @@ export default function BossArenaView({ onSelectReplay }) {
 
             {/* Result Announcement */}
             {!loading && !matchError && totalSteps > 0 && currentStepIdx >= totalSteps - 1 && (
-              <div className="w-full mt-4 p-4 rounded-xl bg-gradient-to-r from-indigo-950/60 to-purple-950/40 border border-indigo-500/30 text-center space-y-2">
+              <MatchOutcome tone={autoMatchData.winner===1?'victory':autoMatchData.winner===2?'defeat':'draw'}>
                 <h3 className="font-black text-base text-white">
-                  {autoMatchData.winner === 1 ? 'BOT CỦA BẠN ĐÃ CHIẾN THẮNG' : 'BOSS ĐÃ CHIẾN THẮNG'}
+                  {autoMatchData.winner === 1 ? 'BOT CỦA BẠN ĐÃ CHIẾN THẮNG' : autoMatchData.winner === 2 ? 'BOSS ĐÃ CHIẾN THẮNG' : 'HAI BOT HÒA NHAU'}
                 </h3>
                 <p className="text-xs text-slate-300">
                   Kết quả: <strong className="text-amber-300">
@@ -404,7 +405,7 @@ export default function BossArenaView({ onSelectReplay }) {
                     Mở trình phân tích replay
                   </button>
                 )}
-              </div>
+              </MatchOutcome>
             )}
           </div>
 

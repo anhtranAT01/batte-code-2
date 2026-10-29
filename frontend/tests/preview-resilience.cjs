@@ -20,21 +20,23 @@ app.put('/api/admin/replay-retention',(req,res)=>{replayRetentionDays=req.body.d
 app.get('/api/health',(req,res)=>res.json({timestamp:new Date().toISOString(),gateway:'online',database:'online',judge:'online',tournamentJudge:'online'}));
 app.get('/api/game/leaderboard',(req,res)=>res.json({success:true,data:peers.map((p,i)=>({...p,wins:12-i*3,losses:i+2,draws:1,active_bots:1}))}));
 app.get('/api/tournaments',(req,res)=>res.json({success:true,data:tourneys}));
+tourneys[1].brackets=Array.from({length:7},(_,index)=>({id:`fixture-round-${index}`,round:index<4?1:index<6?2:3,title:index<4?`Tứ kết ${index+1}`:index<6?`Bán kết ${index-3}`:'Chung kết',status:index===0?'COMPLETED':'PENDING',winner:index===0?'CyberWarriors':null,p1:{id:index===0?peers[1].id:peers[0].id,name:index===0?'CyberWarriors':'OfflineTester',bot:'Alpha-Beta',team:'Cyber Bots',score:index===0?1:null},p2:{id:peers[2].id,name:'AlphaTeam',bot:'Heuristic',team:'AI Lab',score:index===0?0:null}}));
 app.get('/api/tournaments/:id/standings',(req,res)=>res.json({success:true,data:{tournament:tourneys.find(t=>t.id===req.params.id),standings:peers.map((p,i)=>({...p,userId:p.id,teamName:p.username,points:9-i*3,wins:3-i,losses:i,elo:p.elo_rating,botName:'Heuristic'}))}}));
 app.get('/api/bots/my-bots',(req,res)=>res.json({success:true,data:[{id:'b-1',name:'Heuristic — Chiến thuật cướp cờ',is_active:true,status:'active',is_available:true}]}));
 app.get('/api/bots/players',(req,res)=>res.json({success:true,data:peers.map(p=>({...p,ready:true,bot:{id:'b-'+p.id,name:'Heuristic'}}))}));
 app.get('/api/bots/templates',(req,res)=>res.json({data:[{id:'heuristic_starter',name:'Heuristic Starter',filename:'heuristic.py',code:fs.readFileSync(path.resolve(__dirname,'../../sample-bots/heuristic.py'),'utf8')}]}));
 app.get('/api/support/submissions',(req,res)=>res.json({data:[...receipts.values()]}));
 const executor=require('../../backend/src/game/duelExecutor');
-app.post('/api/game/bot-vs-bot',async(req,res)=>{
+app.post(['/api/game/bot-vs-bot','/api/game/pvp'],async(req,res)=>{
   const controller=new AbortController();res.on('close',()=>controller.abort());
-  const meta={matchId:'local-preview',p1Name:'Bot mẫu của bạn',p2Name:'Boss AI'};
+  const pvp=req.path.endsWith('/pvp');
+  const meta={matchId:'local-preview',p1Name:pvp?'OfflineTester':'Bot mẫu của bạn',p2Name:pvp?'CyberWarriors':'Boss AI',p1BotName:'Alpha-Beta',p2BotName:pvp?'Heuristic':'Boss AI'};
   res.setHeader('Content-Type','application/x-ndjson');res.flushHeaders();
   const send=event=>{if(!res.destroyed)res.write(JSON.stringify(event)+'\n');};
   try{
     const data=await executor.run({matchId:meta.matchId,size:req.body.boardSize||9,difficulty:'easy',participants:{1:{name:meta.p1Name,level:'HARD'},2:{name:meta.p2Name,level:req.body.bot2Level||'EASY'}}},
       {signal:controller.signal,onProgress:event=>send(event.type==='started'?{...event,data:{...event.data,...meta}}:event)});
-    send({type:'completed',data:{...data,...meta}});
+    send({type:'completed',data:{...data,...meta,winnerName:data.winner===1?meta.p1Name:data.winner===2?meta.p2Name:null}});
   }catch(error){send({type:'error',message:error.message});}finally{res.end();}
 });
 app.post('/api/support/submissions',(req,res)=>{const data={id:req.body.id,name:req.body.name,status:'accepted',received_at:new Date().toISOString(),message:'Mock server received'};receipts.set(data.id,data);res.status(202).json({success:true,data});});

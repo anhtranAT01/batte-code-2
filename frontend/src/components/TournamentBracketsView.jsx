@@ -4,6 +4,8 @@ import { apiUrl } from '../lib/api';
 import {outbox, subscribeOutbox} from '../lib/outbox';
 import {readScreenData,peekScreenData} from '../lib/screenData';
 
+const STATUS_LABELS={UPCOMING:'Sắp diễn ra',ONGOING:'Đang diễn ra',COMPLETED:'Đã kết thúc',PENDING:'Chờ thi đấu',CANCELLED:'Đã hủy'};
+
 // Only the clock updates each second; standings and brackets stay unchanged.
 function TournamentCountdown({ scheduledStartAt }) {
   const [now, setNow] = useState(Date.now);
@@ -536,7 +538,7 @@ export default function TournamentBracketsView({ onSelectReplay, onNavigateStatu
           >
             {currentModeTournaments.map((t) => (
               <option key={t.id} value={t.id}>
-                {t.name} ({t.status})
+                {t.name} ({STATUS_LABELS[t.status] || t.status})
               </option>
             ))}
           </select>
@@ -546,7 +548,7 @@ export default function TournamentBracketsView({ onSelectReplay, onNavigateStatu
             <div className="text-xs text-slate-400 space-y-1.5 pt-2 border-t border-white/5">
               <div className="flex justify-between">
                 <span>Thể thức:</span>
-                <span className="font-bold text-white uppercase">{tourney.mode || tournamentMode}</span>
+                <span className="font-bold text-white uppercase">{(tourney.mode || tournamentMode)==='ALL_IN'?'Thi đấu toàn thể':'Đấu theo nhánh'}</span>
               </div>
               <div className="flex justify-between">
                 <span>Khoa / Đơn vị:</span>
@@ -570,7 +572,7 @@ export default function TournamentBracketsView({ onSelectReplay, onNavigateStatu
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                 tourney?.status === 'ONGOING' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'
               }`}>
-                {tourney?.status || 'UPCOMING'}
+                {STATUS_LABELS[tourney?.status || 'UPCOMING'] || tourney?.status}
               </span>
             </div>
 
@@ -1005,7 +1007,7 @@ export default function TournamentBracketsView({ onSelectReplay, onNavigateStatu
           </div>
 
           {/* Brackets Visual Tree */}
-          <div className="p-6 rounded-2xl bg-[#0e1322]/80 border border-white/5 backdrop-blur-md overflow-x-auto shadow-2xl">
+          <div className="tournament-bracket-stage p-6 rounded-2xl bg-[#0e1322]/80 border border-white/5 backdrop-blur-md overflow-x-auto shadow-2xl">
             <div className="min-w-[850px] grid grid-cols-3 gap-8">
               {/* ROUND 1: TỨ KẾT */}
               <div className="space-y-4">
@@ -1018,8 +1020,9 @@ export default function TournamentBracketsView({ onSelectReplay, onNavigateStatu
                   <div
                     key={m.id}
                     id={`bracket-match-${m.id}`}
+                    data-bracket-round={m.round}
                     onClick={() => handleSelectBracketMatch(m.id)}
-                    className={`p-3.5 rounded-xl bg-[#090d18] border space-y-2 relative cursor-pointer transition-all duration-300 ${
+                    className={`tournament-match-card p-3.5 rounded-xl bg-[#090d18] border space-y-2 relative cursor-pointer transition-all duration-300 ${
                       selectedBracketMatchId === m.id
                         ? 'border-indigo-500 ring-2 ring-indigo-500/80 shadow-[0_0_30px_rgba(99,102,241,0.45)] scale-[1.02] bg-indigo-950/20'
                         : 'border-white/10 hover:border-indigo-500/50'
@@ -1039,7 +1042,7 @@ export default function TournamentBracketsView({ onSelectReplay, onNavigateStatu
                         )}
                       </div>
                       <span className={`px-1.5 py-0.5 rounded ${m.status === 'COMPLETED' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/5 text-slate-400'}`}>
-                        {m.status}
+                        {STATUS_LABELS[m.status] || m.status}
                       </span>
                     </div>
 
@@ -1120,11 +1123,11 @@ export default function TournamentBracketsView({ onSelectReplay, onNavigateStatu
                   </span>
                 </div>
                 {brackets.filter(b => b.round === 2).map((m) => (
-                  <div key={m.id} className="p-3 rounded-xl bg-[#090d18] border border-white/10 space-y-2 relative group hover:border-purple-500/50 transition-all">
+                  <div key={m.id} data-bracket-round={m.round} className="tournament-match-card p-3 rounded-xl bg-[#090d18] border border-white/10 space-y-2 relative group hover:border-purple-500/50 transition-all">
                     <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
                       <span>{m.title}</span>
                       <span className={`px-1.5 py-0.5 rounded ${m.status === 'COMPLETED' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/5 text-slate-400'}`}>
-                        {m.status}
+                        {STATUS_LABELS[m.status] || m.status}
                       </span>
                     </div>
 
@@ -1155,11 +1158,11 @@ export default function TournamentBracketsView({ onSelectReplay, onNavigateStatu
                   </span>
                 </div>
                 {brackets.filter(b => b.round === 3).map((m) => (
-                  <div key={m.id} className="p-4 rounded-xl bg-gradient-to-b from-[#151c33] to-[#090d18] border-2 border-amber-500/50 space-y-3 shadow-2xl shadow-amber-500/10">
+                  <div key={m.id} data-bracket-round={m.round} className="tournament-match-card p-4 rounded-xl bg-gradient-to-b from-[#151c33] to-[#090d18] border-2 border-amber-500/50 space-y-3 shadow-2xl shadow-amber-500/10">
                     <div className="flex items-center justify-between text-xs font-bold text-amber-300">
                       <span>{m.title}</span>
                       <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px]">
-                        {m.status}
+                        {STATUS_LABELS[m.status] || m.status}
                       </span>
                     </div>
 

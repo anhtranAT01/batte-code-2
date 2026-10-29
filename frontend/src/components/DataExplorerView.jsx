@@ -39,7 +39,7 @@ export default function DataExplorerView({ onSelectReplay }) {
   });
 
   return (
-    <div className="view-shell animate-fadeIn">
+    <div className="view-shell history-view animate-fadeIn">
       {/* Header */}
       <div className="page-header">
         <div>

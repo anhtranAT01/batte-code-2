@@ -26,6 +26,7 @@ function component(name) {
   const js = transformSync(fs.readFileSync(filename,'utf8'),{loader:'jsx',format:'cjs'}).code;
   const module = {exports:{}};
   new Function('require','module','exports',js)((id) => {
+    if (id === './ArenaPresentation') return require('./load-arena-presentation.cjs');
     if (id === '../context/AuthContext') return {useAuth:() => auth};
     if (id === './GameBoard') return {__esModule:true,default:() => null};
     if (['./DeviceSafety','./OfflineLab','./PasswordRecovery','./Icons'].includes(id)) return {__esModule:true,default:()=>null};

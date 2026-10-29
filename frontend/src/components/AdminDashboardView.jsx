@@ -306,7 +306,7 @@ export default function AdminDashboardView({ onSelectReplay }) {
   };
 
   return (
-    <div className="view-shell animate-fadeIn max-w-7xl mx-auto">
+    <div className="view-shell admin-view animate-fadeIn max-w-7xl mx-auto">
       {/* Header */}
       <div className="page-header">
         <div>

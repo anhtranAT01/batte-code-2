@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getPublicData, peekPublicData, invalidatePublicData } from '../lib/publicData';
 import Icon from './Icons';
+import {ArenaShowcase,ArenaModeCard} from './ArenaPresentation';
 import './LeaderboardView.css';
 
 const LEADERBOARD_PATH = '/api/game/leaderboard?limit=25';
@@ -140,22 +141,24 @@ export default function LeaderboardView({ onSelectReplay, onChallengePlayer, onE
     <div className="view-shell overview-view animate-fadeIn space-y-8">
       <section className="arena-welcome">
         <div className="welcome-copy">
-          <span className="arena-eyebrow"><Icon name="swords" size={15} /> BATTLECODE / ĐẤU TRƯỜNG THUẬT TOÁN</span>
+          <span className="arena-eyebrow"><Icon name="swords" size={15} /> BATTLECODE ARENA · SÀN ĐẤU THUẬT TOÁN</span>
           <h1>Viết chiến thuật.<br /><em>Làm chủ bàn cờ.</em></h1>
           <p>Biến những dòng Python thành nước đi quyết định. Thử sức với Boss AI, so tài cùng người chơi và chinh phục các giải đấu.</p>
           {onNavigateTab && <div className="welcome-actions">
-            <button type="button" className="primary-action" onClick={()=>onNavigateTab('pvp')}><Icon name="swords" size={17} />Bắt Đầu Thi Đấu Ngay<Icon name="chevronRight" size={16} /></button>
-            <button type="button" className="secondary-action" onClick={()=>onNavigateTab('training')}><Icon name="algorithm" size={16} />Luyện Thuật Toán AI</button>
+            <button type="button" className="primary-action" onClick={()=>onNavigateTab('pvp')}><Icon name="swords" size={17} />Chơi ngay<Icon name="chevronRight" size={16} /></button>
+            <button type="button" className="secondary-action" onClick={()=>onNavigateTab('training')}><Icon name="algorithm" size={16} />Luyện tập AI</button>
             <button type="button" className="welcome-link" onClick={()=>onNavigateTab('tournament')}>Khám Phá Giải Đấu ↗</button>
           </div>}
           <div className="welcome-facts"><span><b>Python</b> Ngôn ngữ bot</span><span><b>8×8 · 9×9</b> Bàn thi đấu</span><span><b>Elo</b> Xếp hạng kỹ năng</span></div>
         </div>
-        <div className="welcome-visual" aria-hidden="true">
-          <div className="welcome-visual-label"><Icon name="code" size={16} /><span>YOUR CODE. YOUR STRATEGY.</span></div>
-          <div className="welcome-mini-board">{Array.from({length:36},(_,i)=><span key={i} className={[0,2,4,8,12].includes(i)?'mini-blue':[23,27,31,33,35].includes(i)?'mini-red':i===14||i===21?'mini-wall':''}>{[0,4,31,35].includes(i)?'✊':[2,12,23,33].includes(i)?'✂':i===8||i===27?'▤':i===14||i===21?'▪':''}</span>)}</div>
-          <div className="welcome-code"><span>def</span> choose_move(state):<br />&nbsp; <span>return</span> your_best_strategy</div>
-        </div>
+        <ArenaShowcase />
       </section>
+
+      {onNavigateTab && <section className="arena-modes-grid" aria-label="Chọn cách tham gia đấu trường">
+        <ArenaModeCard tone="blue" icon="swords" title="Đấu trường PvP" description="Hai người chơi. Hai chiến thuật. Một bàn cờ." action="Thách đấu ngay" onClick={()=>onNavigateTab('pvp')} />
+        <ArenaModeCard tone="violet" icon="algorithm" title="Phòng luyện AI" description="Khám phá A*, Minimax và cách bot quyết định." action="Bắt đầu luyện tập" onClick={()=>onNavigateTab('training')} />
+        <ArenaModeCard tone="gold" icon="trophy" title="Chinh phục giải đấu" description="Theo dõi lịch, ghi danh và tranh tài cùng cộng đồng." action="Khám phá giải đấu" onClick={()=>onNavigateTab('tournament')} />
+      </section>}
 
       {/* 2. COMMANDER DASHBOARD (If Authenticated) */}
       {user && (

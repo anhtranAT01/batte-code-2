@@ -10,6 +10,7 @@ function load(filename) {
   const module = {exports:{}};
   const js = transformSync(fs.readFileSync(filename,'utf8'),{loader:filename.endsWith('.jsx') ? 'jsx' : 'js',format:'cjs'}).code;
   new Function('require','module','exports',js)(id => {
+    if (id === './ArenaPresentation') return require('./load-arena-presentation.cjs');
     if (id === '../context/AuthContext') return {useAuth:() => ({user:null,getAuthHeaders:() => ({})})};
     if (id === './GameBoard') return {__esModule:true,default:() => React.createElement('div',{'data-board':true})};
     if (id.startsWith('../lib/')) return load(path.resolve(path.dirname(filename),id+'.js'));
@@ -130,6 +131,19 @@ async function main() {
   assert.equal(playback.followLive,true,'A new match resets to live following');
   await act(async()=>tree.unmount());
   console.log('PASS: shared Boss/PvP playback steps from visible live position, shows final board, replays explicitly and resets for a new match');
+
+  await act(async()=>{tree=create(React.createElement(Boss));});
+  await act(async()=>{
+    running=tree.root.findAllByType('button').find(n=>text(n.props.children).includes('Khởi Tranh Tự Động')).props.onClick();
+    await tick();sender.enqueue(encode(initial));
+    sender.enqueue(encode({type:'completed',data:{...finished,winner:null,winReason:'DRAW'}}));sender.close();
+    await running;
+  });
+  assert.match(text(tree.toJSON()),/HAI BOT HÒA NHAU/);
+  assert.equal(tree.root.findByProps({'aria-label':'Kết quả trận đấu'}).props['data-outcome'],'draw');
+  assert.ok(!text(tree.toJSON()).includes('BOSS ĐÃ CHIẾN THẮNG'),'A draw is never announced as a Boss victory');
+  await act(async()=>tree.unmount());
+  console.log('PASS: completed drawn game keeps its result and receives a neutral outcome presentation');
 
   const Boundary = load(path.resolve(__dirname,'../src/components/ViewBoundary.jsx')).default;
   const unavailableView = () => { throw new Error('Failed to fetch dynamically imported module'); };
